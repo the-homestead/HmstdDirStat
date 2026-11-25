@@ -37,7 +37,7 @@ fn summary_lines(summary: &ScanSummary) -> Vec<String> {
     } else {
         "Totals: PARTIAL, some folders could not be read".to_string()
     };
-    vec![
+    let mut lines = vec![
         format!("Root: {}", summary.root.display()),
         format!(
             "Files: {}   Folders: {}",
@@ -48,6 +48,10 @@ fn summary_lines(summary: &ScanSummary) -> Vec<String> {
         physical,
         completeness,
         format!("Issues: {}", format_count(summary.issues)),
+    ];
+    // Name the unreadable paths so skipped folders are visible, not just counted.
+    lines.extend(summary.issue_paths.iter().map(|issue| format!("  {issue}")));
+    lines.extend([
         format!(
             "Hard links counted once: {}",
             format_count(summary.hardlink_duplicates)
@@ -57,5 +61,6 @@ fn summary_lines(summary: &ScanSummary) -> Vec<String> {
             summary.elapsed.as_secs_f64(),
             summary.method
         ),
-    ]
+    ]);
+    lines
 }

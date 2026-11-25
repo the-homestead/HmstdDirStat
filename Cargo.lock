@@ -3130,6 +3130,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "hmstd-ntfs"
+version = "0.1.0"
+dependencies = [
+ "hmstd-filesystem",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "hmstd-scanner"
 version = "0.1.0"
 dependencies = [

@@ -18,11 +18,16 @@ pub struct ScanSummary {
     /// False when any directory could not be fully read; totals are then partial.
     pub complete: bool,
     pub issues: u64,
+    /// First few unreadable paths with their error, so the user can see what was skipped.
+    pub issue_paths: Vec<String>,
     pub hardlink_duplicates: u64,
     pub entries: u64,
     pub elapsed: Duration,
     pub method: &'static str,
 }
+
+/// How many unreadable paths the result lists before summarising the rest.
+const ISSUE_PATHS_SHOWN: usize = 5;
 
 /// Reduces a finished scan to what the window displays.
 pub fn summarize(root: PathBuf, output: &ScanOutput, elapsed: Duration) -> ScanSummary {
@@ -39,6 +44,13 @@ pub fn summarize(root: PathBuf, output: &ScanOutput, elapsed: Duration) -> ScanS
         physical_bytes: totals.physical_known.then_some(totals.physical),
         complete: totals.complete,
         issues: output.report.issue_count(),
+        issue_paths: output
+            .report
+            .issues
+            .iter()
+            .take(ISSUE_PATHS_SHOWN)
+            .map(|issue| format!("{}: {}", issue.path.display(), issue.message))
+            .collect(),
         hardlink_duplicates: output.report.hardlink_duplicates,
         entries: output.report.entries_visited,
         elapsed,
