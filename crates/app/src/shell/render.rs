@@ -1,8 +1,10 @@
 //! Layout for the main window: sidebar, visualization tabs, phase content, status bar.
 
 use gpui_kit::component::{
+    alert::Alert,
     button::Button,
     label::Label,
+    progress::Progress,
     scroll::*,
     spinner::Spinner,
     status_bar::StatusBar,
@@ -210,6 +212,11 @@ fn summary_content(phase: &Phase, p: Palette, handle: Entity<Shell>) -> Div {
                         ),
                 )
                 .child(
+                    Progress::new("walk-progress")
+                        .loading(true)
+                        .accessibility_label("Scanning folders"),
+                )
+                .child(
                     div()
                         .text_sm()
                         .text_color(p.muted_foreground)
@@ -299,6 +306,15 @@ fn walked_result(summary: &ScanSummary, p: Palette) -> Div {
         p,
     )
     .child(stat_grid(&stats, p));
+    if !summary.complete {
+        page = page.child(
+            Alert::warning(
+                "partial-result",
+                "Some folders could not be read, so these totals are incomplete. The list below names them.",
+            )
+            .title("Partial result"),
+        );
+    }
     if !summary.issue_paths.is_empty() {
         let mut list = div()
             .v_flex()
