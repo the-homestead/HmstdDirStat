@@ -44,11 +44,28 @@ struct Parsed {
 pub fn read_records<R, F>(
     source: &mut R,
     boot: BootSector,
-    mut on_record: F,
+    on_record: F,
 ) -> Result<ReadStats, NtfsError>
 where
     R: Read + Seek + Send,
     F: FnMut(u64, Record),
+{
+    read_records_with_progress(source, boot, on_record, |_, _| {})
+}
+
+/// Same as [`read_records`], and also calls `on_progress(slots_done, slots_total)`
+/// after each parsed chunk. `slots_total` is the MFT's record count, so the two
+/// values form a progress fraction. Sparse runs are counted at the end.
+pub fn read_records_with_progress<R, F, P>(
+    source: &mut R,
+    boot: BootSector,
+    mut on_record: F,
+    mut on_progress: P,
+) -> Result<ReadStats, NtfsError>
+where
+    R: Read + Seek + Send,
+    F: FnMut(u64, Record),
+    P: FnMut(u64, u64),
 {
     let record_size =
         usize::try_from(boot.record_size).map_err(|_| NtfsError::BadBootSector("record size"))?;
@@ -125,6 +142,7 @@ where
             for (number, record) in parsed.records {
                 on_record(number, record);
             }
+            on_progress(stats.slots, total_records);
         }
         let sparse_skipped = reader
             .join()

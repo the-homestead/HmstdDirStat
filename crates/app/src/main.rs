@@ -48,7 +48,7 @@ fn main() -> Result<()> {
 
             if let Err(error) = gpui_kit::open_window(
                 WindowOptions {
-                    window_bounds: Some(WindowBounds::Maximized(Bounds::centered(
+                    window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
                         None,
                         size(px(1400.), px(900.)),
                         cx,

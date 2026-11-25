@@ -14,7 +14,7 @@ use gpui_kit::component::{
     *,
 };
 use gpui_kit::*;
-use hmstd_ntfs::VolumeSummary;
+use hmstd_ntfs::{SummaryProgress, VolumeSummary};
 
 use super::{Phase, Shell, View, widgets::*};
 use crate::{scan::ScanSummary, theme::toggle_theme};
@@ -226,36 +226,11 @@ fn summary_content(phase: &Phase, p: Palette, handle: Entity<Shell>) -> Div {
                 )
                 .child(cancel)
         }
-        Phase::Elevated { drive, granted } => {
-            let (title, detail) = if *granted {
-                (
-                    format!("Administrator access granted. Reading {}", drive.display()),
-                    "Reading the file table. The result replaces this message when the read finishes.",
-                )
-            } else {
-                (
-                    format!("Waiting for administrator approval for {}", drive.display()),
-                    "Windows is asking for permission to run HmstdDirStat as administrator. Approve it to start the read.",
-                )
-            };
-            div()
-                .v_flex()
-                .gap_4()
-                .child(
-                    div()
-                        .h_flex()
-                        .gap_3()
-                        .items_center()
-                        .child(Spinner::new())
-                        .child(
-                            div()
-                                .text_lg()
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .child(title),
-                        ),
-                )
-                .child(div().text_sm().text_color(p.muted_foreground).child(detail))
-        }
+        Phase::Elevated {
+            drive,
+            granted,
+            stage,
+        } => elevated_view(drive, *granted, *stage, p),
         Phase::Walked(summary) => walked_result(summary, p),
         Phase::FastDone(summary) => fast_result(summary, p),
         Phase::Cancelled(root) => message_block(
@@ -270,6 +245,70 @@ fn summary_content(phase: &Phase, p: Palette, handle: Entity<Shell>) -> Div {
             message_block(&format!("Could not scan {drive}"), message, p)
         }
     }
+}
+
+fn elevated_view(
+    drive: &std::path::Path,
+    granted: bool,
+    stage: Option<SummaryProgress>,
+    p: Palette,
+) -> Div {
+    let (title, detail) = match (granted, stage) {
+        (false, _) => (
+            format!("Waiting for administrator approval for {}", drive.display()),
+            "Windows is asking for permission to run HmstdDirStat as administrator. Approve it to start the read.",
+        ),
+        (true, Some(SummaryProgress::Building)) => (
+            format!("Building the folder tree for {}", drive.display()),
+            "All records are read. Totals and the tree appear when this finishes.",
+        ),
+        _ => (
+            format!("Reading the file table of {}", drive.display()),
+            "The bar below shows how far through the Master File Table the read is.",
+        ),
+    };
+
+    let mut page = div()
+        .v_flex()
+        .gap_4()
+        .child(
+            div()
+                .h_flex()
+                .gap_3()
+                .items_center()
+                .child(Spinner::new())
+                .child(
+                    div()
+                        .text_lg()
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .child(title),
+                ),
+        )
+        .child(div().text_sm().text_color(p.muted_foreground).child(detail));
+
+    page = match stage {
+        Some(SummaryProgress::Reading { done, total }) => {
+            let percent = if total == 0 {
+                0.0
+            } else {
+                (done as f64 * 100.0 / total as f64).min(100.0) as f32
+            };
+            page.child(Progress::new("fast-progress").value(percent))
+                .child(
+                    div()
+                        .text_sm()
+                        .text_color(p.muted_foreground)
+                        .child(format!(
+                            "{} of {} records ({percent:.0}%)",
+                            crate::scan::format_count(done),
+                            crate::scan::format_count(total)
+                        )),
+                )
+        }
+        Some(SummaryProgress::Building) => page.child(Progress::new("fast-build").loading(true)),
+        None => page,
+    };
+    page
 }
 
 fn walked_result(summary: &ScanSummary, p: Palette) -> Div {
@@ -404,13 +443,23 @@ fn status_bar(shell: &Shell, p: Palette) -> StatusBar {
     let text = match &shell.phase {
         Phase::Idle => "Ready".to_string(),
         Phase::Walking { root, .. } => format!("Walking {}", root.display()),
-        Phase::Elevated { drive, granted } => {
-            if *granted {
-                format!("Admin access granted: reading {}", drive.display())
-            } else {
-                format!("Waiting for administrator approval: {}", drive.display())
+        Phase::Elevated {
+            drive,
+            granted,
+            stage,
+        } => match stage {
+            _ if !*granted => format!("Waiting for administrator approval: {}", drive.display()),
+            Some(SummaryProgress::Reading { done, total }) => format!(
+                "Reading {}: {} of {} MFT records",
+                drive.display(),
+                crate::scan::format_count(*done),
+                crate::scan::format_count(*total)
+            ),
+            Some(SummaryProgress::Building) => {
+                format!("Building the folder tree: {}", drive.display())
             }
-        }
+            None => format!("Administrator access granted: {}", drive.display()),
+        },
         Phase::Walked(summary) => format!("Walk finished: {}", summary.root.display()),
         Phase::FastDone(summary) => format!("Fast read finished: {}", drive_label(&summary.volume)),
         Phase::Cancelled(_) => "Cancelled".to_string(),

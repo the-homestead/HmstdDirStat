@@ -6,10 +6,14 @@ use std::{
     process::Command,
 };
 
-use hmstd_ntfs::VolumeSummary;
+use hmstd_ntfs::{SummaryProgress, VolumeSummary};
+use std::time::{Duration, Instant};
 
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
+
+/// Minimum gap between progress-file writes while reading records.
+const PROGRESS_EVERY: Duration = Duration::from_millis(200);
 
 /// Stops the PowerShell launcher from opening a console window.
 #[cfg(windows)]
@@ -22,6 +26,8 @@ pub struct FastPaths {
     pub output: PathBuf,
     /// The helper creates this as soon as it starts, which means approval was given.
     pub started: PathBuf,
+    /// The helper rewrites this with its current stage, for the progress bar.
+    pub progress: PathBuf,
 }
 
 impl FastPaths {
@@ -30,12 +36,14 @@ impl FastPaths {
         Self {
             output: base.with_extension("txt"),
             started: base.with_extension("started"),
+            progress: base.with_extension("progress"),
         }
     }
 
     pub fn clear(&self) {
         let _ = std::fs::remove_file(&self.output);
         let _ = std::fs::remove_file(&self.started);
+        let _ = std::fs::remove_file(&self.progress);
     }
 }
 
@@ -102,9 +110,21 @@ pub fn helper_main(args: &[String]) -> i32 {
         return 2;
     };
     let output = PathBuf::from(output);
+    let progress_path = output.with_extension("progress");
     let _ = std::fs::write(output.with_extension("started"), "");
 
-    let text = match hmstd_ntfs::summarize_volume(volume) {
+    let mut last_write: Option<Instant> = None;
+    let result = hmstd_ntfs::summarize_volume_with_progress(volume, |stage| {
+        // Record reads come thousands of times a second; write the file at most every
+        // PROGRESS_EVERY. Stage changes (such as building the tree) are always written.
+        let reading = matches!(stage, SummaryProgress::Reading { .. });
+        if reading && last_write.is_some_and(|at| at.elapsed() < PROGRESS_EVERY) {
+            return;
+        }
+        last_write = Some(Instant::now());
+        let _ = std::fs::write(&progress_path, stage_line(stage));
+    });
+    let text = match result {
         Ok(summary) => summary.to_text(),
         Err(error) => format!("error={}\n", error.to_string().replace('\n', " ")),
     };
@@ -112,6 +132,27 @@ pub fn helper_main(args: &[String]) -> i32 {
         Ok(()) => 0,
         Err(_) => 3,
     }
+}
+
+/// One line for the progress file: `done total`, or `build`.
+fn stage_line(stage: SummaryProgress) -> String {
+    match stage {
+        SummaryProgress::Reading { done, total } => format!("{done} {total}\n"),
+        SummaryProgress::Building => "build\n".to_string(),
+    }
+}
+
+/// Reads the helper's latest stage. `None` until the helper has written one.
+pub fn read_stage(path: &Path) -> Option<SummaryProgress> {
+    let text = std::fs::read_to_string(path).ok()?;
+    let line = text.trim();
+    if line == "build" {
+        return Some(SummaryProgress::Building);
+    }
+    let mut parts = line.split_whitespace();
+    let done = parts.next()?.parse().ok()?;
+    let total = parts.next()?.parse().ok()?;
+    Some(SummaryProgress::Reading { done, total })
 }
 
 /// Quotes a value for PowerShell single-quoted strings.

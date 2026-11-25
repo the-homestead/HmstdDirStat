@@ -14,7 +14,7 @@ use std::{
 };
 
 use gpui_kit::*;
-use hmstd_ntfs::VolumeSummary;
+use hmstd_ntfs::{SummaryProgress, VolumeSummary};
 use hmstd_scanner::{
     CancelToken, FileSystemScanner, GenericScanner, ScanError, ScanOptions, ScanProgress,
 };
@@ -37,10 +37,12 @@ pub enum Phase {
         cancel: CancelToken,
     },
     /// Elevated MFT read. `granted` turns true once the helper has started, which
-    /// means the administrator prompt was approved.
+    /// means the administrator prompt was approved. `stage` is the helper's latest
+    /// progress report.
     Elevated {
         drive: PathBuf,
         granted: bool,
+        stage: Option<SummaryProgress>,
     },
     Walked(ScanSummary),
     FastDone(VolumeSummary),
@@ -207,6 +209,7 @@ impl Shell {
         self.phase = Phase::Elevated {
             drive: drive.clone(),
             granted: false,
+            stage: None,
         };
         cx.notify();
 
@@ -218,15 +221,25 @@ impl Shell {
 
         // The helper creates a marker once it runs, which proves approval. Watch for it.
         let started = paths.started.clone();
+        let progress_file = paths.progress.clone();
         cx.spawn(async move |this, cx| {
             loop {
                 cx.background_executor().timer(PROGRESS_REFRESH).await;
                 let approved = started.exists();
+                let stage = fast::read_stage(&progress_file);
                 let still_elevated = this
                     .update(cx, |shell, cx| match &mut shell.phase {
-                        Phase::Elevated { granted, .. } => {
+                        Phase::Elevated {
+                            granted,
+                            stage: shown,
+                            ..
+                        } => {
                             if approved && !*granted {
                                 *granted = true;
+                                cx.notify();
+                            }
+                            if stage.is_some() && *shown != stage {
+                                *shown = stage;
                                 cx.notify();
                             }
                             true

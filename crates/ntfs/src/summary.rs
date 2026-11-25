@@ -5,7 +5,7 @@ use std::{fs::File, io::Read, time::Instant};
 
 use hmstd_filesystem::NodeId;
 
-use crate::{Catalog, NtfsError, parse_boot_sector, read_records};
+use crate::{Catalog, NtfsError, parse_boot_sector, read_records_with_progress};
 
 /// Totals for one NTFS volume, read from its Master File Table.
 #[derive(Debug, Clone, PartialEq)]
@@ -22,8 +22,25 @@ pub struct VolumeSummary {
     pub total_secs: f64,
 }
 
+/// What a Fast read is doing right now, for progress display.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SummaryProgress {
+    /// Reading MFT records: `done` of `total` slots examined so far.
+    Reading { done: u64, total: u64 },
+    /// All records are read; the folder tree is being built.
+    Building,
+}
+
 /// Reads and summarises a raw volume such as `//./C:`. Needs administrator rights.
 pub fn summarize_volume(volume: &str) -> Result<VolumeSummary, NtfsError> {
+    summarize_volume_with_progress(volume, |_| {})
+}
+
+/// Same as [`summarize_volume`], and reports [`SummaryProgress`] as it goes.
+pub fn summarize_volume_with_progress<P: FnMut(SummaryProgress)>(
+    volume: &str,
+    mut progress: P,
+) -> Result<VolumeSummary, NtfsError> {
     let started = Instant::now();
     let mut file = File::open(volume)?;
 
@@ -32,11 +49,15 @@ pub fn summarize_volume(volume: &str) -> Result<VolumeSummary, NtfsError> {
     let boot = parse_boot_sector(&sector)?;
 
     let mut catalog = Catalog::new();
-    let stats = read_records(&mut file, boot, |number, record| {
-        catalog.insert(number, record);
-    })?;
+    let stats = read_records_with_progress(
+        &mut file,
+        boot,
+        |number, record| catalog.insert(number, record),
+        |done, total| progress(SummaryProgress::Reading { done, total }),
+    )?;
     let read_secs = started.elapsed().as_secs_f64();
 
+    progress(SummaryProgress::Building);
     let letter = volume.chars().rev().nth(1).unwrap_or('?');
     let (tree, build) = catalog.into_tree(&format!("{letter}:"))?;
     let totals = tree
