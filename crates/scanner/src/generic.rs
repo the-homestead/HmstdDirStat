@@ -2,7 +2,9 @@ use std::{
     collections::HashSet,
     ffi::OsStr,
     fs,
-    path::{Path, PathBuf},
+    path::Path,
+    sync::{Mutex, mpsc},
+    thread,
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -13,12 +15,17 @@ use crate::{
     types::{
         CancelToken, ScanError, ScanMethod, ScanOptions, ScanOutput, ScanProgress, ScanReport,
     },
+    walk::{Item, Job, Listing, RawEntry, list_directory},
 };
 
 /// Progress is reported every this many entries.
 const PROGRESS_INTERVAL: u64 = 4096;
 
 /// Portable `std::fs` traversal. Metadata only; never opens file contents.
+///
+/// Directories are listed on worker threads (see [`ScanOptions::threads`]). A
+/// single coordinator thread builds the tree in arrival order, so tree ids, the
+/// hard-link set and the report are only ever touched from one place.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct GenericScanner;
 
@@ -57,8 +64,7 @@ fn scan_generic(
     let root_name = root
         .file_name()
         .map_or_else(|| root.as_os_str().to_os_string(), OsStr::to_os_string);
-    let root_device = device_of(&root_meta);
-    let mut tree = FileTree::with_root(NewEntry {
+    let tree = FileTree::with_root(NewEntry {
         name: root_name,
         kind: EntryKind::Directory,
         logical_size: 0,
@@ -68,114 +74,208 @@ fn scan_generic(
         unreadable: false,
         metadata: metadata_of(&root_meta),
     });
+    let mut coordinator = Coordinator {
+        tree,
+        report: ScanReport::new(ScanMethod::GenericTraversal),
+        seen_identities: HashSet::new(),
+        directories_read: 0,
+        root_device: device_of(&root_meta),
+        options,
+    };
 
-    let mut report = ScanReport::new(ScanMethod::GenericTraversal);
-    let mut seen_identities: HashSet<FileIdentity> = HashSet::new();
-    let mut directories_read: u64 = 0;
-    // Explicit stack instead of recursion: depth is limited by memory, not the thread stack.
-    let mut stack: Vec<(NodeId, PathBuf)> = vec![(NodeId::ROOT, root.to_path_buf())];
+    let workers = options.worker_count();
+    let (job_tx, job_rx) = mpsc::channel::<Job>();
+    let job_rx = Mutex::new(job_rx);
+    let (result_tx, result_rx) = mpsc::channel::<Listing>();
+    let jobs = &job_rx;
 
-    while let Some((dir_id, dir_path)) = stack.pop() {
-        check_cancel(cancel)?;
+    // The closure takes ownership of the job sender. Dropping it when the closure
+    // returns is what lets the workers exit, so the scope can join them.
+    let walked = thread::scope(move |scope| -> Result<Coordinator<'_>, ScanError> {
+        for _ in 0..workers {
+            let results = result_tx.clone();
+            scope.spawn(move || worker(jobs, results, options, cancel));
+        }
+        drop(result_tx);
 
-        let listing = match fs::read_dir(&dir_path) {
-            Ok(listing) => listing,
-            Err(source) => {
-                tree.mark_unreadable(dir_id)?;
-                report.push_issue(&dir_path, source);
-                continue;
-            }
-        };
-        directories_read += 1;
-
-        for item in listing {
+        let _ = job_tx.send(Job {
+            dir_id: NodeId::ROOT,
+            path: root.to_path_buf(),
+        });
+        let mut outstanding: usize = 1;
+        let mut queued: Vec<Job> = Vec::new();
+        while outstanding > 0 {
             check_cancel(cancel)?;
-            report.entries_visited += 1;
-            if report.entries_visited.is_multiple_of(PROGRESS_INTERVAL) {
-                progress(ScanProgress {
-                    entries_visited: report.entries_visited,
-                    directories_read,
-                });
-            }
-
-            let entry = match item {
-                Ok(entry) => entry,
-                Err(source) => {
-                    // An entry we cannot see means this directory's totals are incomplete.
-                    tree.mark_unreadable(dir_id)?;
-                    report.push_issue(&dir_path, source);
-                    continue;
-                }
+            let Ok(listing) = result_rx.recv() else {
+                return Err(ScanError::WorkersStopped);
             };
-            let path = entry.path();
-            if is_excluded(&path, &options.exclude) {
-                continue;
-            }
-
-            let md = match fs::symlink_metadata(&path) {
-                Ok(md) => md,
-                Err(source) => {
-                    tree.mark_unreadable(dir_id)?;
-                    report.push_issue(&path, source);
-                    continue;
-                }
-            };
-
-            let file_type = md.file_type();
-            let kind = if file_type.is_symlink() {
-                EntryKind::Symlink
-            } else if file_type.is_dir() {
-                EntryKind::Directory
-            } else if file_type.is_file() {
-                EntryKind::File
-            } else {
-                EntryKind::Other
-            };
-            let logical_size = match kind {
-                EntryKind::File | EntryKind::Symlink => md.len(),
-                EntryKind::Directory | EntryKind::Other => 0,
-            };
-
-            let extras = platform_extras(
-                &md,
-                kind,
-                root_device,
-                options,
-                &mut seen_identities,
-                &mut report,
-            );
-            let physical = if extras.hardlink_duplicate {
-                Some(0)
-            } else {
-                physical_of(&md)
-            };
-
-            let child = tree.add_child(
-                dir_id,
-                NewEntry {
-                    name: entry.file_name(),
-                    kind,
-                    logical_size,
-                    physical_size: physical,
-                    identity: extras.identity,
-                    hardlink_duplicate: extras.hardlink_duplicate,
-                    unreadable: false,
-                    metadata: metadata_of(&md),
-                },
-            )?;
-
-            if extras.descend {
-                stack.push((child, path));
+            outstanding -= 1;
+            coordinator.apply(listing, cancel, progress, &mut queued)?;
+            for job in queued.drain(..) {
+                outstanding += 1;
+                let _ = job_tx.send(job);
             }
         }
+        progress(ScanProgress {
+            entries_visited: coordinator.report.entries_visited,
+            directories_read: coordinator.directories_read,
+        });
+        // The final progress callback may itself request cancellation.
+        check_cancel(cancel)?;
+        Ok(coordinator)
+    });
+
+    let mut coordinator = walked?;
+    coordinator.tree.roll_up();
+    Ok(ScanOutput {
+        tree: coordinator.tree,
+        report: coordinator.report,
+    })
+}
+
+/// Pulls directories off the shared queue and sends back their listings until
+/// the queue closes.
+fn worker(
+    jobs: &Mutex<mpsc::Receiver<Job>>,
+    results: mpsc::Sender<Listing>,
+    options: &ScanOptions,
+    cancel: &CancelToken,
+) {
+    loop {
+        let job = match jobs.lock() {
+            Ok(receiver) => receiver.recv(),
+            Err(_) => break,
+        };
+        let Ok(job) = job else { break };
+        if results.send(list_directory(job, options, cancel)).is_err() {
+            break;
+        }
+    }
+}
+
+/// Owns everything that must be updated in one place: the tree, the hard-link
+/// set, and the report. Runs on the scanning thread only.
+struct Coordinator<'a> {
+    tree: FileTree,
+    report: ScanReport,
+    seen_identities: HashSet<FileIdentity>,
+    directories_read: u64,
+    root_device: Option<u64>,
+    options: &'a ScanOptions,
+}
+
+impl Coordinator<'_> {
+    /// Adds one listing to the tree and queues any subdirectories it found.
+    fn apply(
+        &mut self,
+        listing: Listing,
+        cancel: &CancelToken,
+        progress: &mut dyn FnMut(ScanProgress),
+        queued: &mut Vec<Job>,
+    ) -> Result<(), ScanError> {
+        let Listing {
+            dir_id,
+            dir_path,
+            skipped,
+            items,
+        } = listing;
+        self.report.entries_visited += skipped;
+
+        let items = match items {
+            Ok(items) => {
+                self.directories_read += 1;
+                items
+            }
+            Err(source) => {
+                self.tree.mark_unreadable(dir_id)?;
+                self.report.push_issue(&dir_path, source);
+                return Ok(());
+            }
+        };
+
+        for item in items {
+            check_cancel(cancel)?;
+            self.report.entries_visited += 1;
+            if self
+                .report
+                .entries_visited
+                .is_multiple_of(PROGRESS_INTERVAL)
+            {
+                progress(ScanProgress {
+                    entries_visited: self.report.entries_visited,
+                    directories_read: self.directories_read,
+                });
+            }
+            match item {
+                Item::Entry(raw) => self.add_entry(dir_id, raw, queued)?,
+                Item::Failed { path, source } => {
+                    // An entry we cannot see means this directory's totals are incomplete.
+                    self.tree.mark_unreadable(dir_id)?;
+                    self.report.push_issue(&path, source);
+                }
+            }
+        }
+        Ok(())
     }
 
-    progress(ScanProgress {
-        entries_visited: report.entries_visited,
-        directories_read,
-    });
-    tree.roll_up();
-    Ok(ScanOutput { tree, report })
+    fn add_entry(
+        &mut self,
+        dir_id: NodeId,
+        raw: RawEntry,
+        queued: &mut Vec<Job>,
+    ) -> Result<(), ScanError> {
+        let md = &raw.md;
+        let file_type = md.file_type();
+        let kind = if file_type.is_symlink() {
+            EntryKind::Symlink
+        } else if file_type.is_dir() {
+            EntryKind::Directory
+        } else if file_type.is_file() {
+            EntryKind::File
+        } else {
+            EntryKind::Other
+        };
+        let logical_size = match kind {
+            EntryKind::File | EntryKind::Symlink => md.len(),
+            EntryKind::Directory | EntryKind::Other => 0,
+        };
+
+        let extras = platform_extras(
+            md,
+            kind,
+            self.root_device,
+            self.options,
+            &mut self.seen_identities,
+            &mut self.report,
+        );
+        let physical = if extras.hardlink_duplicate {
+            Some(0)
+        } else {
+            physical_of(md)
+        };
+
+        let child = self.tree.add_child(
+            dir_id,
+            NewEntry {
+                name: raw.name,
+                kind,
+                logical_size,
+                physical_size: physical,
+                identity: extras.identity,
+                hardlink_duplicate: extras.hardlink_duplicate,
+                unreadable: false,
+                metadata: metadata_of(md),
+            },
+        )?;
+
+        if extras.descend {
+            queued.push(Job {
+                dir_id: child,
+                path: raw.path,
+            });
+        }
+        Ok(())
+    }
 }
 
 fn check_cancel(cancel: &CancelToken) -> Result<(), ScanError> {
@@ -184,10 +284,6 @@ fn check_cancel(cancel: &CancelToken) -> Result<(), ScanError> {
     } else {
         Ok(())
     }
-}
-
-fn is_excluded(path: &Path, exclude: &[PathBuf]) -> bool {
-    exclude.iter().any(|prefix| path.starts_with(prefix))
 }
 
 /// Per-entry decisions that depend on the platform.

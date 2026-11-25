@@ -8,6 +8,7 @@
 mod generic;
 mod types;
 mod volumes;
+mod walk;
 
 pub use generic::GenericScanner;
 pub use types::{

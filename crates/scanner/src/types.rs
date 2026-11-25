@@ -21,6 +21,24 @@ pub struct ScanOptions {
     pub exclude: Vec<PathBuf>,
     /// Unix only: descend into directories on other filesystems. Off by default.
     pub cross_mount_points: bool,
+    /// Directory-listing threads. `0` picks a default from the CPU count.
+    pub threads: usize,
+}
+
+impl ScanOptions {
+    /// Number of listing threads to use for this scan.
+    ///
+    /// Directory listing dominates the cost on large volumes and each call blocks
+    /// on the file system, so more threads than cores helps. The default is a
+    /// starting point; measure before changing it.
+    pub fn worker_count(&self) -> usize {
+        if self.threads > 0 {
+            return self.threads;
+        }
+        std::thread::available_parallelism()
+            .map_or(8, |cores| cores.get() * 2)
+            .clamp(4, 32)
+    }
 }
 
 /// Cooperative cancellation. Clone freely; all clones share one flag.
@@ -130,6 +148,9 @@ pub enum ScanError {
     RootNotDirectory(PathBuf),
     #[error("internal tree error: {0}")]
     Tree(#[from] hmstd_filesystem::TreeError),
+    /// The listing workers exited before the walk finished. The result is unusable.
+    #[error("directory workers stopped before the walk finished")]
+    WorkersStopped,
 }
 
 #[cfg(test)]
