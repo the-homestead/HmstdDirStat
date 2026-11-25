@@ -15,6 +15,8 @@ pub struct Palette {
     pub muted_foreground: Hsla,
     pub border: Hsla,
     pub warning: Hsla,
+    /// Theme chart colours, in order, for pie slices, treemap tiles and sunburst rings.
+    pub chart: [Hsla; 5],
 }
 
 impl Palette {
@@ -27,6 +29,13 @@ impl Palette {
             muted_foreground: colors.muted_foreground,
             border: colors.border,
             warning: colors.warning,
+            chart: [
+                colors.chart_1,
+                colors.chart_2,
+                colors.chart_3,
+                colors.chart_4,
+                colors.chart_5,
+            ],
         }
     }
 }

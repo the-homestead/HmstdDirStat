@@ -16,7 +16,7 @@ use gpui_kit::component::{
 use gpui_kit::*;
 use hmstd_ntfs::{SummaryProgress, VolumeSummary};
 
-use super::{Phase, Shell, View, widgets::*};
+use super::{Phase, Shell, View, rings, treemap, views, widgets::*};
 use crate::{scan::ScanSummary, theme::toggle_theme};
 
 impl Render for Shell {
@@ -51,6 +51,7 @@ impl Render for Shell {
 }
 
 fn sidebar(shell: &Shell, p: Palette, handle: Entity<Shell>, cx: &App) -> Div {
+    let log_dir = shell.log_dir.clone();
     let busy = shell.is_busy();
     let dark = cx.theme().is_dark();
 
@@ -132,6 +133,18 @@ fn sidebar(shell: &Shell, p: Palette, handle: Entity<Shell>, cx: &App) -> Div {
         )
         .child(div().flex_1())
         .child(
+            Button::new("open-logs")
+                .outline()
+                .w_full()
+                .label("Open log folder")
+                .tooltip(log_dir.display().to_string())
+                .on_click(move |_, _, _| {
+                    if let Err(error) = crate::open::open_folder(&log_dir) {
+                        tracing::error!(%error, "could not open the log folder");
+                    }
+                }),
+        )
+        .child(
             Button::new("toggle-theme")
                 .outline()
                 .w_full()
@@ -153,6 +166,7 @@ fn tab_header(view: View, p: Palette, handle: Entity<Shell>) -> Div {
             handle.update(cx, |shell, cx| shell.set_view(next, cx));
         })
         .child(Tab::new().label("Summary"))
+        .child(Tab::new().label("Files"))
         .child(Tab::new().label("Treemap"))
         .child(Tab::new().label("Sunburst"));
 
@@ -166,18 +180,38 @@ fn tab_header(view: View, p: Palette, handle: Entity<Shell>) -> Div {
 }
 
 fn content(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Div {
+    let files = shell.tree.as_deref();
     match shell.view {
-        View::Summary => summary_content(&shell.phase, p, handle),
-        View::Treemap => message_block(
-            "Treemap view",
-            "Not built yet. It will draw each folder as an area sized by its disk usage.",
-            p,
-        ),
-        View::Sunburst => message_block(
-            "Sunburst view",
-            "Not built yet. It will draw folders as rings, sized by disk usage.",
-            p,
-        ),
+        View::Summary => {
+            let mut page =
+                div()
+                    .v_flex()
+                    .gap_6()
+                    .child(summary_content(&shell.phase, p, handle.clone()));
+            if let (Phase::Walked(_), Some(files)) = (&shell.phase, files) {
+                page = page.child(views::pie_card(files, shell.focus, p, handle));
+            }
+            page
+        }
+        View::Files => match &shell.tree_state {
+            Some(state) => views::files_view(state, p),
+            None => views::no_tree_message(p),
+        },
+        View::Treemap => match files {
+            Some(files) => treemap::treemap_page(files, shell.focus, handle, p),
+            None => views::no_tree_message(p),
+        },
+        View::Sunburst => match files {
+            Some(files) => rings::sunburst_page(
+                files,
+                shell.focus,
+                handle,
+                p,
+                shell.sunburst_hover,
+                shell.sunburst_bounds.clone(),
+            ),
+            None => views::no_tree_message(p),
+        },
     }
 }
 

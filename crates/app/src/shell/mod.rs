@@ -2,6 +2,9 @@
 //! Rendering lives in `render.rs`; shared widgets in `widgets.rs`.
 
 mod render;
+mod rings;
+mod treemap;
+mod views;
 mod widgets;
 
 use std::{
@@ -13,7 +16,11 @@ use std::{
     time::{Duration, Instant},
 };
 
+use std::{cell::Cell, rc::Rc};
+
+use gpui_kit::component::tree::TreeState;
 use gpui_kit::*;
+use hmstd_filesystem::{FileTree, NodeId};
 use hmstd_ntfs::{SummaryProgress, VolumeSummary};
 use hmstd_scanner::{
     CancelToken, FileSystemScanner, GenericScanner, ScanError, ScanOptions, ScanProgress,
@@ -57,6 +64,7 @@ pub enum Phase {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum View {
     Summary,
+    Files,
     Treemap,
     Sunburst,
 }
@@ -64,8 +72,9 @@ pub enum View {
 impl View {
     fn from_index(index: usize) -> Self {
         match index {
-            1 => Self::Treemap,
-            2 => Self::Sunburst,
+            1 => Self::Files,
+            2 => Self::Treemap,
+            3 => Self::Sunburst,
             _ => Self::Summary,
         }
     }
@@ -73,8 +82,9 @@ impl View {
     fn index(self) -> usize {
         match self {
             Self::Summary => 0,
-            Self::Treemap => 1,
-            Self::Sunburst => 2,
+            Self::Files => 1,
+            Self::Treemap => 2,
+            Self::Sunburst => 3,
         }
     }
 }
@@ -84,18 +94,90 @@ pub struct Shell {
     phase: Phase,
     fast_mode: bool,
     view: View,
+    /// Where the log files are written; the sidebar opens this folder.
+    log_dir: PathBuf,
+    /// The tree from the last walk, shared by the views. Fast mode leaves it empty.
+    tree: Option<Arc<FileTree>>,
+    tree_state: Option<Entity<TreeState>>,
+    /// The folder the Treemap, Sunburst and pie are showing.
+    focus: NodeId,
+    /// Where the sunburst disc was last painted, in window coordinates.
+    sunburst_bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
+    /// The sunburst arc under the pointer, and the pointer's place on the disc.
+    sunburst_hover: Option<(NodeId, Point<Pixels>)>,
     /// Holds the running job. Dropping it cancels the task, so it lives here.
     task: Option<Task<()>>,
 }
 
 impl Shell {
-    pub fn new(volumes: Vec<PathBuf>) -> Self {
+    pub fn new(volumes: Vec<PathBuf>, log_dir: PathBuf) -> Self {
         Self {
             volumes,
             phase: Phase::Idle,
             fast_mode: false,
             view: View::Summary,
+            log_dir,
+            tree: None,
+            tree_state: None,
+            focus: NodeId::ROOT,
+            sunburst_bounds: Rc::new(Cell::new(None)),
+            sunburst_hover: None,
             task: None,
+        }
+    }
+
+    fn clear_tree(&mut self) {
+        self.tree = None;
+        self.tree_state = None;
+        self.focus = NodeId::ROOT;
+        self.sunburst_hover = None;
+    }
+
+    /// Keeps a finished walk's tree for the views and builds the Files tab from it.
+    fn install_tree(&mut self, files: FileTree, cx: &mut Context<Self>) {
+        self.tree_state = Some(views::build_tree_state(&files, cx));
+        self.tree = Some(Arc::new(files));
+        self.focus = NodeId::ROOT;
+    }
+
+    pub fn focus_on(&mut self, node: NodeId, cx: &mut Context<Self>) {
+        self.focus = node;
+        self.sunburst_hover = None;
+        cx.notify();
+    }
+
+    /// Tracks which sunburst arc the pointer is over, for its tooltip.
+    pub fn sunburst_pointer(&mut self, position: Point<Pixels>, cx: &mut Context<Self>) {
+        let hover = match (self.sunburst_bounds.get(), self.tree.as_deref()) {
+            (Some(bounds), Some(files)) => {
+                let arcs = rings::sunburst_arcs(files, self.focus);
+                rings::sunburst_hit(&arcs, bounds, position)
+                    .map(|node| (node, position - bounds.origin))
+            }
+            _ => None,
+        };
+        if hover != self.sunburst_hover {
+            self.sunburst_hover = hover;
+            cx.notify();
+        }
+    }
+
+    pub fn sunburst_leave(&mut self, cx: &mut Context<Self>) {
+        if self.sunburst_hover.take().is_some() {
+            cx.notify();
+        }
+    }
+
+    pub fn focus_up(&mut self, cx: &mut Context<Self>) {
+        let parent = self
+            .tree
+            .as_ref()
+            .and_then(|files| files.node(self.focus))
+            .and_then(|node| node.parent());
+        if let Some(parent) = parent {
+            self.focus = parent;
+            self.sunburst_hover = None;
+            cx.notify();
         }
     }
 
@@ -112,6 +194,8 @@ impl Shell {
 
     fn set_view(&mut self, view: View, cx: &mut Context<Self>) {
         self.view = view;
+        // The pointer may leave the sunburst while another tab is showing.
+        self.sunburst_hover = None;
         cx.notify();
     }
 
@@ -130,6 +214,7 @@ impl Shell {
         }
         let entries = Arc::new(AtomicU64::new(0));
         let cancel = CancelToken::new();
+        self.clear_tree();
         self.phase = Phase::Walking {
             root: root.clone(),
             entries: entries.clone(),
@@ -156,7 +241,9 @@ impl Shell {
                 shell.phase = match outcome {
                     Ok(output) => {
                         tracing::info!(root = %root.display(), entries = output.report.entries_visited, "walk finished");
-                        Phase::Walked(summarize(root, &output, elapsed))
+                        let summary = summarize(root, &output, elapsed);
+                        shell.install_tree(output.tree, cx);
+                        Phase::Walked(summary)
                     }
                     Err(ScanError::Cancelled) => Phase::Cancelled(root),
                     Err(error) => {
