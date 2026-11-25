@@ -270,15 +270,25 @@ fn hard_link_is_charged_physically_once() {
         out.tree.node(NodeId::ROOT).unwrap().totals().logical,
         20_000
     );
-    // Physical: exactly one charge for the shared file.
-    assert!(node_b.is_hardlink_duplicate());
-    assert_eq!(node_b.physical_size(), Some(0));
+    // Physical: exactly one of the two paths is charged; traversal order decides which.
+    let node_a = out.tree.node(a).unwrap();
+    let charged = [node_a, node_b]
+        .iter()
+        .filter(|node| !node.is_hardlink_duplicate())
+        .count();
+    assert_eq!(charged, 1, "exactly one path carries the physical charge");
+    let duplicate = if node_b.is_hardlink_duplicate() {
+        node_b
+    } else {
+        node_a
+    };
+    assert_eq!(duplicate.physical_size(), Some(0));
     assert_eq!(out.report.hardlink_duplicates, 1);
     let root = out.tree.node(NodeId::ROOT).unwrap();
-    let a_physical = out.tree.node(a).unwrap().physical_size().unwrap();
+    let physical_paths = node_a.physical_size().unwrap() + node_b.physical_size().unwrap();
     assert_eq!(
         root.totals().physical,
-        root.physical_size().unwrap() + a_physical,
+        root.physical_size().unwrap() + physical_paths,
         "shared file must be counted once"
     );
 }

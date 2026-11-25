@@ -236,7 +236,9 @@ impl Coordinator<'_> {
             EntryKind::Other
         };
         let logical_size = match kind {
-            EntryKind::File | EntryKind::Symlink => md.len(),
+            EntryKind::File => md.len(),
+            // A symlink's own length is its target path, not file data, so it adds nothing.
+            EntryKind::Symlink => 0,
             EntryKind::Directory | EntryKind::Other => 0,
         };
 
