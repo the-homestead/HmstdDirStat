@@ -13,15 +13,6 @@ pub fn apply_theme(preference: ThemePreference, cx: &mut App) {
     }
 }
 
-/// The mode name shown in the window, e.g. `dark`.
-pub fn current_mode_name(cx: &App) -> &'static str {
-    if cx.theme().is_dark() {
-        "dark"
-    } else {
-        "light"
-    }
-}
-
 /// Flips between light and dark, then persists the explicit choice.
 pub fn toggle_theme(cx: &mut App) {
     let next = if cx.theme().is_dark() {

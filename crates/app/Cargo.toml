@@ -15,6 +15,7 @@ path = "src/main.rs"
 hmstd-core = { path = "../core" }
 hmstd-filesystem = { path = "../filesystem" }
 hmstd-scanner = { path = "../scanner" }
+hmstd-ntfs = { path = "../ntfs" }
 gpui-kit.workspace = true
 anyhow.workspace = true
 tracing.workspace = true

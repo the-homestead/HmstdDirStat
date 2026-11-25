@@ -3104,6 +3104,7 @@ dependencies = [
  "gpui-kit",
  "hmstd-core",
  "hmstd-filesystem",
+ "hmstd-ntfs",
  "hmstd-scanner",
  "tempfile",
  "tracing",

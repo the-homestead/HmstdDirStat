@@ -1,8 +1,9 @@
+#![cfg_attr(windows, windows_subsystem = "windows")]
 //! Application entry point: logging, configuration, volumes, then the window.
 
+mod fast;
 mod scan;
 mod shell;
-mod status;
 mod theme;
 
 use anyhow::{Context as _, Result};
@@ -14,6 +15,12 @@ use shell::Shell;
 use theme::apply_theme;
 
 fn main() -> Result<()> {
+    // Elevated Fast-scan helper: read the file table, write the result, exit. No window.
+    let args: Vec<String> = std::env::args().collect();
+    if args.get(1).map(String::as_str) == Some("--fast-helper") {
+        std::process::exit(fast::helper_main(&args[2..]));
+    }
+
     hmstd_core::logging::init().map_err(|error| anyhow::anyhow!(error))?;
 
     let config_path = config::default_config_path().context("resolving configuration path")?;
@@ -41,6 +48,11 @@ fn main() -> Result<()> {
 
             if let Err(error) = gpui_kit::open_window(
                 WindowOptions {
+                    window_bounds: Some(WindowBounds::Maximized(Bounds::centered(
+                        None,
+                        size(px(1400.), px(900.)),
+                        cx,
+                    ))),
                     titlebar: Some(TitlebarOptions {
                         title: Some("HmstdDirStat".into()),
                         ..Default::default()
