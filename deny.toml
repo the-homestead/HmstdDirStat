@@ -1,0 +1,33 @@
+# cargo-deny policy. Licenses follow the project's GPL-3.0-only license; the
+# allow list covers the permissive and weak-copyleft licenses found in the tree.
+
+[advisories]
+ignore = []
+
+[licenses]
+allow = [
+    "GPL-3.0-only",
+    "MIT",
+    "Apache-2.0",
+    "Zlib",
+    "Unicode-3.0",
+    "CC0-1.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "0BSD",
+    "MPL-2.0",
+    "LGPL-2.1-or-later",
+]
+confidence-threshold = 0.8
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+# Path dependencies between workspace crates are intentionally unversioned.
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
