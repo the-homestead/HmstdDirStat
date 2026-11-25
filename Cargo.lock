@@ -3103,6 +3103,9 @@ dependencies = [
  "anyhow",
  "gpui-kit",
  "hmstd-core",
+ "hmstd-filesystem",
+ "hmstd-scanner",
+ "tempfile",
  "tracing",
 ]
 
@@ -3117,6 +3120,22 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.21",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "hmstd-filesystem"
+version = "0.1.0"
+dependencies = [
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "hmstd-scanner"
+version = "0.1.0"
+dependencies = [
+ "hmstd-filesystem",
+ "tempfile",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

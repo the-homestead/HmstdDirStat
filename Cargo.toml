@@ -1,12 +1,13 @@
 [workspace]
 resolver = "2"
-members = ["crates/core", "crates/app"]
+members = ["crates/core", "crates/filesystem", "crates/scanner", "crates/app"]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.95"
 publish = false
+license = "GPL-3.0-only"
 
 [workspace.dependencies]
 # Domain / shared (GPUI-free)

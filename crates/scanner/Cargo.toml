@@ -1,0 +1,21 @@
+[package]
+name = "hmstd-scanner"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+description = "Filesystem scanning for HmstdDirStat: metadata-only traversal, cancellation, progress, volume discovery."
+
+[lib]
+name = "hmstd_scanner"
+
+[dependencies]
+hmstd-filesystem = { path = "../filesystem" }
+thiserror.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

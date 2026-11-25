@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
+license.workspace = true
 description = "HmstdDirStat desktop application shell (GPUI + GPUI Kit)."
 
 [[bin]]
@@ -12,9 +13,14 @@ path = "src/main.rs"
 
 [dependencies]
 hmstd-core = { path = "../core" }
+hmstd-filesystem = { path = "../filesystem" }
+hmstd-scanner = { path = "../scanner" }
 gpui-kit.workspace = true
 anyhow.workspace = true
 tracing.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
 
 [lints]
 workspace = true
