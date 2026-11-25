@@ -1,0 +1,20 @@
+[package]
+name = "hmstd-app"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+description = "HmstdDirStat desktop application shell (GPUI + GPUI Kit)."
+
+[[bin]]
+name = "hmstd-dirstat"
+path = "src/main.rs"
+
+[dependencies]
+hmstd-core = { path = "../core" }
+gpui-kit.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true
