@@ -27,19 +27,20 @@ pub(crate) fn is_link_to_dir(meta: &Metadata) -> bool {
 /// A symlink or any Windows reparse point (junction, cloud placeholder, ...).
 /// Copy and move never descend into these.
 pub(crate) fn is_link_like(meta: &Metadata) -> bool {
-    if meta.file_type().is_symlink() {
-        return true;
-    }
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::MetadataExt;
-        const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0000_0400;
-        meta.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0
-    }
-    #[cfg(not(windows))]
-    {
-        false
-    }
+    meta.file_type().is_symlink() || is_reparse_point(meta)
+}
+
+#[cfg(windows)]
+fn is_reparse_point(meta: &Metadata) -> bool {
+    use std::os::windows::fs::MetadataExt;
+    const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0000_0400;
+    meta.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0
+}
+
+/// Reparse points are a Windows concept; elsewhere only symlinks count.
+#[cfg(not(windows))]
+fn is_reparse_point(_meta: &Metadata) -> bool {
+    false
 }
 
 /// True when both paths resolve to the same location on disk.
