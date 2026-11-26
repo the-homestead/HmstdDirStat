@@ -11,6 +11,8 @@ pub fn apply_theme(preference: ThemePreference, cx: &mut App) {
         ThemePreference::Dark => Theme::change(ThemeMode::Dark, None, cx),
         ThemePreference::System => Theme::sync_system_appearance(None, cx),
     }
+    // Scrollbars stay visible, so a list that holds more than it shows says so.
+    Theme::global_mut(cx).scrollbar_mode = gpui_kit::component::scroll::ScrollbarMode::Always;
 }
 
 /// Flips between light and dark, then persists the explicit choice.

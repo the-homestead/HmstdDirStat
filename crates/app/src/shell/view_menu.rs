@@ -1,7 +1,10 @@
 //! The View menu: a toolbar button and its dropdown. Each widget is listed with a tick when it is
 //! shown; choosing one shows or hides it. Reset puts every widget back at its default place.
 
-use gpui_kit::component::{button::Button, *};
+use gpui_kit::component::{
+    button::{Button, ButtonVariants},
+    *,
+};
 use gpui_kit::*;
 use hmstd_core::workspace::WidgetKind;
 
@@ -10,8 +13,10 @@ use super::{Shell, widgets::*};
 /// The toolbar button that opens and closes the menu.
 pub(super) fn view_button(handle: Entity<Shell>) -> Button {
     Button::new("view-menu")
-        .outline()
-        .label("View")
+        .ghost()
+        .small()
+        .icon(gpui_kit::component::IconName::LayoutDashboard)
+        .tooltip("Widgets and layout")
         .on_click(move |_, _, cx| {
             handle.update(cx, |shell, cx| shell.toggle_view_menu(cx));
         })
@@ -24,7 +29,7 @@ pub(super) fn overlay(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Optio
     }
     let mut card = div()
         .absolute()
-        .top(px(52.))
+        .top(px(super::toolbar::BAR_PX + 4.))
         .right(px(16.))
         .v_flex()
         .min_w(px(200.))

@@ -1,19 +1,18 @@
-//! Main window layout: a toolbar with every control, the folder tree as the main area, and
+//! Main window layout: the top bar (toolbar.rs), the folder tree as the main area, and
 //! the graphs in a tabbed pane below it. Before a tree exists, the scan's progress or result
 //! fills the main area.
 
 use gpui_kit::component::{
     button::Button, label::Label, progress::Progress, spinner::Spinner, status_bar::StatusBar,
-    switch::Switch, tag::Tag, *,
+    tag::Tag, *,
 };
 use gpui_kit::*;
 use hmstd_ntfs::SummaryProgress;
 
 use super::{
-    Phase, Shell, fileops_ui, menu::menu_overlay, results::*, settings, view_menu, views,
+    Phase, Shell, fileops_ui, menu::menu_overlay, results::*, settings, toolbar, view_menu,
     widgets::*, workspace,
 };
-use crate::{explore, theme::toggle_theme};
 
 impl Render for Shell {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
@@ -29,7 +28,7 @@ impl Render for Shell {
             .v_flex()
             .bg(p.background)
             .text_color(p.foreground)
-            .child(toolbar(self, p, handle.clone(), cx))
+            .child(toolbar::bar(self, p, handle.clone(), cx))
             .child(
                 div()
                     .flex_1()
@@ -43,83 +42,6 @@ impl Render for Shell {
             .children(view_menu::overlay(self, p, handle.clone()))
             .children(fileops_ui::overlay(self, p, handle))
     }
-}
-
-/// The one row of controls. Volumes and scan mode sit on the left; the size switch, search,
-/// log folder and theme sit on the right. Every control is outlined so it reads as a control.
-fn toolbar(shell: &Shell, p: Palette, handle: Entity<Shell>, cx: &App) -> Div {
-    let busy = shell.is_busy();
-    let dark = cx.theme().is_dark();
-    let log_dir = shell.log_dir.clone();
-    let available = shell.tree.as_deref().is_some_and(explore::allocated_known);
-
-    let mut volumes = div().h_flex().gap_2();
-    for (index, drive) in shell.volumes.iter().enumerate() {
-        let target = drive.clone();
-        let handle = handle.clone();
-        volumes = volumes.child(
-            Button::new(format!("volume-{index}"))
-                .outline()
-                .label(drive.display().to_string())
-                .disabled(busy)
-                .on_click(move |_, _, cx| {
-                    handle.update(cx, |shell, cx| shell.choose_volume(target.clone(), cx));
-                }),
-        );
-    }
-
-    let fast = shell.fast_mode;
-    let mode_handle = handle.clone();
-    let mode = Switch::new("fast-mode")
-        .checked(fast)
-        .label("Fast NTFS read")
-        .on_click(move |checked, _, cx| {
-            mode_handle.update(cx, |shell, cx| shell.set_fast_mode(*checked, cx));
-        });
-
-    div()
-        .h_flex()
-        .px_4()
-        .py_3()
-        .gap_4()
-        .items_center()
-        .border_b_1()
-        .border_color(p.border)
-        .bg(p.surface)
-        .child(
-            div()
-                .text_base()
-                .font_weight(FontWeight::BOLD)
-                .child("HmstdDirStat"),
-        )
-        .child(volumes)
-        .child(mode)
-        .child(div().flex_1())
-        .child(views::search_field(
-            shell.search_input.as_ref(),
-            &shell.query,
-            p,
-        ))
-        .child(views::basis_buttons(shell.basis, available, handle.clone()))
-        .child(
-            Button::new("open-logs")
-                .outline()
-                .label("Log folder")
-                .tooltip(log_dir.display().to_string())
-                .on_click(move |_, _, _| {
-                    if let Err(error) = crate::open::open_folder(&log_dir) {
-                        tracing::error!(%error, "could not open the log folder");
-                    }
-                }),
-        )
-        .child(view_menu::view_button(handle.clone()))
-        .child(settings::settings_button(handle.clone()))
-        .child(
-            Button::new("toggle-theme")
-                .outline()
-                .label(if dark { "Light theme" } else { "Dark theme" })
-                .on_click(|_, _, cx| toggle_theme(cx)),
-        )
 }
 
 pub(super) fn summary_content(phase: &Phase, p: Palette, handle: Entity<Shell>) -> Div {

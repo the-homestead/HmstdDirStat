@@ -1,7 +1,10 @@
 //! The Settings panel: a toolbar button and a card over the window. UI scale is the setting so
 //! far. It scales text and rem-based spacing, and it is saved to config.json.
 
-use gpui_kit::component::{button::Button, *};
+use gpui_kit::component::{
+    button::{Button, ButtonVariants},
+    *,
+};
 use gpui_kit::*;
 use hmstd_core::config::{self, DEFAULT_UI_SCALE, UI_SCALE_MAX, UI_SCALE_MIN};
 
@@ -13,8 +16,10 @@ const STEP: f32 = 0.05;
 /// The toolbar button that opens and closes the panel.
 pub(super) fn settings_button(handle: Entity<Shell>) -> Button {
     Button::new("settings")
-        .outline()
-        .label("Settings")
+        .ghost()
+        .small()
+        .icon(gpui_kit::component::IconName::Settings)
+        .tooltip("Settings")
         .on_click(move |_, _, cx| {
             handle.update(cx, |shell, cx| shell.toggle_settings(cx));
         })
@@ -26,6 +31,24 @@ pub(super) fn overlay(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Optio
         return None;
     }
     let scale = shell.ui_scale;
+    let log_dir = shell.log_dir.clone();
+    let logs = div()
+        .h_flex()
+        .gap_2()
+        .items_center()
+        .child(div().text_sm().flex_1().child("Log files"))
+        .child(
+            Button::new("open-logs")
+                .outline()
+                .small()
+                .label("Open folder")
+                .tooltip(log_dir.display().to_string())
+                .on_click(move |_, _, _| {
+                    if let Err(error) = crate::open::open_folder(&log_dir) {
+                        tracing::error!(%error, "could not open the log folder");
+                    }
+                }),
+        );
     let (down, up, reset) = (handle.clone(), handle.clone(), handle);
     let row = div()
         .h_flex()
@@ -73,7 +96,7 @@ pub(super) fn overlay(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Optio
     Some(
         div()
             .absolute()
-            .top(px(52.))
+            .top(px(super::toolbar::BAR_PX + 4.))
             .right(px(16.))
             .v_flex()
             .min_w(px(320.))
@@ -97,7 +120,8 @@ pub(super) fn overlay(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Optio
                     .text_xs()
                     .text_color(p.muted_foreground)
                     .child("Scales text and rem-based spacing. Saved to config.json. HMSTD_UI_SCALE overrides it for one run."),
-            ),
+            )
+            .child(logs),
     )
 }
 

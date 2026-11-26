@@ -6,8 +6,6 @@ use gpui_kit::*;
 
 use hmstd_filesystem::{FileTree, NodeId};
 
-use crate::search::Query;
-
 use super::{Shell, widgets::*};
 use crate::{
     explore::{self, Basis},
@@ -151,63 +149,6 @@ pub(super) fn slot_color(index: usize, is_other: bool, p: Palette) -> Hsla {
     } else {
         p.chart[index % p.chart.len()]
     }
-}
-
-/// The search box in the toolbar. Matches are shown in the tree and the graphs. A query
-/// that does not parse, or a term the scan cannot answer, is explained under the box.
-pub fn search_field(
-    input: Option<&Entity<gpui_kit::component::input::InputState>>,
-    query: &Query,
-    p: Palette,
-) -> Div {
-    let field = div().v_flex().w(px(240.)).min_w_0().gap_1();
-    let field = match input {
-        Some(input) => field.child(gpui_kit::component::input::Input::new(input)),
-        None => field,
-    };
-    let mut notes: Vec<Div> = Vec::new();
-    if let Some(error) = query.error() {
-        notes.push(
-            div()
-                .text_xs()
-                .text_color(p.danger)
-                .child(error.to_string()),
-        );
-    }
-    for warning in query.warnings() {
-        notes.push(div().text_xs().text_color(p.warning).child(warning.clone()));
-    }
-    field.children(notes)
-}
-
-/// Chooses between logical and on-disk sizes. On-disk is disabled when the scan did not
-/// record it, with the reason shown beside the buttons (Plan §17: reduced functions are shown).
-/// The Logical / On-disk size switch. On-disk is disabled when the scan did not record it.
-pub fn basis_buttons(basis: Basis, available: bool, handle: Entity<Shell>) -> Div {
-    let logical_handle = handle.clone();
-    let allocated_handle = handle;
-    div()
-        .h_flex()
-        .gap_2()
-        .child(
-            Button::new("basis-logical")
-                .outline()
-                .label("Logical")
-                .toggled(basis == Basis::Logical)
-                .on_click(move |_, _, cx| {
-                    logical_handle.update(cx, |shell, cx| shell.set_basis(Basis::Logical, cx));
-                }),
-        )
-        .child(
-            Button::new("basis-allocated")
-                .outline()
-                .label("On-disk")
-                .toggled(basis == Basis::Allocated)
-                .disabled(!available)
-                .on_click(move |_, _, cx| {
-                    allocated_handle.update(cx, |shell, cx| shell.set_basis(Basis::Allocated, cx));
-                }),
-        )
 }
 
 /// Path to the focused folder, with an Up button that moves to its parent.

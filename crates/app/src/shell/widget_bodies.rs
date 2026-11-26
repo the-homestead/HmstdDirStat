@@ -103,7 +103,9 @@ pub(super) fn body(shell: &Shell, kind: WidgetKind, p: Palette, handle: Entity<S
         }
         WidgetKind::Summary | WidgetKind::Extensions => fill().child(
             content.child(
-                fill()
+                div()
+                    .id(("widget-scroll", kind as usize))
+                    .size_full()
                     .overflow_y_scrollbar()
                     .child(div().pr(px(SCROLL_GUTTER_PX)).child(inner)),
             ),

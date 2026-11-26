@@ -13,6 +13,7 @@ mod render;
 mod results;
 mod rings;
 mod settings;
+mod toolbar;
 mod treemap;
 mod view_menu;
 mod views;
@@ -197,7 +198,10 @@ impl Shell {
         if self.search_input.is_some() {
             return;
         }
-        let input = cx.new(|cx| InputState::new(window, cx));
+        let input = cx.new(|cx| {
+            InputState::new(window, cx)
+                .placeholder("Search  ·  name  ext:rpf  size:>1gb  path:steam")
+        });
         let sub = cx.subscribe_in(
             &input,
             window,
