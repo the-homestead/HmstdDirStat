@@ -2,7 +2,8 @@
 
 use gpui_kit::component::*;
 use gpui_kit::*;
-use hmstd_filesystem::EntryKind;
+use hmstd_fileops::DeleteMode;
+use hmstd_filesystem::{EntryKind, NodeId};
 
 use super::{Shell, widgets::*};
 
@@ -58,6 +59,30 @@ pub(super) fn menu_overlay(shell: &Shell, p: Palette, handle: Entity<Shell>) -> 
             explorer.update(cx, |shell, cx| shell.show_in_explorer(node, cx));
         },
     ));
+    if menu.node != NodeId::ROOT {
+        let recycle = handle.clone();
+        card = card.child(menu_item(
+            "menu-delete-recycle",
+            "Delete (Recycle Bin)",
+            p,
+            move |cx| {
+                recycle.update(cx, |shell, cx| {
+                    shell.begin_delete(node, DeleteMode::RecycleBin, cx)
+                });
+            },
+        ));
+        let permanent = handle.clone();
+        card = card.child(menu_item(
+            "menu-delete-permanent",
+            "Delete permanently",
+            p,
+            move |cx| {
+                permanent.update(cx, |shell, cx| {
+                    shell.begin_delete(node, DeleteMode::Permanent, cx)
+                });
+            },
+        ));
+    }
 
     let close = handle;
     Some(

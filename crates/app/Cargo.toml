@@ -14,6 +14,7 @@ path = "src/main.rs"
 [dependencies]
 hmstd-core = { path = "../core" }
 hmstd-filesystem = { path = "../filesystem" }
+hmstd-fileops = { path = "../fileops" }
 hmstd-scanner = { path = "../scanner" }
 hmstd-ntfs = { path = "../ntfs" }
 hmstd-search = { path = "../search" }

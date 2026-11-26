@@ -146,6 +146,7 @@ fn tree(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Div {
                     p,
                     handle,
                     (room(shell, WidgetKind::Tree).h - STATUS_PX - 4.0).max(0.0),
+                    shell.menu.is_none() && shell.delete.is_closed(),
                 )),
         )
 }
@@ -238,7 +239,9 @@ fn graph(shell: &Shell, kind: WidgetKind, p: Palette, handle: Entity<Shell>) -> 
             handle,
             p,
             look(shell, kind),
-            shell.sunburst_hover.filter(|_| shell.menu.is_none()),
+            shell
+                .sunburst_hover
+                .filter(|_| shell.menu.is_none() && shell.delete.is_closed()),
             shell.sunburst_bounds.clone(),
         ),
         _ => views::pie_card(
@@ -259,6 +262,6 @@ pub(super) fn look(shell: &Shell, kind: WidgetKind) -> treemap::Look<'_> {
         basis: shell.basis,
         query: &shell.query,
         selected: shell.selected,
-        tooltips: shell.menu.is_none(),
+        tooltips: shell.menu.is_none() && shell.delete.is_closed(),
     }
 }

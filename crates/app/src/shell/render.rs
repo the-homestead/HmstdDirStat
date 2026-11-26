@@ -10,13 +10,15 @@ use gpui_kit::*;
 use hmstd_ntfs::SummaryProgress;
 
 use super::{
-    Phase, Shell, menu::menu_overlay, results::*, settings, view_menu, views, widgets::*, workspace,
+    Phase, Shell, fileops_ui, menu::menu_overlay, results::*, settings, view_menu, views,
+    widgets::*, workspace,
 };
 use crate::{explore, theme::toggle_theme};
 
 impl Render for Shell {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.ensure_search(window, cx);
+        fileops_ui::ensure_input(self, window, cx);
         // GPUI's rem is 16px. Scaling it scales every rem-based size: text and most spacing.
         window.set_rem_size(px(16.0 * self.ui_scale));
         let p = Palette::from_app(cx);
@@ -38,7 +40,8 @@ impl Render for Shell {
             .child(status_bar(self, p))
             .children(menu_overlay(self, p, handle.clone()))
             .children(settings::overlay(self, p, handle.clone()))
-            .children(view_menu::overlay(self, p, handle))
+            .children(view_menu::overlay(self, p, handle.clone()))
+            .children(fileops_ui::overlay(self, p, handle))
     }
 }
 

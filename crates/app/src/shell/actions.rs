@@ -110,8 +110,10 @@ impl Shell {
         cx.notify();
     }
 
-    /// The full path of a node in the current tree, if it has one.
+    /// The absolute path of a node in the current tree, if it has one.
     pub fn path_of_node(&self, node: NodeId) -> Option<PathBuf> {
-        self.tree.as_deref()?.path_of(node)
+        let relative = self.tree.as_deref()?.path_of(node)?;
+        let scan_root = self.scan_root.as_ref()?;
+        Some(hmstd_fileops::tree_base(scan_root).join(relative))
     }
 }

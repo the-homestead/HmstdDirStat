@@ -142,6 +142,7 @@ pub fn files_view(
     p: Palette,
     handle: Entity<Shell>,
     height: f32,
+    tooltips: bool,
 ) -> Div {
     let on_disk = explore::allocated_known(&files);
     // The list needs a definite pixel height. Percentage heights through the absolute boxes
@@ -195,7 +196,18 @@ pub fn files_view(
                     handle.update(cx, |shell, cx| shell.tree_select(node, cx));
                 });
             }
-            row.child(tree_cells(&files, node, icon, on_disk, entry.depth(), p))
+            row.child(tree_cells(
+                &files,
+                node,
+                icon,
+                on_disk,
+                entry.depth(),
+                p,
+                RowInteraction {
+                    handle: handle.clone(),
+                    tooltips,
+                },
+            ))
         }));
     // Header and list share one bordered box, so both start at the same x.
     div()
@@ -210,6 +222,12 @@ pub fn files_view(
         .child(list)
 }
 
+/// Pointer behavior shared by every row. Grouping it keeps the cell builder's arity bounded.
+struct RowInteraction {
+    handle: Entity<Shell>,
+    tooltips: bool,
+}
+
 /// One tree row. Hovering it shows the full path, logical size and allocated size.
 fn tree_cells(
     files: &FileTree,
@@ -218,11 +236,13 @@ fn tree_cells(
     on_disk: bool,
     depth: usize,
     p: Palette,
+    interaction: RowInteraction,
 ) -> Div {
     let row = tree_cell_row(files, node, icon, on_disk, depth, p);
     let Some(id) = node.filter(|id| files.node(*id).is_some()) else {
         return row;
     };
+    let RowInteraction { handle, tooltips } = interaction;
     let bytes = explore::bytes_of(files, id, Basis::Logical);
     let path = files
         .path_of(id)
@@ -238,15 +258,20 @@ Size: {}
 Allocated: {allocated}",
         format_bytes(bytes)
     );
-    div().w_full().child(
-        div()
-            .id(("tree-row", id.index()))
-            .w_full()
-            .tooltip(move |window, cx| {
-                gpui_kit::component::tooltip::Tooltip::new(tip.clone()).build(window, cx)
-            })
-            .child(row),
-    )
+    let mut wrapper = div().id(("tree-row", id.index())).w_full().on_mouse_down(
+        MouseButton::Right,
+        move |event: &MouseDownEvent, _, cx| {
+            let at = event.position;
+            handle.update(cx, |shell, cx| shell.open_menu(id, at, cx));
+            cx.stop_propagation();
+        },
+    );
+    if tooltips {
+        wrapper = wrapper.tooltip(move |window, cx| {
+            gpui_kit::component::tooltip::Tooltip::new(tip.clone()).build(window, cx)
+        });
+    }
+    div().w_full().child(wrapper.child(row))
 }
 
 /// One tree row's cells, aligned under the header.

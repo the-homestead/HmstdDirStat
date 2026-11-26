@@ -5,6 +5,8 @@
 mod actions;
 mod empty_state;
 mod extensions_view;
+#[path = "../fileops_ui/mod.rs"]
+mod fileops_ui;
 mod files_tree;
 mod menu;
 mod render;
@@ -96,6 +98,8 @@ pub struct Shell {
     log_dir: PathBuf,
     /// The tree from the last walk, shared by the views. Fast mode leaves it empty.
     tree: Option<Arc<FileTree>>,
+    /// Absolute root used to turn tree-relative paths into file-operation paths.
+    scan_root: Option<PathBuf>,
     tree_state: Option<Entity<TreeState>>,
     /// The folder the Treemap, Sunburst and pie are showing.
     focus: NodeId,
@@ -136,8 +140,10 @@ pub struct Shell {
     _search_sub: Option<Subscription>,
     /// The search text the treemap and sunburst highlight.
     query: Query,
-    /// Holds the running job. Dropping it cancels the task, so it lives here.
+    /// Holds the running scan job. Dropping it cancels the task, so it lives here.
     task: Option<Task<()>>,
+    /// Delete preview, confirmation, worker and result state.
+    delete: fileops_ui::DeleteUi,
 }
 
 impl Shell {
@@ -153,6 +159,7 @@ impl Shell {
             fast_mode: false,
             log_dir,
             tree: None,
+            scan_root: None,
             tree_state: None,
             focus: NodeId::ROOT,
             sunburst_bounds: Rc::new(Cell::new(None)),
@@ -174,6 +181,7 @@ impl Shell {
             _search_sub: None,
             query: Query::default(),
             task: None,
+            delete: fileops_ui::DeleteUi::default(),
         }
     }
 
@@ -208,6 +216,7 @@ impl Shell {
 
     fn clear_tree(&mut self) {
         self.tree = None;
+        self.scan_root = None;
         self.query = Query::new(self.query.text(), None);
         self.tree_state = None;
         self.focus = NodeId::ROOT;
@@ -216,10 +225,11 @@ impl Shell {
     }
 
     /// Keeps a finished walk's tree for the views and builds the Files tab from it.
-    fn install_tree(&mut self, files: FileTree, cx: &mut Context<Self>) {
+    fn install_tree(&mut self, files: FileTree, scan_root: PathBuf, cx: &mut Context<Self>) {
         self.query = Query::new(self.query.text(), Some(&files));
         self.tree_state = Some(files_tree::build_tree_state(&files, &self.query, cx));
         self.tree = Some(Arc::new(files));
+        self.scan_root = Some(scan_root);
         self.focus = NodeId::ROOT;
         self.refresh_extensions();
     }
@@ -280,6 +290,7 @@ impl Shell {
 
     fn is_busy(&self) -> bool {
         matches!(self.phase, Phase::Walking { .. } | Phase::Elevated { .. })
+            || !self.delete.is_closed()
     }
 
     pub fn set_fast_mode(&mut self, on: bool, cx: &mut Context<Self>) {
@@ -331,8 +342,8 @@ impl Shell {
                 shell.phase = match outcome {
                     Ok(output) => {
                         tracing::info!(root = %root.display(), entries = output.report.entries_visited, "walk finished");
-                        let summary = summarize(root, &output, elapsed);
-                        shell.install_tree(output.tree, cx);
+                        let summary = summarize(root.clone(), &output, elapsed);
+                        shell.install_tree(output.tree, root.clone(), cx);
                         Phase::Walked(summary)
                     }
                     Err(ScanError::Cancelled) => Phase::Cancelled(root),
@@ -436,7 +447,7 @@ impl Shell {
                 let phase = match outcome {
                     Ok((summary, tree)) => {
                         tracing::info!(volume = %summary.volume, files = summary.files, "fast scan finished");
-                        shell.install_tree(tree, cx);
+                        shell.install_tree(tree, drive.clone(), cx);
                         Phase::FastDone(summary)
                     }
                     Err(message) => {

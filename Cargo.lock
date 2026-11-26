@@ -3103,6 +3103,7 @@ dependencies = [
  "anyhow",
  "gpui-kit",
  "hmstd-core",
+ "hmstd-fileops",
  "hmstd-filesystem",
  "hmstd-ntfs",
  "hmstd-scanner",
