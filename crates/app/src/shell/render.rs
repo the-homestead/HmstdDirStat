@@ -46,6 +46,45 @@ impl Render for Shell {
     }
 }
 
+/// Sidebar block for the last scan: what finished, the size shown, and a partial warning.
+fn scan_panel(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Div {
+    let (status, partial) = match &shell.phase {
+        Phase::Walked(summary) => (
+            format!(
+                "Walk complete: {} files, {} folders",
+                format_count(summary.files),
+                format_count(summary.directories)
+            ),
+            !summary.complete,
+        ),
+        Phase::FastDone(summary) => (
+            format!(
+                "Fast read complete: {} files, {} folders",
+                format_count(summary.files),
+                format_count(summary.directories)
+            ),
+            !summary.complete,
+        ),
+        _ => (String::new(), false),
+    };
+    let available = shell.tree.as_deref().is_some_and(explore::allocated_known);
+    let mut panel = div()
+        .v_flex()
+        .gap_3()
+        .child(section_heading("Last scan", p))
+        .child(div().text_xs().text_color(p.muted_foreground).child(status))
+        .child(views::basis_toggle(shell.basis, available, handle, p));
+    if partial {
+        panel = panel.child(
+            div()
+                .text_xs()
+                .text_color(p.warning)
+                .child("PARTIAL: some folders could not be read, so totals are incomplete."),
+        );
+    }
+    panel
+}
+
 fn sidebar(shell: &Shell, p: Palette, handle: Entity<Shell>, cx: &App) -> Div {
     let log_dir = shell.log_dir.clone();
     let busy = shell.is_busy();
@@ -151,6 +190,7 @@ fn sidebar(shell: &Shell, p: Palette, handle: Entity<Shell>, cx: &App) -> Div {
                 })
                 .on_click(|_, _, cx| toggle_theme(cx)),
         )
+        .child(scan_panel(shell, p, handle.clone()))
 }
 
 /// Height of the graph row, in pixels.
@@ -177,58 +217,9 @@ fn content(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Div {
     div()
         .v_flex()
         .gap_4()
-        .child(toolbar(shell, &files, p, handle.clone(), count))
+        .child(views::search_bar(shell.search_input.as_ref(), count, p))
         .child(views::files_view(&state, files.clone(), p, handle.clone()))
         .child(graphs(shell, &files, p, handle))
-}
-
-/// Above the tree: what finished, a warning for partial totals, the size toggle and search.
-fn toolbar(
-    shell: &Shell,
-    files: &FileTree,
-    p: Palette,
-    handle: Entity<Shell>,
-    count: Option<usize>,
-) -> Div {
-    let (status, partial) = match &shell.phase {
-        Phase::Walked(summary) => (
-            format!(
-                "Walk complete: {} files, {} folders",
-                format_count(summary.files),
-                format_count(summary.directories)
-            ),
-            !summary.complete,
-        ),
-        Phase::FastDone(summary) => (
-            format!(
-                "Fast read complete: {} files, {} folders",
-                format_count(summary.files),
-                format_count(summary.directories)
-            ),
-            !summary.complete,
-        ),
-        _ => (String::new(), false),
-    };
-    let mut bar = div()
-        .v_flex()
-        .gap_2()
-        .child(div().text_sm().text_color(p.muted_foreground).child(status))
-        .child(views::basis_toggle(
-            shell.basis,
-            explore::allocated_known(files),
-            handle,
-            p,
-        ))
-        .child(views::search_bar(shell.search_input.as_ref(), count, p));
-    if partial {
-        bar = bar.child(
-            div()
-                .text_sm()
-                .text_color(p.warning)
-                .child("PARTIAL: some folders could not be read, so totals are incomplete."),
-        );
-    }
-    bar
 }
 
 /// The lower area: one graph at a time, chosen by tab, for the focused folder.

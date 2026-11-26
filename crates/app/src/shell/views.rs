@@ -427,9 +427,8 @@ pub fn basis_toggle(basis: Basis, available: bool, handle: Entity<Shell>, p: Pal
         "On-disk size is not recorded by this scan. Fast scans record it."
     };
     div()
-        .h_flex()
-        .gap_3()
-        .items_center()
+        .v_flex()
+        .gap_2()
         .child(
             div()
                 .text_sm()
@@ -437,23 +436,30 @@ pub fn basis_toggle(basis: Basis, available: bool, handle: Entity<Shell>, p: Pal
                 .child("Size shown"),
         )
         .child(
-            Button::new("basis-logical")
-                .outline()
-                .label("Logical")
-                .toggled(basis == Basis::Logical)
-                .on_click(move |_, _, cx| {
-                    logical_handle.update(cx, |shell, cx| shell.set_basis(Basis::Logical, cx));
-                }),
-        )
-        .child(
-            Button::new("basis-allocated")
-                .outline()
-                .label("On-disk")
-                .toggled(basis == Basis::Allocated)
-                .disabled(!available)
-                .on_click(move |_, _, cx| {
-                    allocated_handle.update(cx, |shell, cx| shell.set_basis(Basis::Allocated, cx));
-                }),
+            div()
+                .h_flex()
+                .gap_2()
+                .child(
+                    Button::new("basis-logical")
+                        .outline()
+                        .label("Logical")
+                        .toggled(basis == Basis::Logical)
+                        .on_click(move |_, _, cx| {
+                            logical_handle
+                                .update(cx, |shell, cx| shell.set_basis(Basis::Logical, cx));
+                        }),
+                )
+                .child(
+                    Button::new("basis-allocated")
+                        .outline()
+                        .label("On-disk")
+                        .toggled(basis == Basis::Allocated)
+                        .disabled(!available)
+                        .on_click(move |_, _, cx| {
+                            allocated_handle
+                                .update(cx, |shell, cx| shell.set_basis(Basis::Allocated, cx));
+                        }),
+                ),
         )
         .child(div().text_xs().text_color(p.muted_foreground).child(note))
 }
