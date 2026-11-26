@@ -1,4 +1,4 @@
-# IMPLEMENTATION ROADMAP — HmstdDirStat
+# IMPLEMENTATION ROADMAP — TimberStat
 
 **Status:** Phase 0/1 in progress; no scanner or file operations yet.
 This document maps every milestone into independently testable increments with concrete
@@ -30,7 +30,7 @@ from `Plan.md` and expands each phase into its own deliverable.
 
 | # | Task | Acceptance Gate |
 |---|------|-----------------|
-| 1.1 | Initialize Cargo workspace under `A:/Dev/HmstdDirStat/crates/` | `cargo new crates/app && cargo add gpui-gui-base gpui-component gpui-kit` |
+| 1.1 | Initialize Cargo workspace under `A:/Dev/TimberStat/crates/` | `cargo new crates/app && cargo add gpui-gui-base gpui-component gpui-kit` |
 | 1.2 | Set up `Cargo.toml`, `rust-toolchain.toml`, `.gitignore`, sample config | `cargo build --release` succeeds on both Windows and Linux targets |
 | 1.3 | Implement main window: top toolbar, left sidebar, main workspace, info panel | UI renders without blocking scan workers |
 | 1.4 | Theme system: Dark / Light / System / Custom accent | Each theme loads via config; no compile errors |

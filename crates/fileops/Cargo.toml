@@ -5,7 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 license.workspace = true
-description = "File operations for HmstdDirStat: delete (Recycle Bin or permanent), copy, move, rename with collision policies. GPUI-independent."
+description = "File operations for TimberStat: delete (Recycle Bin or permanent), copy, move, rename with collision policies. GPUI-independent."
 
 [lib]
 name = "hmstd_fileops"

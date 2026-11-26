@@ -1,4 +1,4 @@
-# TECHNICAL RESEARCH — HmstdDirStat
+# TECHNICAL RESEARCH — TimberStat
 
 **Status:** Phase 0 research record. Dated 2026-11-25. Versions are crates.io snapshots,
 not guarantees of being latest. Items marked **UNVERIFIED** were reported by research but

@@ -30,12 +30,22 @@ fn main() -> Result<()> {
 
     // The window has no console, so the log file is the record of what happened.
     let log_dir = hmstd_core::logging::log_dir()
-        .unwrap_or_else(|| std::env::temp_dir().join("HmstdDirStat-logs"));
+        .unwrap_or_else(|| std::env::temp_dir().join("TimberStat-logs"));
     let log_file = hmstd_core::logging::init(&log_dir)
         .map_err(|error| anyhow::anyhow!("starting the log file: {error}"))?;
     tracing::info!(path = %log_file.display(), "log file");
 
     let config_path = config::default_config_path().context("resolving configuration path")?;
+    // The app was renamed from HmstdDirStat. Its saved settings are copied over once.
+    if let Some(legacy) = config::legacy_config_path() {
+        match config::adopt_legacy_config(&legacy, &config_path) {
+            Ok(true) => {
+                tracing::info!(from = %legacy.display(), "settings copied from HmstdDirStat")
+            }
+            Ok(false) => {}
+            Err(error) => tracing::warn!(%error, "could not copy the HmstdDirStat settings"),
+        }
+    }
     let app_config = match config::load_from(&config_path) {
         Ok(loaded) => loaded,
         Err(error) => {
@@ -44,7 +54,7 @@ fn main() -> Result<()> {
             AppConfig::default()
         }
     };
-    tracing::info!(path = %config_path.display(), theme = ?app_config.theme, "starting HmstdDirStat");
+    tracing::info!(path = %config_path.display(), theme = ?app_config.theme, "starting TimberStat");
     let layout = app_config.workspace.clone().unwrap_or_default();
 
     let volumes = SystemVolumes.volumes().unwrap_or_else(|error| {
@@ -58,6 +68,7 @@ fn main() -> Result<()> {
             // Must run before any GPUI Kit component is used.
             gpui_kit::init(cx);
             apply_theme(app_config.theme, cx);
+            theme::log_mode_changes(cx);
             let ui_scale = app_config.ui_scale;
 
             if let Err(error) = gpui_kit::open_window(
@@ -68,7 +79,7 @@ fn main() -> Result<()> {
                         cx,
                     ))),
                     titlebar: Some(TitlebarOptions {
-                        title: Some("HmstdDirStat".into()),
+                        title: Some(hmstd_core::config::APP_NAME.into()),
                         ..Default::default()
                     }),
                     ..Default::default()

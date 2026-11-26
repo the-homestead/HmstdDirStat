@@ -60,7 +60,7 @@ fn brand(p: Palette) -> Div {
             div()
                 .text_sm()
                 .font_weight(FontWeight::SEMIBOLD)
-                .child("HmstdDirStat"),
+                .child(hmstd_core::config::APP_NAME),
         )
 }
 

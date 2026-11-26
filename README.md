@@ -1,4 +1,4 @@
-# HmstdDirStat
+# TimberStat
 
 A native disk analyzer and file-management suite for Windows 10/11 (primary) and Linux (secondary),
 written in Rust with [GPUI](https://www.gpui.rs/) and [GPUI Kit](https://gpui-kit.com/).
@@ -34,7 +34,7 @@ cargo test --workspace
 ## Configuration
 
 The configuration file lives in the platform config directory (on Windows,
-`%APPDATA%\HmstdDirStat\config\config.json`). It is versioned (`schema_version`).
+`%APPDATA%\TimberStat\config\config.json`). It is versioned (`schema_version`).
 
 | Key | Values | Default |
 |---|---|---|

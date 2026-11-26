@@ -1,4 +1,4 @@
-# TESTING STRATEGY — HmstdDirStat
+# TESTING STRATEGY — TimberStat
 
 Rule (Plan §20): test filesystem edge cases; never claim a test passed unless it was run.
 A test report must separate **executed**, **failed**, and **not run**.

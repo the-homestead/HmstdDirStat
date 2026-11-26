@@ -1,4 +1,4 @@
-//! Filesystem scanning for HmstdDirStat (Plan §4, Phase 2).
+//! Filesystem scanning for TimberStat (Plan §4, Phase 2).
 //!
 //! Scanning reads metadata only, never file contents. It never follows symlinks
 //! or junctions. Hard links are charged physically once per file identity.

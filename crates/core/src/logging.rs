@@ -16,9 +16,9 @@ use tracing_subscriber::{EnvFilter, fmt};
 /// Log files kept on disk, including the one written by the current run.
 pub const KEEP_LOG_FILES: usize = 20;
 
-/// Directory for log files, e.g. `%LOCALAPPDATA%\HmstdDirStat\data\logs` on Windows.
+/// Directory for log files, e.g. `%LOCALAPPDATA%\TimberStat\data\logs` on Windows.
 pub fn log_dir() -> Option<PathBuf> {
-    directories::ProjectDirs::from("", "", "HmstdDirStat")
+    directories::ProjectDirs::from("", "", crate::config::APP_NAME)
         .map(|dirs| dirs.data_local_dir().join("logs"))
 }
 

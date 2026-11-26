@@ -1,4 +1,4 @@
-# PERFORMANCE PLAN — HmstdDirStat
+# PERFORMANCE PLAN — TimberStat
 
 Rule (Plan §18, §23.10, §23.18): **no invented benchmark numbers; profile before optimising.**
 This file defines how performance is measured. It contains no throughput claims. No benchmark

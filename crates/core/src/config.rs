@@ -31,6 +31,11 @@ pub const CURRENT_SCHEMA_VERSION: u32 = 1;
 /// File name inside the platform configuration directory.
 pub const CONFIG_FILE_NAME: &str = "config.json";
 
+/// The product name. It names the per-user config, data and log folders.
+pub const APP_NAME: &str = "TimberStat";
+/// The name before the rename. Its config is copied over once (see [`adopt_legacy_config`]).
+const LEGACY_APP_NAME: &str = "HmstdDirStat";
+
 /// Environment variable prefix. `HMSTD_THEME=dark` overrides the file for one run.
 pub const ENV_PREFIX: &str = "HMSTD";
 
@@ -75,9 +80,29 @@ impl Default for AppConfig {
 
 /// Resolves the default configuration file path for this user.
 pub fn default_config_path() -> Result<PathBuf, ConfigError> {
-    let dirs = directories::ProjectDirs::from("", "", "HmstdDirStat")
-        .ok_or(ConfigError::NoConfigDirectory)?;
+    let dirs =
+        directories::ProjectDirs::from("", "", APP_NAME).ok_or(ConfigError::NoConfigDirectory)?;
     Ok(dirs.config_dir().join(CONFIG_FILE_NAME))
+}
+
+/// Where the config lived before the rename, if this platform has a config folder.
+pub fn legacy_config_path() -> Option<PathBuf> {
+    directories::ProjectDirs::from("", "", LEGACY_APP_NAME)
+        .map(|dirs| dirs.config_dir().join(CONFIG_FILE_NAME))
+}
+
+/// Copies the pre-rename config to `new` when `new` does not exist yet, so the saved layout,
+/// theme and UI scale survive the rename. The old file is only read, never changed or
+/// removed. Returns true when a copy was made.
+pub fn adopt_legacy_config(legacy: &Path, new: &Path) -> std::io::Result<bool> {
+    if new.exists() || !legacy.is_file() {
+        return Ok(false);
+    }
+    if let Some(parent) = new.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::copy(legacy, new)?;
+    Ok(true)
 }
 
 /// Builds the environment layer from an explicit variable map.
@@ -198,6 +223,31 @@ mod tests {
 
     fn no_env() -> Option<Environment> {
         Some(env_source(HashMap::new()))
+    }
+
+    #[test]
+    fn legacy_config_is_copied_once_and_left_in_place() {
+        let dir = tempfile::tempdir().unwrap();
+        let legacy = dir.path().join("old").join(CONFIG_FILE_NAME);
+        let new = dir.path().join("new").join(CONFIG_FILE_NAME);
+        write(&legacy, "{\"theme\":\"dark\"}");
+
+        assert!(adopt_legacy_config(&legacy, &new).unwrap());
+        assert_eq!(fs::read_to_string(&new).unwrap(), "{\"theme\":\"dark\"}");
+        assert!(legacy.is_file());
+
+        // A config that already exists is never replaced.
+        write(&legacy, "{\"theme\":\"light\"}");
+        assert!(!adopt_legacy_config(&legacy, &new).unwrap());
+        assert_eq!(fs::read_to_string(&new).unwrap(), "{\"theme\":\"dark\"}");
+    }
+
+    #[test]
+    fn nothing_to_adopt_without_a_legacy_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let new = dir.path().join(CONFIG_FILE_NAME);
+        assert!(!adopt_legacy_config(&dir.path().join("missing.json"), &new).unwrap());
+        assert!(!new.exists());
     }
 
     #[test]

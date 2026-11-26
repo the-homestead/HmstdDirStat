@@ -1,4 +1,4 @@
-//! Duplicate detection for HmstdDirStat: a staged pipeline that never deletes.
+//! Duplicate detection for TimberStat: a staged pipeline that never deletes.
 //!
 //! Stages, each more expensive than the last:
 //! 1. group files by logical size; drop singletons;

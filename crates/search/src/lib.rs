@@ -1,4 +1,4 @@
-//! Query language for HmstdDirStat.
+//! Query language for TimberStat.
 //!
 //! A query is a space-separated list of terms. Whitespace means AND, `OR` joins
 //! alternatives, `NOT` or a leading `!` negates a term, and parentheses group.

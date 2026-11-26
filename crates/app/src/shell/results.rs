@@ -20,7 +20,7 @@ pub(super) fn elevated_view(
     let (title, detail) = match (granted, stage) {
         (false, _) => (
             format!("Waiting for administrator approval for {}", drive.display()),
-            "Windows is asking for permission to run HmstdDirStat as administrator. Approve it to start the read.",
+            "Windows is asking for permission to run TimberStat as administrator. Approve it to start the read.",
         ),
         (true, Some(SummaryProgress::Building)) => (
             format!("Building the folder tree for {}", drive.display()),

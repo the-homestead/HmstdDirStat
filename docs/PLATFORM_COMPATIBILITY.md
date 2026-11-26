@@ -1,4 +1,4 @@
-# PLATFORM COMPATIBILITY — HmstdDirStat
+# PLATFORM COMPATIBILITY — TimberStat
 
 Primary: Windows 10/11. Secondary: Linux. Unavailable or reduced functionality must be shown to the user, not hidden (Plan §17).
 

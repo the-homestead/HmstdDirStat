@@ -5,7 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 license.workspace = true
-description = "Filesystem scanning for HmstdDirStat: metadata-only traversal, cancellation, progress, volume discovery."
+description = "Filesystem scanning for TimberStat: metadata-only traversal, cancellation, progress, volume discovery."
 
 [lib]
 name = "hmstd_scanner"

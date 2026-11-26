@@ -1,10 +1,10 @@
-# ARCHITECTURE — HmstdDirStat
+# ARCHITECTURE — TimberStat
 
 **Status:** Phase 0/1 in progress. This document describes the target architecture and the
 rules that bind it. **No scanner, no file operations, and no visualizations exist yet** —
 nothing in this document should be read as a claim that a subsystem is implemented.
 
-HmstdDirStat is a native disk-analyzer and file-management suite for Windows 10/11
+TimberStat is a native disk-analyzer and file-management suite for Windows 10/11
 (primary) and Linux (secondary), written in Rust with GPUI for the interface and GPUI Kit
 for components. The architecture exists to satisfy one product promise: **scan once, then
 analyze, visualize, filter, and manage against a single authoritative filesystem model

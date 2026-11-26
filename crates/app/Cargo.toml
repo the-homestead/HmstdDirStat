@@ -5,10 +5,10 @@ edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 license.workspace = true
-description = "HmstdDirStat desktop application shell (GPUI + GPUI Kit)."
+description = "TimberStat: disk usage analyser and file manager (GPUI + GPUI Kit)."
 
 [[bin]]
-name = "hmstd-dirstat"
+name = "timberstat"
 path = "src/main.rs"
 
 [dependencies]

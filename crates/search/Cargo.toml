@@ -5,7 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 license.workspace = true
-description = "Query language for HmstdDirStat: parser and evaluator over the filesystem model. GPUI-independent."
+description = "Query language for TimberStat: parser and evaluator over the filesystem model. GPUI-independent."
 
 [lib]
 name = "hmstd_search"

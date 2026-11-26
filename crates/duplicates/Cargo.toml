@@ -5,7 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 license.workspace = true
-description = "Duplicate detection for HmstdDirStat: size, sample, BLAKE3 and byte-verify stages. Reports only; never deletes. GPUI-independent."
+description = "Duplicate detection for TimberStat: size, sample, BLAKE3 and byte-verify stages. Reports only; never deletes. GPUI-independent."
 
 [lib]
 name = "hmstd_duplicates"

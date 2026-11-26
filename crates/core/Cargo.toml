@@ -5,7 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 license.workspace = true
-description = "GPUI-independent domain primitives for HmstdDirStat: errors, configuration, logging."
+description = "GPUI-independent domain primitives for TimberStat: errors, configuration, logging."
 
 [lib]
 name = "hmstd_core"

@@ -1,4 +1,4 @@
-//! File operations for HmstdDirStat: delete, copy, move and rename.
+//! File operations for TimberStat: delete, copy, move and rename.
 //!
 //! Everything here is GPUI-independent and split into a plan step and an
 //! execute step. Planning reads only the in-memory tree. Execution touches
