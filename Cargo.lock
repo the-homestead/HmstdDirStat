@@ -6793,6 +6793,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "timberstat-storage-insights"
+version = "0.1.0"
+dependencies = [
+ "directories",
+ "tempfile",
+ "timberstat-filesystem",
+]
+
+[[package]]
 name = "time"
 version = "0.3.55"
 source = "registry+https://github.com/rust-lang/crates.io-index"

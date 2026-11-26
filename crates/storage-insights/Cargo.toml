@@ -1,0 +1,23 @@
+[package]
+name = "timberstat-storage-insights"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+description = "Storage insights for TimberStat: review-only cleanup candidates with reasons, sizes and risks. GPUI-independent."
+
+[lib]
+name = "timberstat_storage_insights"
+
+[dependencies]
+timberstat-filesystem = { path = "../filesystem" }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+directories.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

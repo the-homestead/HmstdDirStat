@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/core", "crates/filesystem", "crates/scanner", "crates/ntfs", "crates/search", "crates/fileops", "crates/duplicates", "crates/app", "crates/archive"]
+members = ["crates/core", "crates/filesystem", "crates/scanner", "crates/ntfs", "crates/search", "crates/fileops", "crates/duplicates", "crates/app", "crates/archive", "crates/storage-insights"]
 
 [workspace.package]
 version = "0.1.0"
