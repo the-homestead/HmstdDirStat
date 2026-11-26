@@ -27,7 +27,11 @@ use std::{
     time::{Duration, Instant},
 };
 
-use std::{cell::Cell, rc::Rc};
+use std::{
+    cell::{Cell, RefCell},
+    collections::HashMap,
+    rc::Rc,
+};
 
 use gpui_kit::Subscription;
 use gpui_kit::component::input::{InputEvent, InputState};
@@ -112,6 +116,9 @@ pub struct Shell {
     drag_start: Option<DragStart>,
     /// The workspace's size in pixels, measured while it paints.
     workspace_bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
+    /// Content size of each widget body (width, height) as measured on the last frame.
+    /// Widgets size their graphs and lists from it.
+    widget_rooms: Rc<RefCell<HashMap<hmstd_core::workspace::WidgetKind, (f32, f32)>>>,
     /// Whether the View menu is open.
     view_menu: bool,
     /// Whether the Settings panel is open.
@@ -156,6 +163,7 @@ impl Shell {
             layout,
             drag_start: None,
             workspace_bounds: Rc::new(Cell::new(None)),
+            widget_rooms: Rc::new(RefCell::new(HashMap::new())),
             view_menu: false,
             settings_open: false,
             layout_dirty: false,

@@ -95,13 +95,44 @@ pub fn tree_matches(files: &FileTree, query: &Query) -> usize {
 /// Column widths shared by the header and every row, in pixels.
 /// The name column never gets narrower than this; a narrow widget clips the right columns.
 const COL_NAME_MIN: f32 = 110.;
-const COL_PERCENT: f32 = 52.;
+const COL_PERCENT: f32 = 60.;
 const COL_SIZE: f32 = 72.;
 const COL_ON_DISK: f32 = 72.;
 const COL_ITEMS: f32 = 56.;
 
 /// Height of the column header above the folder tree, in pixels.
 const TREE_HEADER_PX: f32 = 24.0;
+/// Space between the list's left edge and the first column, in pixels.
+const LINE_INSET: f32 = 8.0;
+/// Extra indent per tree level, in pixels.
+const INDENT_PX: f32 = 14.0;
+/// Number column widths, left to right: % of parent, size, on-disk, items.
+const COL_WIDTHS: [f32; 4] = [COL_PERCENT, COL_SIZE, COL_ON_DISK, COL_ITEMS];
+
+/// One tree line: the name cell, then the four number cells. The header and every row are
+/// built here, so their columns always line up.
+fn line(name: Div, cells: [Div; 4], p: Palette) -> Div {
+    let mut row = div()
+        .h_flex()
+        .w_full()
+        .min_w_0()
+        .items_center()
+        .pl(px(LINE_INSET))
+        .pr(px(LINE_INSET + super::widget_bodies::SCROLL_GUTTER_PX))
+        .child(name.flex_1().min_w(px(COL_NAME_MIN)).overflow_hidden());
+    for (cell, width) in cells.into_iter().zip(COL_WIDTHS) {
+        row = row.child(
+            cell.flex_shrink_0()
+                .w(px(width))
+                .px_1()
+                .border_l_1()
+                .border_color(p.border)
+                .text_right()
+                .truncate(),
+        );
+    }
+    row
+}
 
 /// The folder tree in the WizTree layout: the name, then % of parent, size, on-disk size and
 /// item count. Clicking a folder makes it the focus of the graphs below.
@@ -115,105 +146,68 @@ pub fn files_view(
     let on_disk = explore::allocated_known(&files);
     // The list needs a definite pixel height. Percentage heights through the absolute boxes
     // above resolved to 0 px (measured), which drew the header and no rows.
-    let list_h = (height - TREE_HEADER_PX).max(0.0);
-    let header = div()
-        .absolute()
-        .top_0()
-        .left_0()
-        .right_0()
-        .h(px(TREE_HEADER_PX))
-        .h_flex()
-        .items_center()
-        .px_3()
-        .py_1()
-        .gap_2()
-        .text_xs()
-        .text_color(p.muted_foreground)
-        .border_b_1()
-        .border_color(p.border)
-        .child(div().flex_1().min_w(px(COL_NAME_MIN)).child("Folder"))
-        .child(
-            div()
-                .w(px(COL_PERCENT))
-                .border_l_1()
-                .border_color(p.muted_foreground.opacity(0.4))
-                .text_right()
-                .child("% of parent"),
-        )
-        .child(
-            div()
-                .w(px(COL_SIZE))
-                .border_l_1()
-                .border_color(p.muted_foreground.opacity(0.4))
-                .text_right()
-                .child("Size"),
-        )
-        .child(
-            div()
-                .w(px(COL_ON_DISK))
-                .border_l_1()
-                .border_color(p.muted_foreground.opacity(0.4))
-                .text_right()
-                .child("On-disk"),
-        )
-        .child(
-            div()
-                .w(px(COL_ITEMS))
-                .border_l_1()
-                .border_color(p.muted_foreground.opacity(0.4))
-                .text_right()
-                .child("Items"),
-        );
-    let body = div()
+    // Two pixels go to the box's top and bottom border.
+    let list_h = (height - TREE_HEADER_PX - 2.0).max(0.0);
+    let header = line(
+        div().child("Folder"),
+        [
+            div().child("% parent"),
+            div().child("Size"),
+            div().child("On-disk"),
+            div().child("Items"),
+        ],
+        p,
+    )
+    .absolute()
+    .top_0()
+    .left_0()
+    .right_0()
+    .h(px(TREE_HEADER_PX))
+    .text_xs()
+    .text_color(p.muted_foreground)
+    .border_b_1()
+    .border_color(p.border);
+    let list = div()
         .absolute()
         .top(px(TREE_HEADER_PX))
-        .bottom_0()
         .left_0()
         .right_0()
-        .border_1()
-        .border_color(p.border)
-        .rounded_lg()
-        .relative()
         .h(px(list_h))
-        .child(
-            div()
-                .absolute()
-                .top_0()
-                .left_0()
-                .w_full()
-                .h(px(list_h))
-                .child(tree(state, move |ix, entry, selected, _window, _cx| {
-                    let icon = if !entry.is_folder() {
-                        IconName::File
-                    } else if entry.is_expanded() {
-                        IconName::FolderOpen
-                    } else {
-                        IconName::Folder
-                    };
-                    let node = entry
-                        .item()
-                        .id
-                        .parse::<usize>()
-                        .ok()
-                        .and_then(NodeId::from_index);
-                    let mut row = ListItem::new(ix)
-                        .selected(selected)
-                        .pl(px(12.) * entry.depth() + px(4.));
-                    if let Some(node) = node {
-                        let handle = handle.clone();
-                        row = row.on_click(move |_, _, cx| {
-                            handle.update(cx, |shell, cx| shell.tree_select(node, cx));
-                        });
-                    }
-                    row.child(tree_cells(&files, node, icon, on_disk, p))
-                })),
-        );
+        .child(tree(state, move |ix, entry, selected, _window, _cx| {
+            let icon = if !entry.is_folder() {
+                IconName::File
+            } else if entry.is_expanded() {
+                IconName::FolderOpen
+            } else {
+                IconName::Folder
+            };
+            let node = entry
+                .item()
+                .id
+                .parse::<usize>()
+                .ok()
+                .and_then(NodeId::from_index);
+            // The line owns all horizontal spacing, so the item adds none.
+            let mut row = ListItem::new(ix).selected(selected).pl(px(0.)).pr(px(0.));
+            if let Some(node) = node {
+                let handle = handle.clone();
+                row = row.on_click(move |_, _, cx| {
+                    handle.update(cx, |shell, cx| shell.tree_select(node, cx));
+                });
+            }
+            row.child(tree_cells(&files, node, icon, on_disk, entry.depth(), p))
+        }));
+    // Header and list share one bordered box, so both start at the same x.
     div()
         .relative()
         .w_full()
         .h(px(height))
+        .border_1()
+        .border_color(p.border)
+        .rounded_lg()
+        .overflow_hidden()
         .child(header)
-        .child(body)
+        .child(list)
 }
 
 /// One tree row. Hovering it shows the full path, logical size and allocated size.
@@ -222,9 +216,10 @@ fn tree_cells(
     node: Option<NodeId>,
     icon: IconName,
     on_disk: bool,
+    depth: usize,
     p: Palette,
 ) -> Div {
-    let row = tree_cell_row(files, node, icon, on_disk, p);
+    let row = tree_cell_row(files, node, icon, on_disk, depth, p);
     let Some(id) = node.filter(|id| files.node(*id).is_some()) else {
         return row;
     };
@@ -243,11 +238,10 @@ Size: {}
 Allocated: {allocated}",
         format_bytes(bytes)
     );
-    div().h_flex().flex_1().min_w_0().child(
+    div().w_full().child(
         div()
             .id(("tree-row", id.index()))
-            .flex_1()
-            .min_w_0()
+            .w_full()
             .tooltip(move |window, cx| {
                 gpui_kit::component::tooltip::Tooltip::new(tip.clone()).build(window, cx)
             })
@@ -261,6 +255,7 @@ fn tree_cell_row(
     node: Option<NodeId>,
     icon: IconName,
     on_disk: bool,
+    depth: usize,
     p: Palette,
 ) -> Div {
     let Some(id) = node else {
@@ -285,53 +280,23 @@ fn tree_cell_row(
         "—".to_string()
     };
     let name = entry.name().to_string_lossy().into_owned();
-    div()
-        .h_flex()
-        .flex_1()
-        .min_w_0()
-        .gap_2()
-        .items_center()
-        .child(
+    line(
+        div()
+            .h_flex()
+            .gap_2()
+            .items_center()
+            .pl(px(INDENT_PX * depth as f32))
+            .child(icon)
+            .child(div().min_w_0().truncate().child(name)),
+        [
+            div().text_color(p.muted_foreground).child(share_text),
+            div().child(format_bytes(bytes)),
+            div().text_color(p.muted_foreground).child(on_disk_text),
             div()
-                .flex_1()
-                .min_w(px(COL_NAME_MIN))
-                .h_flex()
-                .gap_2()
-                .child(icon)
-                .child(div().truncate().child(name)),
-        )
-        .child(
-            div()
-                .w(px(COL_PERCENT))
-                .border_l_1()
-                .border_color(p.muted_foreground.opacity(0.4))
-                .text_right()
-                .text_color(p.muted_foreground)
-                .child(share_text),
-        )
-        .child(
-            div()
-                .w(px(COL_SIZE))
-                .border_l_1()
-                .border_color(p.muted_foreground.opacity(0.4))
-                .text_right()
-                .child(format_bytes(bytes)),
-        )
-        .child(
-            div()
-                .w(px(COL_ON_DISK))
-                .border_l_1()
-                .border_color(p.muted_foreground.opacity(0.4))
-                .text_right()
-                .child(on_disk_text),
-        )
-        .child(
-            div()
-                .w(px(COL_ITEMS))
-                .border_l_1()
-                .border_color(p.muted_foreground.opacity(0.4))
-                .text_right()
                 .text_color(p.muted_foreground)
                 .child(items.unwrap_or_default()),
-        )
+        ],
+        p,
+    )
+    .text_sm()
 }

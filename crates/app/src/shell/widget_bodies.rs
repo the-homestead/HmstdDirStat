@@ -27,10 +27,16 @@ pub(super) struct Room {
 const CHROME_W: f32 = 2.0 * PAD_PX + 6.0;
 const CHROME_H: f32 = 2.0 * PAD_PX + 6.0;
 /// Space between a widget's edge and its content, in pixels.
-const PAD_PX: f32 = 5.0;
+const PAD_PX: f32 = 9.0;
+/// Room kept clear on the right of scrolling content, so the scrollbar does not cover text.
+pub(super) const SCROLL_GUTTER_PX: f32 = 12.0;
 
-/// The room inside `kind`'s body, from its frame and the workspace bounds of the last frame.
+/// The room inside `kind`'s body: measured on the last frame, or estimated from its frame
+/// before the first measurement.
 fn room(shell: &Shell, kind: WidgetKind) -> Room {
+    if let Some(&(w, h)) = shell.widget_rooms.borrow().get(&kind) {
+        return Room { w, h };
+    }
     match (shell.layout.frame(kind), shell.workspace_bounds.get()) {
         (Some(frame), Some(bounds)) => Room {
             w: (frame.w * f32::from(bounds.size.width) - CHROME_W).max(0.0),
@@ -63,21 +69,45 @@ pub(super) fn body(shell: &Shell, kind: WidgetKind, p: Palette, handle: Entity<S
     };
     // The content box sits PAD_PX inside the widget. Padding on an absolute box would not move
     // absolute children, so the gap is an inset instead.
+    let rooms = shell.widget_rooms.clone();
+    // Measures the content box. When its size changes, the next frame lays out from it.
+    let probe = canvas(
+        move |bounds, window, _| {
+            let size = (f32::from(bounds.size.width), f32::from(bounds.size.height));
+            let old = rooms.borrow_mut().insert(kind, size);
+            let moved =
+                old.is_none_or(|(w, h)| (w - size.0).abs() > 0.5 || (h - size.1).abs() > 0.5);
+            if moved {
+                window.refresh();
+            }
+        },
+        |_, _, _, _| {},
+    )
+    .absolute()
+    .top_0()
+    .bottom_0()
+    .left_0()
+    .right_0();
     let content = div()
         .absolute()
         .top(px(PAD_PX))
         .bottom(px(PAD_PX))
         .left(px(PAD_PX))
-        .right(px(PAD_PX));
+        .right(px(PAD_PX))
+        .child(probe);
     // Graphs size themselves to the room and clip as a guard. Lists scroll only when the widget
     // is too small for them.
     match kind {
         WidgetKind::Tree | WidgetKind::Treemap | WidgetKind::Sunburst | WidgetKind::Pie => {
             fill().child(content.overflow_hidden().child(inner))
         }
-        WidgetKind::Summary | WidgetKind::Extensions => {
-            fill().child(content.child(fill().overflow_y_scrollbar().child(inner)))
-        }
+        WidgetKind::Summary | WidgetKind::Extensions => fill().child(
+            content.child(
+                fill()
+                    .overflow_y_scrollbar()
+                    .child(div().pr(px(SCROLL_GUTTER_PX)).child(inner)),
+            ),
+        ),
     }
 }
 
@@ -126,24 +156,35 @@ fn tree_status(shell: &Shell, p: Palette, count: Option<usize>) -> Div {
     if !available && !status.is_empty() {
         status.push_str(" · on-disk sizes need a Fast scan");
     }
+    // One line. The scan text gives way first and ends in an ellipsis; the partial flag and
+    // the match count keep their width.
     let mut row = div()
         .h_flex()
+        .w_full()
+        .min_w_0()
         .gap_3()
         .items_center()
-        .child(div().text_xs().text_color(p.muted_foreground).child(status));
+        .text_xs()
+        .child(
+            div()
+                .flex_1()
+                .min_w_0()
+                .truncate()
+                .text_color(p.muted_foreground)
+                .child(status),
+        );
     if partial {
         row = row.child(
             div()
-                .text_xs()
+                .flex_shrink_0()
                 .text_color(p.warning)
-                .child("PARTIAL: some folders could not be read, so totals are incomplete."),
+                .child("Partial totals"),
         );
     }
-    row = row.child(div().flex_1());
     if let Some(count) = count {
         row = row.child(
             div()
-                .text_xs()
+                .flex_shrink_0()
                 .text_color(p.muted_foreground)
                 .child(match_text(count)),
         );
