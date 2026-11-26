@@ -19,6 +19,20 @@ pub enum Category {
     VmImages,
     LargeMedia,
     GameInstalls,
+    GitRepositories,
+    CargoTargetDirectories,
+    RustBuildArtifacts,
+    NodeModules,
+    NpmCaches,
+    PnpmCaches,
+    YarnCaches,
+    PythonVirtualEnvironments,
+    PipCaches,
+    GradleCaches,
+    MavenRepositories,
+    CMakeBuildDirectories,
+    VisualStudioBuildArtifacts,
+    DockerStorage,
 }
 
 impl Category {
@@ -36,6 +50,20 @@ impl Category {
             Self::VmImages => "Virtual machine images",
             Self::LargeMedia => "Large media collections",
             Self::GameInstalls => "Game installations",
+            Self::GitRepositories => "Git repositories",
+            Self::CargoTargetDirectories => "Cargo target directories",
+            Self::RustBuildArtifacts => "Rust build artifacts",
+            Self::NodeModules => "node_modules directories",
+            Self::NpmCaches => "npm caches",
+            Self::PnpmCaches => "pnpm caches and stores",
+            Self::YarnCaches => "Yarn caches",
+            Self::PythonVirtualEnvironments => "Python virtual environments",
+            Self::PipCaches => "pip caches",
+            Self::GradleCaches => "Gradle caches",
+            Self::MavenRepositories => "Maven repositories",
+            Self::CMakeBuildDirectories => "CMake build directories",
+            Self::VisualStudioBuildArtifacts => "Visual Studio build artifacts",
+            Self::DockerStorage => "Docker and WSL storage",
         }
     }
 }
@@ -195,6 +223,54 @@ pub fn default_risk(category: Category) -> Risk {
         Category::GameInstalls => (
             RiskLevel::High,
             "Informational only. A game installation is managed by its launcher; changing individual files can break the installation or saves.",
+        ),
+        Category::GitRepositories => (
+            RiskLevel::High,
+            "Informational only. A repository can contain uncommitted work, unpublished branches, hooks, and credentials. Size is not a cleanup recommendation.",
+        ),
+        Category::CargoTargetDirectories => (
+            RiskLevel::Medium,
+            "Cargo output is usually reproducible, but active builds, custom artifacts, and externally managed output can depend on it. Check the owning workspace and running builds.",
+        ),
+        Category::RustBuildArtifacts => (
+            RiskLevel::Medium,
+            "Rust artifacts can be inputs to an active or custom build. Confirm the producing workspace and whether the artifacts are reproducible.",
+        ),
+        Category::NodeModules => (
+            RiskLevel::Medium,
+            "Installed dependencies can include local links, patched packages, and native builds. Check the package manager, lockfile, and running applications.",
+        ),
+        Category::NpmCaches | Category::PnpmCaches | Category::YarnCaches => (
+            RiskLevel::Medium,
+            "A package-manager cache or store can support offline installs and linked packages. Identify its owner and configuration before changing it.",
+        ),
+        Category::PythonVirtualEnvironments => (
+            RiskLevel::Medium,
+            "A virtual environment can contain local editable installs and compiled packages. Check its project, activation state, and reproducibility.",
+        ),
+        Category::PipCaches => (
+            RiskLevel::Medium,
+            "The pip cache can support offline or repeatable installs. Check configured cache ownership before changing it.",
+        ),
+        Category::GradleCaches => (
+            RiskLevel::Medium,
+            "Gradle caches can include shared dependency state and build output used by active builds. Check Gradle versions, daemons, and offline needs.",
+        ),
+        Category::MavenRepositories => (
+            RiskLevel::High,
+            "The .m2 directory can contain settings, credentials, and locally installed artifacts, not just downloaded dependencies. Review its contents individually.",
+        ),
+        Category::CMakeBuildDirectories => (
+            RiskLevel::Medium,
+            "A CMake build tree can contain generated source, configuration, and artifacts not reproducible elsewhere. Check the source and generator settings.",
+        ),
+        Category::VisualStudioBuildArtifacts => (
+            RiskLevel::Medium,
+            "Visual Studio output can include debugging state, generated files, and custom build products. Check the solution and running builds.",
+        ),
+        Category::DockerStorage => (
+            RiskLevel::High,
+            "A Docker or WSL virtual disk can contain images, containers, volumes, and an entire Linux filesystem. Review it through the owning application; never modify the VHDX directly.",
         ),
     };
     Risk::new(level, text)

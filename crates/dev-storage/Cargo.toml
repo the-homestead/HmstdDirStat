@@ -1,0 +1,21 @@
+[package]
+name = "timberstat-dev-storage"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+description = "Developer storage analysis for TimberStat: read-only detection, sizing and review-only reports. GPUI-independent."
+
+[lib]
+name = "timberstat_dev_storage"
+
+[dependencies]
+timberstat-filesystem = { path = "../filesystem" }
+timberstat-storage-insights = { path = "../storage-insights" }
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

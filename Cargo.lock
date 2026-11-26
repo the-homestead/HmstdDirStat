@@ -6739,6 +6739,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "timberstat-dev-storage"
+version = "0.1.0"
+dependencies = [
+ "tempfile",
+ "timberstat-filesystem",
+ "timberstat-storage-insights",
+]
+
+[[package]]
 name = "timberstat-duplicates"
 version = "0.1.0"
 dependencies = [
