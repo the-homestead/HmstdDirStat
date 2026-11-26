@@ -1,13 +1,38 @@
 //! Delete UI state and background-job orchestration. Dialog rendering is split by step;
 //! pure wording and gates live in `view_model` and have unit tests.
 
+mod common;
 mod confirm;
 mod preview;
 mod progress;
+mod rename;
+mod rename_view;
 mod result;
 #[cfg(test)]
 mod tests;
+mod transfer;
+#[cfg(test)]
+mod transfer_tests;
+mod transfer_view;
 mod view_model;
+pub use rename::RenameUi;
+pub(in crate::shell) use transfer::TransferKindUi;
+pub use transfer::TransferUi;
+
+/// Creates the text inputs of whichever dialog is open. Inputs need a window, so this runs
+/// during render.
+pub(super) fn ensure_inputs(shell: &mut Shell, window: &mut Window, cx: &mut Context<Shell>) {
+    ensure_input(shell, window, cx);
+    transfer::ensure_inputs(shell, window, cx);
+    rename::ensure_inputs(shell, window, cx);
+}
+
+/// The open file-operation dialog, if any: delete, copy/move or rename.
+pub(super) fn overlays(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Option<Div> {
+    overlay(shell, p, handle.clone())
+        .or_else(|| transfer_view::overlay(shell, p, handle.clone()))
+        .or_else(|| rename_view::overlay(shell, p, handle))
+}
 
 use std::sync::Arc;
 
@@ -101,7 +126,7 @@ impl DeleteUi {
 }
 
 /// Creates the typed-confirmation input only when its step is visible.
-pub(super) fn ensure_input(shell: &mut Shell, window: &mut Window, cx: &mut Context<Shell>) {
+fn ensure_input(shell: &mut Shell, window: &mut Window, cx: &mut Context<Shell>) {
     if shell.delete.stage != DeleteStage::Confirm || shell.delete.input.is_some() {
         return;
     }
@@ -352,7 +377,7 @@ impl Shell {
     }
 }
 
-pub(super) fn overlay(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Option<Div> {
+fn overlay(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Option<Div> {
     if shell.delete.is_closed() {
         return None;
     }
@@ -408,7 +433,7 @@ fn mode_tag(mode: DeleteMode) -> Tag {
 
 /// A modal surface that never dismisses on an outside click. Destructive steps need an
 /// explicit button, and a running delete can only be cancelled through its Cancel button.
-fn dialog_frame(title: &str, tag: Tag, body: Div, p: Palette) -> Div {
+pub(super) fn dialog_frame(title: &str, tag: Tag, body: Div, p: Palette) -> Div {
     div()
         .absolute()
         .top_0()

@@ -145,6 +145,10 @@ pub struct Shell {
     task: Option<Task<()>>,
     /// Delete preview, confirmation, worker and result state.
     delete: fileops_ui::DeleteUi,
+    /// Copy and move dialog state.
+    transfer: fileops_ui::TransferUi,
+    /// Rename dialog state.
+    rename: fileops_ui::RenameUi,
 }
 
 impl Shell {
@@ -183,6 +187,8 @@ impl Shell {
             query: Query::default(),
             task: None,
             delete: fileops_ui::DeleteUi::default(),
+            transfer: fileops_ui::TransferUi::default(),
+            rename: fileops_ui::RenameUi::default(),
         }
     }
 
@@ -295,6 +301,8 @@ impl Shell {
     fn is_busy(&self) -> bool {
         matches!(self.phase, Phase::Walking { .. } | Phase::Elevated { .. })
             || !self.delete.is_closed()
+            || !self.transfer.is_closed()
+            || !self.rename.is_closed()
     }
 
     pub fn set_fast_mode(&mut self, on: bool, cx: &mut Context<Self>) {

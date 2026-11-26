@@ -17,7 +17,7 @@ use super::{
 impl Render for Shell {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.ensure_search(window, cx);
-        fileops_ui::ensure_input(self, window, cx);
+        fileops_ui::ensure_inputs(self, window, cx);
         // GPUI's rem is 16px. Scaling it scales every rem-based size: text and most spacing.
         window.set_rem_size(px(16.0 * self.ui_scale));
         let p = Palette::from_app(cx);
@@ -40,7 +40,7 @@ impl Render for Shell {
             .children(menu_overlay(self, p, handle.clone()))
             .children(settings::overlay(self, p, handle.clone()))
             .children(view_menu::overlay(self, p, handle.clone()))
-            .children(fileops_ui::overlay(self, p, handle))
+            .children(fileops_ui::overlays(self, p, handle))
     }
 }
 

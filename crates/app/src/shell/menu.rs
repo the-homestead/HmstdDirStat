@@ -5,7 +5,7 @@ use gpui_kit::*;
 use hmstd_fileops::DeleteMode;
 use hmstd_filesystem::{EntryKind, NodeId};
 
-use super::{Shell, widgets::*};
+use super::{Shell, fileops_ui::TransferKindUi, widgets::*};
 
 /// The right-click menu for the node in `shell.menu`, drawn over the whole window. A click
 /// anywhere outside the menu closes it.
@@ -60,6 +60,22 @@ pub(super) fn menu_overlay(shell: &Shell, p: Palette, handle: Entity<Shell>) -> 
         },
     ));
     if menu.node != NodeId::ROOT {
+        let copy_to = handle.clone();
+        card = card.child(menu_item("menu-copy-to", "Copy to…", p, move |cx| {
+            copy_to.update(cx, |shell, cx| {
+                shell.begin_transfer(node, TransferKindUi::Copy, cx)
+            });
+        }));
+        let move_to = handle.clone();
+        card = card.child(menu_item("menu-move-to", "Move to…", p, move |cx| {
+            move_to.update(cx, |shell, cx| {
+                shell.begin_transfer(node, TransferKindUi::Move, cx)
+            });
+        }));
+        let rename = handle.clone();
+        card = card.child(menu_item("menu-rename", "Rename…", p, move |cx| {
+            rename.update(cx, |shell, cx| shell.begin_rename(node, cx));
+        }));
         let recycle = handle.clone();
         card = card.child(menu_item(
             "menu-delete-recycle",
