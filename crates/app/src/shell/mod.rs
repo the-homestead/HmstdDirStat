@@ -3,6 +3,7 @@
 //! widgets laid out by `workspace.rs`; their bodies are in `widget_bodies.rs`.
 
 mod actions;
+mod empty_state;
 mod extensions_view;
 mod files_tree;
 mod menu;
@@ -110,7 +111,7 @@ pub struct Shell {
     /// Where the widget drag in progress began, if one is running.
     drag_start: Option<DragStart>,
     /// The workspace's size in pixels, measured while it paints.
-    workspace_size: Rc<Cell<Option<Size<Pixels>>>>,
+    workspace_bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
     /// Whether the View menu is open.
     view_menu: bool,
     /// Whether the Settings panel is open.
@@ -154,7 +155,7 @@ impl Shell {
             ui_scale: hmstd_core::config::clamp_ui_scale(ui_scale),
             layout,
             drag_start: None,
-            workspace_size: Rc::new(Cell::new(None)),
+            workspace_bounds: Rc::new(Cell::new(None)),
             view_menu: false,
             settings_open: false,
             layout_dirty: false,

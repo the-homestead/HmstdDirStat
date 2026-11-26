@@ -6,8 +6,8 @@ use gpui_kit::*;
 use hmstd_core::workspace::WidgetKind;
 
 use super::{
-    Phase, Shell, extensions_view, files_tree, render::summary_content, rings, treemap, views,
-    widgets::*,
+    Phase, Shell, empty_state, extensions_view, files_tree, render::summary_content, rings,
+    treemap, views, widgets::*,
 };
 use crate::{explore, scan::format_count};
 
@@ -24,6 +24,9 @@ fn fill() -> Div {
 pub(super) fn body(shell: &Shell, kind: WidgetKind, p: Palette, handle: Entity<Shell>) -> Div {
     let inner = match kind {
         WidgetKind::Tree => tree(shell, p, handle),
+        WidgetKind::Summary if matches!(shell.phase, Phase::Idle) => {
+            empty_state::no_scan(shell, handle)
+        }
         WidgetKind::Summary => summary_content(&shell.phase, p, handle),
         WidgetKind::Extensions => extensions_view::body(shell, p),
         WidgetKind::Treemap | WidgetKind::Sunburst | WidgetKind::Pie => {
@@ -47,7 +50,7 @@ pub(super) fn body(shell: &Shell, kind: WidgetKind, p: Palette, handle: Entity<S
 /// totals, and how many shown items match the search.
 fn tree(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Div {
     let (Some(files), Some(state)) = (shell.tree.clone(), shell.tree_state.clone()) else {
-        return views::no_tree_message(p);
+        return empty_state::no_tree(WidgetKind::Tree, shell.is_scanning());
     };
     let count = shell
         .query
@@ -141,7 +144,7 @@ fn match_text(count: usize) -> String {
 /// A graph for the focused folder. Without a tree there is nothing to draw.
 fn graph(shell: &Shell, kind: WidgetKind, p: Palette, handle: Entity<Shell>) -> Div {
     let Some(files) = shell.tree.clone() else {
-        return views::no_tree_message(p);
+        return empty_state::no_tree(kind, shell.is_scanning());
     };
     match kind {
         WidgetKind::Treemap => treemap::treemap_page(&files, shell.focus, handle, p, look(shell)),

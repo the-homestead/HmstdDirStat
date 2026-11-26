@@ -5,8 +5,8 @@
 //! Minimum sizes in pixels are the app's business; this module only keeps frames inside the
 //! workspace and above `MIN_SIZE`, so a hand-edited file cannot produce an empty widget.
 //!
-//! Widgets are floating panels. The list order is the stacking order: the last entry is in
-//! front. Nothing here depends on GPUI.
+//! Widgets tile the workspace: together they cover it with no gaps and no overlaps (see
+//! `layout_resize`). Nothing here depends on GPUI.
 
 use serde::{Deserialize, Serialize};
 
@@ -290,23 +290,22 @@ impl WorkspaceLayout {
         self.frame(kind).is_some()
     }
 
-    /// Adds a hidden widget at its default frame, in front. Returns false if it was shown.
+    /// Adds a hidden widget by splitting the largest shown widget. Returns false if it was shown.
     pub fn show(&mut self, kind: WidgetKind) -> bool {
         if self.is_shown(kind) {
             return false;
         }
-        self.widgets.push(Placement {
-            kind,
-            frame: kind.default_frame(),
-        });
+        *self = crate::layout_resize::add_widget(self, kind);
         true
     }
 
-    /// Removes a widget. Returns false if it was hidden.
+    /// Removes a widget and gives its space to its neighbours. Returns false if it was hidden.
     pub fn hide(&mut self, kind: WidgetKind) -> bool {
-        let before = self.widgets.len();
-        self.widgets.retain(|placed| placed.kind != kind);
-        self.widgets.len() != before
+        if !self.is_shown(kind) {
+            return false;
+        }
+        *self = crate::layout_resize::remove_widget(self, kind);
+        true
     }
 
     /// Brings a shown widget to the front.
@@ -418,10 +417,12 @@ mod tests {
         ]}"#;
         let layout: WorkspaceLayout = serde_json::from_str(json).expect("deserialize");
         assert_eq!(layout.widgets.len(), 2);
-        let pie = layout.frame(WidgetKind::Pie).expect("pie shown");
-        assert!(close(pie.x, 0.5) && close(pie.y, 0.5) && close(pie.w, 0.5));
-        let tree = layout.frame(WidgetKind::Tree).expect("tree shown");
-        assert!(close(tree.w, MIN_SIZE));
+        assert!(layout.is_shown(WidgetKind::Pie) && layout.is_shown(WidgetKind::Tree));
+        // Frames are clamped inside, then settled: the two widgets tile the workspace.
+        assert!(
+            crate::layout_resize::is_tiled(&layout),
+            "not tiled: {layout:?}"
+        );
     }
 
     #[test]

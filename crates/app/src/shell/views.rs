@@ -16,15 +16,6 @@ use crate::{
 
 const PIE_SLICES: usize = 10;
 
-/// Shown on the folder-based tabs when there is no tree (no walk yet, or a Fast read).
-pub fn no_tree_message(p: Palette) -> Div {
-    message_block(
-        "No folder tree yet",
-        "Run a scan to build the folder tree. Walk and Fast scans both fill it.",
-        p,
-    )
-}
-
 /// One entry in a legend or a pie: name, size, and the node to drill into when it is a folder.
 #[derive(Clone)]
 pub(super) struct Item {

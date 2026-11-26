@@ -1,6 +1,7 @@
 #![cfg_attr(windows, windows_subsystem = "windows")]
 //! Application entry point: logging, configuration, volumes, then the window.
 
+mod assets;
 mod explore;
 mod extensions;
 mod fast;
@@ -52,7 +53,7 @@ fn main() -> Result<()> {
     });
 
     gpui_kit::application()
-        .with_assets(gpui_kit::assets::Assets)
+        .with_assets(assets::AppAssets)
         .run(move |cx| {
             // Must run before any GPUI Kit component is used.
             gpui_kit::init(cx);

@@ -5,11 +5,12 @@
 use gpui_kit::component::*;
 use gpui_kit::*;
 
-use super::{Shell, views, widgets::*};
+use super::{Shell, empty_state, views, widgets::*};
 use crate::{
     extensions::ExtensionTotal,
     scan::{format_bytes, format_count},
 };
+use hmstd_core::workspace::WidgetKind;
 
 /// Rows drawn before the list stops. The rest are counted in one line below it.
 const MAX_ROWS: usize = 40;
@@ -17,7 +18,7 @@ const MAX_ROWS: usize = 40;
 /// The widget body for the focused folder.
 pub(super) fn body(shell: &Shell, p: Palette) -> Div {
     if shell.tree.is_none() {
-        return views::no_tree_message(p);
+        return empty_state::no_tree(WidgetKind::Extensions, shell.is_scanning());
     }
     // Cached on Shell. Walking the focused subtree here would run on every frame.
     let rows = shell.extension_totals.clone();

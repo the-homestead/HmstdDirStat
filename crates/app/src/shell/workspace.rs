@@ -10,7 +10,7 @@ use hmstd_core::{
     workspace::{Edges, Frame, WidgetKind, WorkspaceLayout},
 };
 
-use super::{Shell, widget_bodies, widgets::*};
+use super::{Shell, empty_state, widget_bodies, widgets::*};
 
 /// Smallest widget a drag may make, in pixels.
 const MIN_WIDTH_PX: f32 = 180.;
@@ -93,15 +93,21 @@ impl Shell {
 
     /// Moves or resizes the dragged widget to follow the pointer.
     pub fn drag_widget(&mut self, drag: WidgetDrag, pos: Point<Pixels>, cx: &mut Context<Self>) {
-        let (Some(start), Some(size)) = (self.drag_start.clone(), self.workspace_size.get()) else {
+        let (Some(start), Some(bounds)) = (self.drag_start.clone(), self.workspace_bounds.get())
+        else {
             return;
         };
-        let width = f32::from(size.width).max(1.);
-        let height = f32::from(size.height).max(1.);
+        let width = f32::from(bounds.size.width).max(1.);
+        let height = f32::from(bounds.size.height).max(1.);
         let dx = f32::from(pos.x - start.pos.x) / width;
         let dy = f32::from(pos.y - start.pos.y) / height;
         let layout = match drag.grip {
-            Grip::Move => hmstd_core::layout_resize::move_widget(&start.layout, drag.kind, dx, dy),
+            Grip::Move => {
+                // Swap with the widget under the pointer.
+                let x = f32::from(pos.x - bounds.origin.x) / width;
+                let y = f32::from(pos.y - bounds.origin.y) / height;
+                hmstd_core::layout_resize::move_widget(&start.layout, drag.kind, x, y)
+            }
             Grip::Resize(edges) => hmstd_core::layout_resize::resize_widget(
                 &start.layout,
                 drag.kind,
@@ -166,7 +172,7 @@ impl Shell {
 /// The workspace: every shown widget at its frame, in stacking order, inside one area that
 /// measures itself so drags can turn pixels into fractions of the window.
 pub(super) fn area(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Stateful<Div> {
-    let size_cell = shell.workspace_size.clone();
+    let bounds_cell = shell.workspace_bounds.clone();
     let drag_handle = handle.clone();
     let release_handle = handle.clone();
     let mut area = div()
@@ -176,7 +182,7 @@ pub(super) fn area(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Stateful
         .overflow_hidden()
         .child(
             canvas(
-                move |bounds, _, _| size_cell.set(Some(bounds.size)),
+                move |bounds, _, _| bounds_cell.set(Some(bounds)),
                 |_, _, _, _| {},
             )
             .absolute()
@@ -199,11 +205,7 @@ pub(super) fn area(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Stateful
                 .flex()
                 .items_center()
                 .justify_center()
-                .child(message_block(
-                    "No widgets shown",
-                    "Open View in the toolbar and choose a widget to add it back.",
-                    p,
-                )),
+                .child(empty_state::no_widgets(handle.clone())),
         );
     }
     for placed in &shell.layout.widgets {
