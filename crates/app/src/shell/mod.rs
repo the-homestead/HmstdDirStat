@@ -22,6 +22,8 @@ mod views;
 mod widget_bodies;
 mod widgets;
 mod workspace;
+mod workspace_manager;
+mod workspace_menu;
 
 use std::{
     path::PathBuf,
@@ -119,6 +121,8 @@ pub struct Shell {
     ui_scale: f32,
     /// Which widgets show, where, and in what stacking order.
     layout: WorkspaceLayout,
+    /// Saved presets, custom workspaces and persistence status.
+    workspaces: workspace_manager::WorkspaceUi,
     /// Where the widget drag in progress began, if one is running.
     drag_start: Option<DragStart>,
     /// The workspace's size in pixels, measured while it paints.
@@ -132,7 +136,7 @@ pub struct Shell {
     settings_open: bool,
     /// The layout changed and has not been written yet.
     layout_dirty: bool,
-    /// The running layout write. Replacing it drops a write that has not started.
+    /// The running workspace-document write. Replacing it drops a write not yet started.
     layout_save: Option<Task<()>>,
     /// The tile or arc the user selected with a single click.
     selected: Option<NodeId>,
@@ -162,6 +166,7 @@ impl Shell {
         layout: WorkspaceLayout,
         ui_scale: f32,
     ) -> Self {
+        let (workspaces, layout) = workspace_manager::WorkspaceUi::restore(layout);
         Self {
             volumes,
             phase: Phase::Idle,
@@ -177,6 +182,7 @@ impl Shell {
             extension_totals: Arc::new(Vec::new()),
             ui_scale: hmstd_core::config::clamp_ui_scale(ui_scale),
             layout,
+            workspaces,
             drag_start: None,
             workspace_bounds: Rc::new(Cell::new(None)),
             widget_rooms: Rc::new(RefCell::new(HashMap::new())),

@@ -5,10 +5,7 @@
 
 use gpui_kit::component::*;
 use gpui_kit::*;
-use hmstd_core::{
-    config,
-    workspace::{Edges, Frame, WidgetKind, WorkspaceLayout},
-};
+use hmstd_core::workspace::{Edges, Frame, WidgetKind};
 
 use super::{Shell, empty_state, widget_bodies, widgets::*};
 
@@ -147,25 +144,6 @@ impl Shell {
         self.layout_dirty = true;
         self.save_layout(cx);
         cx.notify();
-    }
-
-    /// Writes the layout to the config file on the background executor. Replacing the task
-    /// drops a write that has not started, so the newest layout always wins.
-    fn save_layout(&mut self, cx: &mut Context<Self>) {
-        self.layout_dirty = false;
-        let path = match config::default_config_path() {
-            Ok(path) => path,
-            Err(error) => {
-                tracing::error!(%error, "layout not saved: no configuration path");
-                return;
-            }
-        };
-        let layout: WorkspaceLayout = self.layout.clone();
-        self.layout_save = Some(cx.background_executor().spawn(async move {
-            if let Err(error) = config::store_workspace_layout(&path, &layout) {
-                tracing::error!(%error, "layout not saved");
-            }
-        }));
     }
 }
 

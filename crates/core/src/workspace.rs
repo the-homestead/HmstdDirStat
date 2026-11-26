@@ -8,6 +8,8 @@
 //! Widgets tile the workspace: together they cover it with no gaps and no overlaps (see
 //! `layout_resize`). Nothing here depends on GPUI.
 
+pub mod saved;
+
 use serde::{Deserialize, Serialize};
 
 /// Smallest width or height a frame may have, as a fraction of the workspace. The app enforces

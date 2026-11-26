@@ -1,8 +1,9 @@
-//! The View menu: a toolbar button and its dropdown. Each widget is listed with a tick when it is
-//! shown; choosing one shows or hides it. Reset puts every widget back at its default place.
+//! The View menu: saved workspaces, widget visibility and layout reset. Each widget is listed
+//! with a tick when shown. Workspace presets and custom layouts live above the widget list.
 
 use gpui_kit::component::{
     button::{Button, ButtonVariants},
+    scroll::ScrollableElement,
     *,
 };
 use gpui_kit::*;
@@ -16,7 +17,7 @@ pub(super) fn view_button(handle: Entity<Shell>) -> Button {
         .ghost()
         .small()
         .icon(gpui_kit::component::IconName::LayoutDashboard)
-        .tooltip("Widgets and layout")
+        .tooltip("Workspaces, widgets and layout")
         .on_click(move |_, _, cx| {
             handle.update(cx, |shell, cx| shell.toggle_view_menu(cx));
         })
@@ -32,7 +33,9 @@ pub(super) fn overlay(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Optio
         .top(px(super::toolbar::BAR_PX + 4.))
         .right(px(16.))
         .v_flex()
-        .min_w(px(200.))
+        .w(px(380.))
+        .max_h(px(760.))
+        .overflow_y_scrollbar()
         .p_1()
         .gap_1()
         .rounded_md()
@@ -41,6 +44,8 @@ pub(super) fn overlay(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Optio
         .bg(p.surface)
         // Clicks on the card must not reach the overlay, or the menu would close first.
         .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+        .child(super::workspace_menu::section(shell, p, handle.clone()))
+        .child(div().h(px(1.)).my_1().bg(p.border))
         .child(
             div()
                 .px_2()
