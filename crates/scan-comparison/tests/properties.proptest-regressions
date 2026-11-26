@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc cb1e3930c7084566a2081e6b0c970ff73bc2663781fbe7b0cc77f8b1657f8dca # shrinks to cases = [(1, None, Some(FileState { logical: 1, physical: Some(1), modified: Some(0), identity: None, hardlink_duplicate: false }))]
