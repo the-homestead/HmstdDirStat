@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/core", "crates/filesystem", "crates/scanner", "crates/ntfs", "crates/search", "crates/app"]
+members = ["crates/core", "crates/filesystem", "crates/scanner", "crates/ntfs", "crates/search", "crates/fileops", "crates/app"]
 
 [workspace.package]
 version = "0.1.0"
@@ -19,6 +19,7 @@ tracing-subscriber = { version = "0.3.23", default-features = false, features = 
 config = { version = "0.15.27", default-features = false, features = ["json"] }
 directories = "6.0.0"
 tempfile = "3.27.0"
+trash = "5.4.0"
 anyhow = "1.0.105"
 # UI shell
 gpui-kit = "0.11.0"

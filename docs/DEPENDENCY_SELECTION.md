@@ -128,3 +128,13 @@ beyond what §1 already lists.
 
 Concrete follow-up: none in Phase 1. The adopt-when triggers above become checklist items in IMPLEMENTATION_ROADMAP.md when their phase starts.
 
+## 7. File operations (HmstdDirStat P3, Plan section 7 and 23.11)
+
+Accepted: `trash` 5.4.0 (crates.io, latest release, published 2026-11-17; read 2026-11-26).
+Why it is needed now: Recycle Bin delete is the default delete mode (Plan section 7). The crate
+wraps the Windows shell delete and the freedesktop trash spec, so no COM code is written here.
+It is used only by `hmstd-fileops`, which is GPUI-independent. `cargo deny --all-features check`
+passed with it (advisories, bans, licenses, sources). Its MSRV is 1.87, below the workspace 1.95.
+
+Copy, move, and rename use `std` only; no other crate was added for file operations.
+Permanent delete uses `std::fs` only. The Recycle Bin call is injectable, so tests never reach the real bin.

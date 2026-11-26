@@ -103,6 +103,8 @@ pub struct Node {
     pub(crate) unreadable: bool,
     pub(crate) metadata: Metadata,
     pub(crate) totals: Totals,
+    /// Set on every node of a subtree removed by [`FileTree::detach`].
+    pub(crate) detached: bool,
 }
 
 impl Node {

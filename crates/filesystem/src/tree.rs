@@ -11,6 +11,8 @@ pub enum TreeError {
     NotADirectory(NodeId),
     #[error("tree would exceed {0} nodes, the limit of the NodeId range")]
     Capacity(usize),
+    #[error("the root directory cannot be detached")]
+    RootCannotBeDetached,
 }
 
 /// Data for one entry being added to the tree.
@@ -116,6 +118,84 @@ impl FileTree {
         Ok(())
     }
 
+    /// True when the node is still part of the tree (not removed by [`detach`](Self::detach)).
+    pub fn is_attached(&self, id: NodeId) -> bool {
+        self.node(id).is_some_and(|node| !node.detached)
+    }
+
+    /// Ids of every attached node, in arena order (parents before their children).
+    pub fn attached_ids(&self) -> impl Iterator<Item = NodeId> + '_ {
+        self.nodes
+            .iter()
+            .enumerate()
+            .filter(|(_, node)| !node.detached)
+            .filter_map(|(index, _)| NodeId::from_index(index))
+    }
+
+    /// The node and every node beneath it, children before their parent.
+    ///
+    /// A child's id is always greater than its parent's, so sorting by descending
+    /// id gives the bottom-up order that file deletion needs.
+    pub fn subtree_bottom_up(&self, id: NodeId) -> Vec<NodeId> {
+        let mut found = Vec::new();
+        let mut stack = vec![id];
+        while let Some(current) = stack.pop() {
+            found.push(current);
+            stack.extend(self.children(current));
+        }
+        found.sort_unstable_by(|a, b| b.cmp(a));
+        found
+    }
+
+    /// Removes a node and its subtree from the tree structure. Returns how many
+    /// nodes were detached (zero when it was already detached).
+    ///
+    /// Ancestors' totals are stale until the next [`roll_up`](Self::roll_up).
+    /// Arena slots are not reclaimed, so repeated edits grow memory slightly.
+    pub fn detach(&mut self, id: NodeId) -> Result<usize, TreeError> {
+        let node = self.node(id).ok_or(TreeError::UnknownNode(id))?;
+        if node.detached {
+            return Ok(0);
+        }
+        let (Some(parent), next) = (node.parent, node.next_sibling) else {
+            return Err(TreeError::RootCannotBeDetached);
+        };
+        let mut previous: Option<NodeId> = None;
+        let mut cursor = self.nodes[parent.index()].first_child;
+        while let Some(current) = cursor {
+            if current == id {
+                break;
+            }
+            previous = Some(current);
+            cursor = self.nodes[current.index()].next_sibling;
+        }
+        match previous {
+            Some(prev) => self.nodes[prev.index()].next_sibling = next,
+            None => self.nodes[parent.index()].first_child = next,
+        }
+        if self.nodes[parent.index()].last_child == Some(id) {
+            self.nodes[parent.index()].last_child = previous;
+        }
+        let subtree = self.subtree_bottom_up(id);
+        for member in &subtree {
+            self.nodes[member.index()].detached = true;
+        }
+        self.nodes[id.index()].parent = None;
+        self.nodes[id.index()].next_sibling = None;
+        self.rolled_up = false;
+        Ok(subtree.len())
+    }
+
+    /// Changes a node's name. Paths of its descendants follow automatically.
+    pub fn set_name(&mut self, id: NodeId, name: OsString) -> Result<(), TreeError> {
+        let node = self
+            .nodes
+            .get_mut(id.index())
+            .ok_or(TreeError::UnknownNode(id))?;
+        node.name = name.into_boxed_os_str();
+        Ok(())
+    }
+
     /// Iterates the direct children of a node in insertion order.
     pub fn children(&self, id: NodeId) -> Children<'_> {
         Children {
@@ -192,6 +272,7 @@ fn make_node(parent: Option<NodeId>, entry: NewEntry) -> Node {
         unreadable: entry.unreadable,
         metadata: entry.metadata,
         totals: Totals::default(),
+        detached: false,
     }
 }
 
