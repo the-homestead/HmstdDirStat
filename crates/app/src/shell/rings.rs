@@ -94,7 +94,7 @@ pub fn sunburst_page(
             let base =
                 p.chart[arc.slot % p.chart.len()].opacity(1.0 - 0.15 * (arc.depth - 1) as f32);
             // With a search active, arcs that do not match are faded back.
-            let dim = look.query.is_active() && !look.query.hits(arc.item);
+            let dim = look.query.is_active() && !look.query.shows(arc.item);
             DrawnArc {
                 start: arc.start as f32,
                 end: arc.end as f32,

@@ -24,23 +24,37 @@ use crate::{
 const TREE_LEVELS: u32 = 3;
 /// Children shown per folder in the Files tree; the rest are counted, not listed.
 const TREE_ROWS_PER_FOLDER: usize = 40;
-/// Builds the Files tab's tree from a finished walk. The top folder level starts open.
-/// Builds the folder tree. While a search is active, only matching rows and their folders are listed.
+/// Rows listed in total while a search is active. Matches past this are counted per folder
+/// as "more not shown", so a query that matches most of a drive stays responsive.
+const TREE_MAX_SEARCH_ROWS: usize = 5_000;
+
+/// Builds the folder tree; the top folder level starts open. While a search is active, only
+/// matching rows and the folders that hold them are listed, at any depth, and those open.
 pub fn build_tree_state(files: &FileTree, query: &Query, cx: &mut App) -> Entity<TreeState> {
-    let rows = explore::level(files, NodeId::ROOT, TREE_LEVELS, TREE_ROWS_PER_FOLDER);
+    let rows = if query.is_active() {
+        let mut budget = TREE_MAX_SEARCH_ROWS;
+        explore::filtered_level(
+            files,
+            NodeId::ROOT,
+            TREE_ROWS_PER_FOLDER,
+            &|node| query.shows(node),
+            &|node| query.contains_hit(node),
+            &mut budget,
+        )
+    } else {
+        explore::level(files, NodeId::ROOT, TREE_LEVELS, TREE_ROWS_PER_FOLDER)
+    };
     let items = tree_items(&rows, true, 0, query);
     cx.new(|cx| TreeState::new(cx).items(items))
 }
 
 fn tree_items(level: &Level, expand: bool, parent: usize, query: &Query) -> Vec<TreeItem> {
-    // While searching, only rows that match, or lead to a match, are listed.
     let mut items: Vec<TreeItem> = level
         .rows
         .iter()
-        .filter(|row| !query.is_active() || query.hits(row.child.node) || has_hit_below(row, query))
         .map(|row| row_item(row, expand, query))
         .collect();
-    if level.hidden > 0 && !query.is_active() {
+    if level.hidden > 0 {
         items.push(
             TreeItem::new(
                 format!("more-{parent}"),
@@ -55,41 +69,13 @@ fn tree_items(level: &Level, expand: bool, parent: usize, query: &Query) -> Vec<
 fn row_item(row: &Row, expand: bool, query: &Query) -> TreeItem {
     // While a search is active, a folder opens when something inside it matches, so every
     // counted match is on screen.
-    let open = expand || (query.is_active() && has_hit_below(row, query));
+    let open = expand || query.contains_hit(row.child.node);
     let mut item =
         TreeItem::new(row.child.node.index().to_string(), row.child.name.clone()).expanded(open);
     if let Some(below) = &row.below {
         item = item.children(tree_items(below, false, row.child.node.index(), query));
     }
     item
-}
-
-/// True when some row inside this folder matches the query.
-fn has_hit_below(row: &Row, query: &Query) -> bool {
-    row.below.as_ref().is_some_and(|below| {
-        below
-            .rows
-            .iter()
-            .any(|child| query.hits(child.child.node) || has_hit_below(child, query))
-    })
-}
-
-/// How many shown rows of the folder tree match the query.
-pub fn tree_matches(files: &FileTree, query: &Query) -> usize {
-    fn count(level: &Level, query: &Query) -> usize {
-        level
-            .rows
-            .iter()
-            .map(|row| {
-                usize::from(query.hits(row.child.node))
-                    + row.below.as_ref().map_or(0, |below| count(below, query))
-            })
-            .sum()
-    }
-    count(
-        &explore::level(files, NodeId::ROOT, TREE_LEVELS, TREE_ROWS_PER_FOLDER),
-        query,
-    )
 }
 
 /// Column widths shared by the header and every row, in pixels.

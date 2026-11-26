@@ -21,6 +21,11 @@ pub struct Query {
     error: Option<ParseError>,
     /// Match flag per node, indexed by node index. Empty unless `active`.
     hits: Vec<bool>,
+    /// Per node: true when some node below it matches, at any depth. Lets the tree and the
+    /// graphs follow a match that sits deeper than they draw.
+    inside: Vec<bool>,
+    /// How many nodes match, across the whole tree.
+    matches: usize,
     /// True when the query parsed and was evaluated over a tree.
     active: bool,
     /// Terms the scan cannot answer, such as `alloc:` on a scan with no on-disk sizes.
@@ -50,14 +55,16 @@ impl Query {
             (Some(expr), Some(files)) => Some(evaluate(expr, files, dups)),
             _ => None,
         };
-        let (hits, warnings, active) = match evaluated {
-            Some((hits, warnings)) => (hits, warnings, true),
-            None => (Vec::new(), Vec::new(), false),
+        let (found, warnings, active) = match evaluated {
+            Some((found, warnings)) => (found, warnings, true),
+            None => (Found::default(), Vec::new(), false),
         };
         Self {
             text,
             error,
-            hits,
+            hits: found.hits,
+            inside: found.inside,
+            matches: found.matches,
             active,
             warnings,
         }
@@ -88,26 +95,64 @@ impl Query {
         self.active && self.hits.get(node.index()).copied().unwrap_or(false)
     }
 
-    /// True when the tile or any tile inside it matches. A folder with a matching child is
-    /// kept bright so the match inside it stays visible.
+    /// True when something below the node matches, at any depth. Always false when inactive.
+    pub fn contains_hit(&self, node: NodeId) -> bool {
+        self.active && self.inside.get(node.index()).copied().unwrap_or(false)
+    }
+
+    /// True when the node matches or holds a match, so it stays visible while searching.
+    pub fn shows(&self, node: NodeId) -> bool {
+        self.hits(node) || self.contains_hit(node)
+    }
+
+    /// How many items match across the whole scan. Zero when inactive.
+    pub fn match_count(&self) -> usize {
+        if self.active { self.matches } else { 0 }
+    }
+
+    /// True when the tile matches or anything inside its folder does, drawn or not. A folder
+    /// with a match inside is kept bright so the match stays findable.
     pub fn tile_hits(&self, tile: &Tile) -> bool {
-        self.hits(tile.node) || tile.children.iter().any(|child| self.tile_hits(child))
+        self.shows(tile.node)
     }
 }
 
-/// Runs the query over the tree. Returns the match flags and the warnings.
-fn evaluate(
-    expr: &Expr,
-    files: &FileTree,
-    dups: Option<&HashSet<NodeId>>,
-) -> (Vec<bool>, Vec<String>) {
+/// What a query found: the match flag per node, the "holds a match" flag per node, and the
+/// number of matches.
+#[derive(Debug, Default)]
+struct Found {
+    hits: Vec<bool>,
+    inside: Vec<bool>,
+    matches: usize,
+}
+
+/// Runs the query over the tree. Returns what it found and the warnings.
+fn evaluate(expr: &Expr, files: &FileTree, dups: Option<&HashSet<NodeId>>) -> (Found, Vec<String>) {
     let result = run_with_duplicates(files, expr, now_secs(), dups);
     let mut hits = vec![false; files.len()];
+    let mut inside = vec![false; files.len()];
+    let mut matches = 0;
     for id in &result.ids {
         if let Some(slot) = hits.get_mut(id.index()) {
+            matches += usize::from(!*slot);
             *slot = true;
         }
+        // Mark every folder above the match. A folder already marked has its own parents
+        // marked too, so the walk stops there and the whole pass stays linear.
+        let mut above = files.node(*id).and_then(|node| node.parent());
+        while let Some(folder) = above {
+            match inside.get_mut(folder.index()) {
+                Some(slot) if !*slot => *slot = true,
+                _ => break,
+            }
+            above = files.node(folder).and_then(|node| node.parent());
+        }
     }
+    let found = Found {
+        hits,
+        inside,
+        matches,
+    };
     let used = features(expr);
     let mut warnings = Vec::new();
     if used.allocated && !result.allocated_known {
@@ -130,7 +175,7 @@ fn evaluate(
                 .to_string(),
         );
     }
-    (hits, warnings)
+    (found, warnings)
 }
 
 /// Unix seconds now, for age terms. Zero if the clock is before 1970.
@@ -180,6 +225,28 @@ mod tests {
             .expect("add file");
         tree.roll_up();
         (tree, folder)
+    }
+
+    #[test]
+    fn folders_above_a_match_hold_it_at_any_depth() {
+        let (tree, folder) = sample();
+        let query = Query::new("ext:rpf", Some(&tree));
+        let levels = tree.children(folder).next().expect("first child");
+        assert_eq!(query.match_count(), 1);
+        assert!(query.contains_hit(NodeId::ROOT) && query.contains_hit(folder));
+        assert!(query.shows(folder) && query.shows(levels));
+        assert!(!query.contains_hit(levels), "a file holds nothing");
+        let readme = tree.children(folder).nth(1).expect("second child");
+        assert!(!query.shows(readme));
+    }
+
+    #[test]
+    fn inactive_query_shows_nothing_and_counts_nothing() {
+        let (tree, folder) = sample();
+        let query = Query::new("size:>1zz", Some(&tree));
+        assert!(!query.is_active());
+        assert_eq!(query.match_count(), 0);
+        assert!(!query.contains_hit(folder));
     }
 
     #[test]

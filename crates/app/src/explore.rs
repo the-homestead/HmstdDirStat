@@ -97,6 +97,36 @@ pub fn level(tree: &FileTree, parent: NodeId, depth: u32, limit: usize) -> Level
     Level { rows, hidden }
 }
 
+/// Rows under `parent` that `keep` accepts, at most `limit` per folder, opening every folder
+/// `descend` accepts, at any depth. `budget` caps the rows across the whole result: once it
+/// runs out, folders list nothing and count their kept rows as hidden.
+pub fn filtered_level(
+    tree: &FileTree,
+    parent: NodeId,
+    limit: usize,
+    keep: &dyn Fn(NodeId) -> bool,
+    descend: &dyn Fn(NodeId) -> bool,
+    budget: &mut usize,
+) -> Level {
+    let kept: Vec<Child> = children(tree, parent, Basis::Logical)
+        .into_iter()
+        .filter(|child| keep(child.node))
+        .collect();
+    let shown = kept.len().min(limit).min(*budget);
+    *budget -= shown;
+    let hidden = kept.len() - shown;
+    let rows = kept
+        .into_iter()
+        .take(shown)
+        .map(|child| {
+            let below = (child.is_dir && descend(child.node))
+                .then(|| filtered_level(tree, child.node, limit, keep, descend, budget));
+            Row { child, below }
+        })
+        .collect();
+    Level { rows, hidden }
+}
+
 /// One piece of a pie chart or treemap. `node` is `None` for the combined "other" piece.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Slice {

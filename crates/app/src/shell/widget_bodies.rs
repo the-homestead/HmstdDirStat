@@ -115,15 +115,12 @@ pub(super) fn body(shell: &Shell, kind: WidgetKind, p: Palette, handle: Entity<S
 }
 
 /// The folder tree with the line above it: what the scan finished, a warning for partial
-/// totals, and how many shown items match the search.
+/// totals, and how many items in the scan match the search.
 fn tree(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Div {
     let (Some(files), Some(state)) = (shell.tree.clone(), shell.tree_state.clone()) else {
         return empty_state::no_tree(WidgetKind::Tree, shell.is_scanning());
     };
-    let count = shell
-        .query
-        .is_active()
-        .then(|| files_tree::tree_matches(&files, &shell.query));
+    let count = shell.query.is_active().then(|| shell.query.match_count());
     div()
         .relative()
         .size_full()
@@ -221,9 +218,9 @@ fn scan_status(shell: &Shell) -> (String, bool) {
 
 fn match_text(count: usize) -> String {
     match count {
-        0 => "No shown item matches".to_string(),
-        1 => "1 shown item matches".to_string(),
-        n => format!("{n} shown items match"),
+        0 => "No item matches".to_string(),
+        1 => "1 item matches".to_string(),
+        n => format!("{} items match", format_count(n as u64)),
     }
 }
 
