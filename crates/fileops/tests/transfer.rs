@@ -244,15 +244,15 @@ fn cancelled_copy_copies_nothing_and_says_so() {
 
 #[cfg(unix)]
 #[test]
-fn copy_skips_links_and_is_reported_incomplete_so_move_keeps_source() {
+fn copy_skips_links_and_reports_them() {
     let tmp = tempfile::tempdir().unwrap();
     let root = tmp.path().join("scan");
     write(root.join("src/pack/real.txt"), b"real");
     std::os::unix::fs::symlink(root.join("src/pack/real.txt"), root.join("src/pack/link")).unwrap();
-    let mut tree = scan(&root);
+    let tree = scan(&root);
     let src = find_required(&tree, &root, "src/pack");
     let dest = dest_of(&root);
-    let plan = plan_transfer(&tree, &[src], &base(&root), &dest, TransferKind::Move).unwrap();
+    let plan = plan_transfer(&tree, &[src], &base(&root), &dest, TransferKind::Copy).unwrap();
 
     let report = execute_transfer(plan, Collision::Skip, &Control::new());
 
@@ -264,9 +264,45 @@ fn copy_skips_links_and_is_reported_incomplete_so_move_keeps_source() {
             .any(|s| s.reason == SkipReason::LinkNotCopied)
     );
     assert!(
-        root.join("src/pack/real.txt").exists(),
-        "source kept for a non-clean move"
+        dest.join("pack/real.txt").exists(),
+        "the real file is copied"
     );
+    assert!(
+        fs::symlink_metadata(dest.join("pack/link")).is_err(),
+        "the link is not recreated"
+    );
+    assert!(
+        root.join("src/pack/link").exists(),
+        "the source is untouched"
+    );
+}
+
+/// A move on one volume renames the folder in one step, so a link inside travels with it
+/// intact and nothing is left behind.
+#[cfg(unix)]
+#[test]
+fn same_volume_move_carries_links_intact() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("scan");
+    write(root.join("src/pack/real.txt"), b"real");
+    std::os::unix::fs::symlink("real.txt", root.join("src/pack/link")).unwrap();
+    let mut tree = scan(&root);
+    let src = find_required(&tree, &root, "src/pack");
+    let dest = dest_of(&root);
+    let plan = plan_transfer(&tree, &[src], &base(&root), &dest, TransferKind::Move).unwrap();
+
+    let report = execute_transfer(plan, Collision::Skip, &Control::new());
+
+    assert!(report.is_complete());
+    assert!(!root.join("src/pack").exists());
+    let moved = dest.join("pack/link");
+    assert!(
+        fs::symlink_metadata(&moved)
+            .unwrap()
+            .file_type()
+            .is_symlink()
+    );
+    assert_eq!(fs::read(&moved).unwrap(), b"real");
     apply_moves(&mut tree, &report);
-    assert!(find(&tree, &root, "src/pack").is_some());
+    assert!(find(&tree, &root, "src/pack").is_none());
 }
