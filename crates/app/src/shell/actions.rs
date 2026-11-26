@@ -5,7 +5,7 @@ use gpui_kit::*;
 use hmstd_filesystem::{EntryKind, NodeId};
 use std::path::PathBuf;
 
-use super::{ContextMenu, Graph, Shell, rings};
+use super::{ContextMenu, Shell, rings};
 use crate::explore::Basis;
 
 impl Shell {
@@ -23,14 +23,6 @@ impl Shell {
             self.selected = Some(node);
             cx.notify();
         }
-    }
-
-    /// Chooses which graph the lower area shows.
-    pub fn set_graph(&mut self, graph: Graph, cx: &mut Context<Self>) {
-        self.graph = graph;
-        // The pointer may leave the sunburst while another graph is showing.
-        self.sunburst_hover = None;
-        cx.notify();
     }
 
     pub fn set_basis(&mut self, basis: Basis, cx: &mut Context<Self>) {

@@ -16,7 +16,7 @@ use crate::{
 
 /// Width to height the layout is made for. The board is full width at a fixed height.
 const ASPECT: f64 = 1.8;
-const BOARD_HEIGHT: f32 = 300.;
+const BOARD_HEIGHT: f32 = 280.;
 /// Height of a folder's name strip, in pixels.
 const HEADER_PX: f32 = 18.;
 /// Tiles at least this share of the focused folder get a visible label.

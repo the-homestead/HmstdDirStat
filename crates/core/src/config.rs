@@ -8,6 +8,7 @@ use config::{Config, Environment, File, FileFormat};
 use serde::{Deserialize, Serialize};
 
 use crate::error::ConfigError;
+use crate::workspace::WorkspaceLayout;
 
 /// The only configuration schema this build reads or writes.
 pub const CURRENT_SCHEMA_VERSION: u32 = 1;
@@ -33,11 +34,14 @@ pub enum ThemePreference {
 ///
 /// Unknown fields are ignored so that a newer file written by a future build
 /// within the same schema version does not break an older one.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AppConfig {
     pub schema_version: u32,
     #[serde(default)]
     pub theme: ThemePreference,
+    /// The widget layout last saved. `None` until the user changes it.
+    #[serde(default)]
+    pub workspace: Option<WorkspaceLayout>,
 }
 
 impl Default for AppConfig {
@@ -45,6 +49,7 @@ impl Default for AppConfig {
         Self {
             schema_version: CURRENT_SCHEMA_VERSION,
             theme: ThemePreference::default(),
+            workspace: None,
         }
     }
 }
@@ -134,6 +139,14 @@ pub fn save_to(path: &Path, config: &AppConfig) -> Result<(), ConfigError> {
     Ok(())
 }
 
+/// Persists the widget layout. Reads the file without environment overrides, replaces only the
+/// workspace entry, and saves.
+pub fn store_workspace_layout(path: &Path, layout: &WorkspaceLayout) -> Result<(), ConfigError> {
+    let mut config = layered_load(path, None)?;
+    config.workspace = Some(layout.clone());
+    save_to(path, &config)
+}
+
 /// Persists a theme choice. Reads the file without environment overrides,
 /// replaces only the theme, and saves, so a one-run override is never written.
 pub fn store_theme_preference(path: &Path, theme: ThemePreference) -> Result<(), ConfigError> {
@@ -187,10 +200,24 @@ mod tests {
             let config = AppConfig {
                 schema_version: CURRENT_SCHEMA_VERSION,
                 theme,
+                workspace: None,
             };
             save_to(&path, &config).unwrap();
             assert_eq!(layered_load(&path, no_env()).unwrap(), config);
         }
+    }
+
+    #[test]
+    fn workspace_layout_round_trips_and_keeps_the_theme() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = temp_path(&dir);
+        store_theme_preference(&path, ThemePreference::Dark).unwrap();
+        let mut layout = WorkspaceLayout::default();
+        layout.hide(crate::workspace::WidgetKind::Pie);
+        store_workspace_layout(&path, &layout).unwrap();
+        let loaded = layered_load(&path, no_env()).unwrap();
+        assert_eq!(loaded.theme, ThemePreference::Dark);
+        assert_eq!(loaded.workspace, Some(layout));
     }
 
     #[test]
@@ -201,6 +228,7 @@ mod tests {
         let dark = AppConfig {
             schema_version: CURRENT_SCHEMA_VERSION,
             theme: ThemePreference::Dark,
+            workspace: None,
         };
         save_to(&path, &dark).unwrap();
         assert_eq!(layered_load(&path, no_env()).unwrap(), dark);

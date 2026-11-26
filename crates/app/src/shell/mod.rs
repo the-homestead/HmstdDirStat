@@ -1,14 +1,19 @@
 //! Main window state: the chosen scan mode, what is being scanned, and the result.
-//! Rendering lives in `render.rs`; shared widgets in `widgets.rs`.
+//! Rendering lives in `render.rs`; shared widgets in `widgets.rs`. The visualizations are
+//! widgets laid out by `workspace.rs`; their bodies are in `widget_bodies.rs`.
 
 mod actions;
+mod extensions_view;
 mod menu;
 mod render;
 mod results;
 mod rings;
 mod treemap;
+mod view_menu;
 mod views;
+mod widget_bodies;
 mod widgets;
+mod workspace;
 
 use std::{
     path::PathBuf,
@@ -25,6 +30,7 @@ use gpui_kit::Subscription;
 use gpui_kit::component::input::{InputEvent, InputState};
 use gpui_kit::component::tree::TreeState;
 use gpui_kit::*;
+use hmstd_core::workspace::WorkspaceLayout;
 use hmstd_filesystem::{FileTree, NodeId};
 use hmstd_ntfs::{SummaryProgress, VolumeSummary};
 use hmstd_scanner::{
@@ -37,6 +43,7 @@ use crate::{
     scan::{ScanSummary, summarize},
     search::Query,
 };
+use workspace::DragStart;
 
 /// How often the window refreshes its live entry counter while a walk runs.
 const PROGRESS_REFRESH: Duration = Duration::from_millis(200);
@@ -67,32 +74,6 @@ pub enum Phase {
     },
 }
 
-/// Which graph the lower area shows. One at a time, chosen by tab.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Graph {
-    Treemap,
-    Sunburst,
-    Pie,
-}
-
-impl Graph {
-    fn from_index(index: usize) -> Self {
-        match index {
-            1 => Self::Sunburst,
-            2 => Self::Pie,
-            _ => Self::Treemap,
-        }
-    }
-
-    fn index(self) -> usize {
-        match self {
-            Self::Treemap => 0,
-            Self::Sunburst => 1,
-            Self::Pie => 2,
-        }
-    }
-}
-
 /// A right-click menu opened on a tile or arc: which node, and where the pointer was.
 #[derive(Debug, Clone, Copy)]
 pub struct ContextMenu {
@@ -117,8 +98,18 @@ pub struct Shell {
     sunburst_hover: Option<(NodeId, Point<Pixels>)>,
     /// Which size the treemap, sunburst and pie show.
     basis: Basis,
-    /// The graph the lower area shows.
-    graph: Graph,
+    /// Which widgets show, where, and in what stacking order.
+    layout: WorkspaceLayout,
+    /// Where the widget drag in progress began, if one is running.
+    drag_start: Option<DragStart>,
+    /// The workspace's size in pixels, measured while it paints.
+    workspace_size: Rc<Cell<Option<Size<Pixels>>>>,
+    /// Whether the View menu is open.
+    view_menu: bool,
+    /// The layout changed and has not been written yet.
+    layout_dirty: bool,
+    /// The running layout write. Replacing it drops a write that has not started.
+    layout_save: Option<Task<()>>,
     /// The tile or arc the user selected with a single click.
     selected: Option<NodeId>,
     /// The open right-click menu, if any.
@@ -133,7 +124,7 @@ pub struct Shell {
 }
 
 impl Shell {
-    pub fn new(volumes: Vec<PathBuf>, log_dir: PathBuf) -> Self {
+    pub fn new(volumes: Vec<PathBuf>, log_dir: PathBuf, layout: WorkspaceLayout) -> Self {
         Self {
             volumes,
             phase: Phase::Idle,
@@ -145,7 +136,12 @@ impl Shell {
             sunburst_bounds: Rc::new(Cell::new(None)),
             sunburst_hover: None,
             basis: Basis::Logical,
-            graph: Graph::Treemap,
+            layout,
+            drag_start: None,
+            workspace_size: Rc::new(Cell::new(None)),
+            view_menu: false,
+            layout_dirty: false,
+            layout_save: None,
             selected: None,
             menu: None,
             search_input: None,

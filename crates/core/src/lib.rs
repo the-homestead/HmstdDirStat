@@ -6,6 +6,7 @@
 pub mod config;
 pub mod error;
 pub mod logging;
+pub mod workspace;
 
 pub use config::{AppConfig, ThemePreference};
 pub use error::ConfigError;

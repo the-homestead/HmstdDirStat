@@ -1,7 +1,6 @@
 //! The Files, pie, Treemap and Sunburst views over a finished walk. Each takes the
 //! scanned tree and the folder the user has focused on, and reads only from them.
 
-use gpui_kit::component::input::{Input, InputState};
 use gpui_kit::component::{
     Disableable, IconName,
     button::Button,
@@ -109,7 +108,6 @@ pub fn no_tree_message(p: Palette) -> Div {
 }
 
 /// Height of the folder tree, in pixels.
-const TREE_PANEL_HEIGHT: f32 = 380.;
 /// Column widths shared by the header and every row, in pixels.
 const COL_PERCENT: f32 = 96.;
 const COL_SIZE: f32 = 100.;
@@ -168,7 +166,8 @@ pub fn files_view(
                 .child("Items"),
         );
     let body = div()
-        .h(px(TREE_PANEL_HEIGHT))
+        .flex_1()
+        .min_h_0()
         .w_full()
         .border_1()
         .border_color(p.border)
@@ -198,11 +197,50 @@ pub fn files_view(
             }
             row.child(tree_cells(&files, node, icon, on_disk, p))
         }));
-    div().v_flex().child(header).child(body)
+    div().v_flex().flex_1().min_h_0().child(header).child(body)
+}
+
+/// One tree row. Hovering it shows the full path, logical size and allocated size.
+fn tree_cells(
+    files: &FileTree,
+    node: Option<NodeId>,
+    icon: IconName,
+    on_disk: bool,
+    p: Palette,
+) -> Div {
+    let row = tree_cell_row(files, node, icon, on_disk, p);
+    let Some(id) = node.filter(|id| files.node(*id).is_some()) else {
+        return row;
+    };
+    let bytes = explore::bytes_of(files, id, Basis::Logical);
+    let path = files
+        .path_of(id)
+        .map_or_else(String::new, |path| path.display().to_string());
+    let allocated = if on_disk {
+        format_bytes(explore::bytes_of(files, id, Basis::Allocated))
+    } else {
+        "not recorded by this scan".to_string()
+    };
+    let tip = format!(
+        "{path}
+Size: {}
+Allocated: {allocated}",
+        format_bytes(bytes)
+    );
+    div().h_flex().flex_1().min_w_0().child(
+        div()
+            .id(("tree-row", id.index()))
+            .flex_1()
+            .min_w_0()
+            .tooltip(move |window, cx| {
+                gpui_kit::component::tooltip::Tooltip::new(tip.clone()).build(window, cx)
+            })
+            .child(row),
+    )
 }
 
 /// One tree row's cells, aligned under the header.
-fn tree_cells(
+fn tree_cell_row(
     files: &FileTree,
     node: Option<NodeId>,
     icon: IconName,
@@ -324,14 +362,6 @@ pub fn pie_card(
             };
             SharedString::from(format!("{}  ({share:.1}%)", format_bytes(item.bytes)))
         })
-        .tooltip_value(move |item, _, _| {
-            let share = if total > 0 {
-                item.bytes as f64 * 100.0 / total as f64
-            } else {
-                0.0
-            };
-            SharedString::from(format!("{}  ({share:.1}%)", format_bytes(item.bytes)))
-        })
         .inner_radius_ratio(0.6)
         .outer_radius(120.);
 
@@ -396,72 +426,43 @@ pub(super) fn slot_color(index: usize, is_other: bool, p: Palette) -> Hsla {
     }
 }
 
-/// The search box, with how many shown items match. Shared by the treemap and sunburst.
-pub fn search_bar(input: Option<&Entity<InputState>>, count: Option<usize>, p: Palette) -> Div {
-    let note = match count {
-        Some(0) => "No shown item matches".to_string(),
-        Some(1) => "1 shown item matches".to_string(),
-        Some(n) => format!("{n} shown items match"),
-        None => String::new(),
-    };
-    let mut row = div().h_flex().gap_3().items_center().child(
-        div()
-            .text_sm()
-            .text_color(p.muted_foreground)
-            .child("Search"),
-    );
-    if let Some(input) = input {
-        row = row.child(div().w(px(280.)).child(Input::new(input)));
+/// The search box in the toolbar. Matches are shown in the tree and the graphs.
+pub fn search_field(input: Option<&Entity<gpui_kit::component::input::InputState>>) -> Div {
+    let field = div().w(px(240.)).min_w_0();
+    match input {
+        Some(input) => field.child(gpui_kit::component::input::Input::new(input)),
+        None => field,
     }
-    row.child(div().text_xs().text_color(p.muted_foreground).child(note))
 }
 
 /// Chooses between logical and on-disk sizes. On-disk is disabled when the scan did not
 /// record it, with the reason shown beside the buttons (Plan §17: reduced functions are shown).
-pub fn basis_toggle(basis: Basis, available: bool, handle: Entity<Shell>, p: Palette) -> Div {
+/// The Logical / On-disk size switch. On-disk is disabled when the scan did not record it.
+pub fn basis_buttons(basis: Basis, available: bool, handle: Entity<Shell>) -> Div {
     let logical_handle = handle.clone();
     let allocated_handle = handle;
-    let note = if available {
-        "Logical is the apparent file size. On-disk is what the drive allocates."
-    } else {
-        "On-disk size is not recorded by this scan. Fast scans record it."
-    };
     div()
-        .v_flex()
+        .h_flex()
         .gap_2()
         .child(
-            div()
-                .text_sm()
-                .text_color(p.muted_foreground)
-                .child("Size shown"),
+            Button::new("basis-logical")
+                .outline()
+                .label("Logical")
+                .toggled(basis == Basis::Logical)
+                .on_click(move |_, _, cx| {
+                    logical_handle.update(cx, |shell, cx| shell.set_basis(Basis::Logical, cx));
+                }),
         )
         .child(
-            div()
-                .h_flex()
-                .gap_2()
-                .child(
-                    Button::new("basis-logical")
-                        .outline()
-                        .label("Logical")
-                        .toggled(basis == Basis::Logical)
-                        .on_click(move |_, _, cx| {
-                            logical_handle
-                                .update(cx, |shell, cx| shell.set_basis(Basis::Logical, cx));
-                        }),
-                )
-                .child(
-                    Button::new("basis-allocated")
-                        .outline()
-                        .label("On-disk")
-                        .toggled(basis == Basis::Allocated)
-                        .disabled(!available)
-                        .on_click(move |_, _, cx| {
-                            allocated_handle
-                                .update(cx, |shell, cx| shell.set_basis(Basis::Allocated, cx));
-                        }),
-                ),
+            Button::new("basis-allocated")
+                .outline()
+                .label("On-disk")
+                .toggled(basis == Basis::Allocated)
+                .disabled(!available)
+                .on_click(move |_, _, cx| {
+                    allocated_handle.update(cx, |shell, cx| shell.set_basis(Basis::Allocated, cx));
+                }),
         )
-        .child(div().text_xs().text_color(p.muted_foreground).child(note))
 }
 
 /// Path to the focused folder, with an Up button that moves to its parent.

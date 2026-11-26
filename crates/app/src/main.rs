@@ -2,6 +2,7 @@
 //! Application entry point: logging, configuration, volumes, then the window.
 
 mod explore;
+mod extensions;
 mod fast;
 mod layout;
 mod open;
@@ -43,6 +44,7 @@ fn main() -> Result<()> {
         }
     };
     tracing::info!(path = %config_path.display(), theme = ?app_config.theme, "starting HmstdDirStat");
+    let layout = app_config.workspace.clone().unwrap_or_default();
 
     let volumes = SystemVolumes.volumes().unwrap_or_else(|error| {
         tracing::error!(%error, "could not list volumes");
@@ -70,7 +72,7 @@ fn main() -> Result<()> {
                     ..Default::default()
                 },
                 cx,
-                |_, cx| cx.new(|_| Shell::new(volumes, log_dir.clone())),
+                |_, cx| cx.new(|_| Shell::new(volumes, log_dir.clone(), layout.clone())),
             ) {
                 tracing::error!(%error, "could not open the main window");
                 cx.quit();
