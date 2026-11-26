@@ -1,0 +1,83 @@
+name: Release
+
+# Official release: runs when a stable tag (v1.2.3) is pushed. The tag must match the
+# workspace version. CI must pass before anything is built, and nothing is published when
+# the Windows build fails. Linux artifacts are attached when their build succeeds.
+
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    name: Check tag matches Cargo.toml
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: check
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          cargo_version=$(sed -n -E '0,/^version = "(.*)"/s//\1/p' Cargo.toml)
+          if [ "$tag" != "$cargo_version" ]; then
+            echo "::error::Tag v$tag does not match the workspace version $cargo_version"
+            exit 1
+          fi
+          echo "version=$tag" >> "$GITHUB_OUTPUT"
+
+  ci:
+    name: CI
+    needs: version
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    name: Build
+    needs: [version, ci]
+    uses: ./.github/workflows/build.yml
+    with:
+      ref: ${{ github.sha }}
+      version: ${{ needs.version.outputs.version }}
+      label: ${{ needs.version.outputs.version }}
+
+  publish:
+    name: Publish GitHub release
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff
+      - name: Release notes
+        run: git cliff --latest --strip header --output NOTES.md
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            cat NOTES.md
+            echo
+            echo "Unsigned build: Windows SmartScreen may warn on first run (More info, then Run anyway)."
+            echo "Verify downloads against SHA256SUMS.txt."
+          } > BODY.md
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --title "TimberStat ${{ needs.version.outputs.version }}" \
+            --notes-file BODY.md \
+            --verify-tag

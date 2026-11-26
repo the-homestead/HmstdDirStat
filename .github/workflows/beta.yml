@@ -1,0 +1,91 @@
+name: Beta
+
+# A beta build after every push to main, once CI has passed on that commit. It is published
+# as one rolling pre-release tagged `beta`, replaced each time, so the tag list only holds
+# official releases. The version is the next release git-cliff computes from the commits,
+# with -beta.<run number> in the file names.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: beta
+  cancel-in-progress: true
+
+jobs:
+  version:
+    name: Next version
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.next.outputs.version }}
+      label: ${{ steps.next.outputs.label }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff
+      - id: next
+        run: |
+          version=$(git cliff --bumped-version 2>/dev/null | tr -d '[:space:]')
+          version="${version#v}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "label=$version-beta.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build
+    needs: version
+    uses: ./.github/workflows/build.yml
+    with:
+      ref: ${{ github.event.workflow_run.head_sha }}
+      version: ${{ needs.version.outputs.version }}
+      label: ${{ needs.version.outputs.label }}
+
+  publish:
+    name: Publish beta pre-release
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff
+      - name: Changes since the last release
+        run: git cliff --unreleased --strip header --output NOTES.md
+      - name: Replace the beta pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          {
+            echo "Beta build ${{ needs.version.outputs.label }} from ${SHA:0:7}. Not an official release."
+            echo
+            cat NOTES.md
+            echo
+            echo "Unsigned build: Windows SmartScreen may warn on first run (More info, then Run anyway)."
+          } > BODY.md
+          gh release delete beta --cleanup-tag --yes || true
+          gh release create beta dist/* \
+            --prerelease \
+            --target "$SHA" \
+            --title "TimberStat ${{ needs.version.outputs.label }}" \
+            --notes-file BODY.md

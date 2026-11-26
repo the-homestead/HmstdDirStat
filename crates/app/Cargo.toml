@@ -28,3 +28,24 @@ tempfile.workspace = true
 
 [lints]
 workspace = true
+
+# Installers and packages (cargo-packager). Built by CI; see RELEASE.md.
+[package.metadata.packager]
+product-name = "TimberStat"
+identifier = "com.the-homestead.timberstat"
+publisher = "The Homestead"
+description = "Disk usage analyser and file manager"
+homepage = "https://github.com/the-homestead/TimberStat"
+category = "Utility"
+license-file = "../../LICENSE"
+before-packaging-command = "cargo build --release -p hmstd-app"
+out-dir = "../../target/release"
+binaries = [{ path = "timberstat", main = true }]
+
+[package.metadata.packager.nsis]
+# Per-user install: no administrator prompt, Start menu entry and uninstaller.
+installer-mode = "currentUser"
+
+[package.metadata.packager.deb]
+# GPUI's runtime libraries (the -dev packages CI installs to build it).
+depends = ["libxkbcommon0", "libxkbcommon-x11-0", "libwayland-client0", "libxcb1", "libvulkan1", "libfontconfig1"]

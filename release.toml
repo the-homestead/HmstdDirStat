@@ -1,0 +1,16 @@
+# cargo-release: bumps the shared workspace version, regenerates CHANGELOG.md with git-cliff,
+# commits and tags. Pushing the tag is what publishes a release (see RELEASE.md).
+# https://github.com/crate-ci/cargo-release/blob/master/docs/reference.md
+
+allow-branch = ["main"]
+shared-version = true
+consolidate-commits = true
+pre-release-commit-message = "chore(release): v{{version}}"
+tag-name = "v{{version}}"
+tag-message = "TimberStat v{{version}}"
+# Crates are not published to crates.io.
+publish = false
+# The owner pushes the tag by hand: `git push origin main --follow-tags`.
+push = false
+# Runs once from the workspace root before the release commit.
+pre-release-hook = ["git", "cliff", "--tag", "v{{version}}", "--output", "CHANGELOG.md"]
