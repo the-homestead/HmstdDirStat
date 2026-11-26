@@ -32,8 +32,12 @@ pub fn pie_card(
     p: Palette,
     handle: Entity<Shell>,
     basis: Basis,
+    room: super::widget_bodies::Room,
 ) -> Div {
     let slices = explore::slices(files, focus, PIE_SLICES, basis);
+    let below = (room.h - PIE_HEADING_PX).max(0.0);
+    let side = below.min(room.w * 0.5).max(60.0);
+    let legend_rows = legend_rows(below);
     let items: Vec<Item> = slices
         .iter()
         .enumerate()
@@ -59,30 +63,49 @@ pub fn pie_card(
             SharedString::from(format!("{}  ({share:.1}%)", format_bytes(item.bytes)))
         })
         .inner_radius_ratio(0.6)
-        .outer_radius(120.);
+        .outer_radius(side / 2.0 - 2.0);
 
+    // The widget is the card, so the pie draws straight into its body.
     div()
         .v_flex()
         .gap_3()
-        .p_4()
-        .rounded_lg()
-        .border_1()
-        .border_color(p.border)
-        .bg(p.surface)
         .child(section_heading("Share by item", p))
         .child(
             div()
                 .h_flex()
                 .gap_6()
                 .items_center()
-                .child(div().w(px(260.)).h(px(260.)).child(chart))
-                .child(legend(items, total, p, handle)),
+                .child(div().flex_shrink_0().w(px(side)).h(px(side)).child(chart))
+                .child(legend(items, total, legend_rows, p, handle)),
         )
 }
 
-pub(super) fn legend(items: Vec<Item>, total: u64, p: Palette, handle: Entity<Shell>) -> Div {
+/// Height of the "Share by item" heading and the gap under it, in pixels.
+const PIE_HEADING_PX: f32 = 36.;
+/// Height of one legend row, in pixels.
+const LEGEND_ROW_PX: f32 = 28.;
+
+/// Legend rows that fit in `height` pixels.
+pub(super) fn legend_rows(height: f32) -> usize {
+    ((height / LEGEND_ROW_PX).floor() as usize).max(1)
+}
+
+/// The legend, cut to `max_rows`. When rows are left out, the last line says how many.
+pub(super) fn legend(
+    items: Vec<Item>,
+    total: u64,
+    max_rows: usize,
+    p: Palette,
+    handle: Entity<Shell>,
+) -> Div {
+    let shown = if items.len() > max_rows {
+        max_rows.saturating_sub(1).max(1)
+    } else {
+        items.len()
+    };
+    let hidden = items.len() - shown;
     let mut list = div().v_flex().gap_1().flex_1().min_w_0();
-    for (index, item) in items.into_iter().enumerate() {
+    for (index, item) in items.into_iter().take(shown).enumerate() {
         let share = if total > 0 {
             item.bytes as f64 * 100.0 / total as f64
         } else {
@@ -109,6 +132,14 @@ pub(super) fn legend(items: Vec<Item>, total: u64, p: Palette, handle: Entity<Sh
             });
         }
         list = list.child(row);
+    }
+    if hidden > 0 {
+        list = list.child(
+            div()
+                .text_xs()
+                .text_color(p.muted_foreground)
+                .child(format!("{hidden} more")),
+        );
     }
     list
 }

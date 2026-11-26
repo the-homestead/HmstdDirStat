@@ -16,7 +16,7 @@ use super::{Shell, empty_state, widget_bodies, widgets::*};
 const MIN_WIDTH_PX: f32 = 180.;
 const MIN_HEIGHT_PX: f32 = 120.;
 /// Height of a widget's header bar.
-const HEADER_PX: f32 = 28.;
+pub(super) const HEADER_PX: f32 = 28.;
 /// Thickness of an edge grip, and the side of a corner grip.
 const EDGE_PX: f32 = 6.;
 const CORNER_PX: f32 = 12.;

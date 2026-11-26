@@ -14,9 +14,8 @@ use crate::{
     tiles::{self, Limits, Tile},
 };
 
-/// Width to height the layout is made for. The board is full width at a fixed height.
-const ASPECT: f64 = 1.8;
-const BOARD_HEIGHT: f32 = 280.;
+/// Height the breadcrumb and the gap under it take above a graph, in pixels.
+pub(super) const CRUMB_PX: f32 = 40.;
 /// Height of a folder's name strip, in pixels.
 const HEADER_PX: f32 = 18.;
 /// Tiles at least this share of the focused folder get a visible label.
@@ -31,6 +30,8 @@ pub struct Look<'a> {
     pub query: &'a Query,
     pub selected: Option<NodeId>,
     pub tooltips: bool,
+    /// The room inside the widget body; the graph sizes itself to fit it.
+    pub room: super::widget_bodies::Room,
 }
 
 fn limits(basis: Basis) -> Limits {
@@ -49,11 +50,15 @@ pub fn treemap_page(
     p: Palette,
     look: Look<'_>,
 ) -> Div {
-    let tiles = tiles::nested(files, focus, ASPECT, limits(look.basis));
+    let room = look.room;
+    // The breadcrumb and gap take the top; the board gets the rest of the widget.
+    let board_h = (room.h - CRUMB_PX).max(40.0);
+    let aspect = (room.w.max(40.0) / board_h).clamp(0.25, 8.0);
+    let tiles = tiles::nested(files, focus, aspect as _, limits(look.basis));
     let board = div()
         .relative()
         .w_full()
-        .h(px(BOARD_HEIGHT))
+        .h(px(board_h))
         .rounded_lg()
         .overflow_hidden()
         .border_1()

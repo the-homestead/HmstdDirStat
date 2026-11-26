@@ -84,6 +84,7 @@ pub fn sunburst_page(
     hover: Option<(NodeId, Point<Pixels>)>,
     bounds_cell: Rc<Cell<Option<Bounds<Pixels>>>>,
 ) -> Div {
+    let room = look.room;
     let basis = look.basis;
     let arcs = sunburst_arcs(files, focus, basis);
     let drawn: Vec<DrawnArc> = arcs
@@ -108,8 +109,11 @@ pub fn sunburst_page(
         .collect();
     let focus_total = explore::bytes_of(files, focus, basis);
 
-    // Fits the graph row (340 px card): title, breadcrumb and padding take the rest.
-    let side = px(300.);
+    // The disc takes the height under the breadcrumb, and at most about half the width so the
+    // legend keeps room beside it.
+    let below = (room.h - super::treemap::CRUMB_PX).max(0.0);
+    let side = px(below.min(room.w * 0.55).max(60.0));
+    let legend_rows = super::views::legend_rows(below);
     let rings = canvas(
         |_, _, _| (),
         move |bounds, _, window, _| {
@@ -207,7 +211,7 @@ pub fn sunburst_page(
                 .gap_6()
                 .items_start()
                 .child(disc)
-                .child(legend(items, total, p, handle)),
+                .child(legend(items, total, legend_rows, p, handle)),
         )
 }
 

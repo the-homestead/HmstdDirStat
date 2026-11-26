@@ -93,10 +93,12 @@ pub fn tree_matches(files: &FileTree, query: &Query) -> usize {
 }
 
 /// Column widths shared by the header and every row, in pixels.
-const COL_PERCENT: f32 = 96.;
-const COL_SIZE: f32 = 100.;
-const COL_ON_DISK: f32 = 100.;
-const COL_ITEMS: f32 = 84.;
+/// The name column never gets narrower than this; a narrow widget clips the right columns.
+const COL_NAME_MIN: f32 = 110.;
+const COL_PERCENT: f32 = 52.;
+const COL_SIZE: f32 = 72.;
+const COL_ON_DISK: f32 = 72.;
+const COL_ITEMS: f32 = 56.;
 
 /// Height of the column header above the folder tree, in pixels.
 const TREE_HEADER_PX: f32 = 24.0;
@@ -108,8 +110,12 @@ pub fn files_view(
     files: Arc<FileTree>,
     p: Palette,
     handle: Entity<Shell>,
+    height: f32,
 ) -> Div {
     let on_disk = explore::allocated_known(&files);
+    // The list needs a definite pixel height. Percentage heights through the absolute boxes
+    // above resolved to 0 px (measured), which drew the header and no rows.
+    let list_h = (height - TREE_HEADER_PX).max(0.0);
     let header = div()
         .absolute()
         .top_0()
@@ -125,7 +131,7 @@ pub fn files_view(
         .text_color(p.muted_foreground)
         .border_b_1()
         .border_color(p.border)
-        .child(div().flex_1().min_w_0().child("Folder"))
+        .child(div().flex_1().min_w(px(COL_NAME_MIN)).child("Folder"))
         .child(
             div()
                 .w(px(COL_PERCENT))
@@ -168,37 +174,46 @@ pub fn files_view(
         .border_color(p.border)
         .rounded_lg()
         .relative()
-        // The list needs a definite box to size its rows. A flex child's `size_full()` resolves
-        // to zero, which is why the rows did not show after the layout change.
-        .child(div().absolute().top_0().left_0().size_full().child(tree(
-            state,
-            move |ix, entry, selected, _window, _cx| {
-                let icon = if !entry.is_folder() {
-                    IconName::File
-                } else if entry.is_expanded() {
-                    IconName::FolderOpen
-                } else {
-                    IconName::Folder
-                };
-                let node = entry
-                    .item()
-                    .id
-                    .parse::<usize>()
-                    .ok()
-                    .and_then(NodeId::from_index);
-                let mut row = ListItem::new(ix)
-                    .selected(selected)
-                    .pl(px(16.) * entry.depth() + px(12.));
-                if let Some(node) = node {
-                    let handle = handle.clone();
-                    row = row.on_click(move |_, _, cx| {
-                        handle.update(cx, |shell, cx| shell.tree_select(node, cx));
-                    });
-                }
-                row.child(tree_cells(&files, node, icon, on_disk, p))
-            },
-        )));
-    div().relative().size_full().child(header).child(body)
+        .h(px(list_h))
+        .child(
+            div()
+                .absolute()
+                .top_0()
+                .left_0()
+                .w_full()
+                .h(px(list_h))
+                .child(tree(state, move |ix, entry, selected, _window, _cx| {
+                    let icon = if !entry.is_folder() {
+                        IconName::File
+                    } else if entry.is_expanded() {
+                        IconName::FolderOpen
+                    } else {
+                        IconName::Folder
+                    };
+                    let node = entry
+                        .item()
+                        .id
+                        .parse::<usize>()
+                        .ok()
+                        .and_then(NodeId::from_index);
+                    let mut row = ListItem::new(ix)
+                        .selected(selected)
+                        .pl(px(12.) * entry.depth() + px(4.));
+                    if let Some(node) = node {
+                        let handle = handle.clone();
+                        row = row.on_click(move |_, _, cx| {
+                            handle.update(cx, |shell, cx| shell.tree_select(node, cx));
+                        });
+                    }
+                    row.child(tree_cells(&files, node, icon, on_disk, p))
+                })),
+        );
+    div()
+        .relative()
+        .w_full()
+        .h(px(height))
+        .child(header)
+        .child(body)
 }
 
 /// One tree row. Hovering it shows the full path, logical size and allocated size.
@@ -279,7 +294,7 @@ fn tree_cell_row(
         .child(
             div()
                 .flex_1()
-                .min_w_0()
+                .min_w(px(COL_NAME_MIN))
                 .h_flex()
                 .gap_2()
                 .child(icon)

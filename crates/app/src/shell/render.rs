@@ -135,16 +135,16 @@ pub(super) fn summary_content(phase: &Phase, p: Palette, handle: Entity<Shell>) 
                 });
             div()
                 .v_flex()
-                .gap_4()
+                .gap_2()
                 .child(
                     div()
                         .h_flex()
-                        .gap_3()
+                        .gap_2()
                         .items_center()
                         .child(Spinner::new())
                         .child(
                             div()
-                                .text_lg()
+                                .text_sm()
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .child(format!("Walking {}", root.display())),
                         ),
@@ -156,7 +156,7 @@ pub(super) fn summary_content(phase: &Phase, p: Palette, handle: Entity<Shell>) 
                 )
                 .child(
                     div()
-                        .text_sm()
+                        .text_xs()
                         .text_color(p.muted_foreground)
                         .child(entries_text(
                             entries.load(std::sync::atomic::Ordering::Relaxed),

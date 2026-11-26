@@ -54,20 +54,22 @@ pub fn bytes_or_na(value: Option<u64>) -> String {
     value.map_or_else(|| "n/a".to_string(), crate::scan::format_bytes)
 }
 
-/// A grid of stat cards.
+/// Stats as a dense sheet: label on the left, value on the right, one thin rule per row.
+/// Rows flow into as many columns as the width allows (each column at least 160 px).
 pub fn stat_grid(stats: &[Stat], p: Palette) -> Div {
-    let mut grid = div().h_flex().flex_wrap().gap_3();
+    let mut grid = div().h_flex().flex_wrap().gap_x_4();
     for stat in stats {
         grid = grid.child(
             div()
-                .v_flex()
-                .min_w(px(168.))
-                .p_4()
-                .gap_1()
-                .rounded_lg()
-                .border_1()
+                .h_flex()
+                .flex_1()
+                .min_w(px(160.))
+                .justify_between()
+                .items_center()
+                .gap_2()
+                .py_1()
+                .border_b_1()
                 .border_color(p.border)
-                .bg(p.surface)
                 .child(
                     div()
                         .text_xs()
@@ -76,7 +78,7 @@ pub fn stat_grid(stats: &[Stat], p: Palette) -> Div {
                 )
                 .child(
                     div()
-                        .text_xl()
+                        .text_sm()
                         .font_weight(FontWeight::SEMIBOLD)
                         .child(stat.value.clone()),
                 ),
@@ -98,11 +100,10 @@ pub fn section_heading(title: &str, p: Palette) -> Div {
 pub fn message_block(title: &str, detail: &str, p: Palette) -> Div {
     div()
         .v_flex()
-        .gap_2()
-        .py_8()
+        .gap_1()
         .child(
             div()
-                .text_lg()
+                .text_sm()
                 .font_weight(FontWeight::SEMIBOLD)
                 .child(title.to_string()),
         )

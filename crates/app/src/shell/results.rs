@@ -1,7 +1,10 @@
 //! Result panels for the elevated, walk and Fast scans: progress while elevated, and the
 //! totals once a scan has finished.
 
-use gpui_kit::component::{alert::Alert, progress::Progress, spinner::Spinner, tag::Tag, *};
+use gpui_kit::component::{progress::Progress, spinner::Spinner, tag::Tag, *};
+
+/// Unreadable folders listed in Summary; the rest are counted.
+const MAX_ISSUES: usize = 5;
 use gpui_kit::*;
 
 use super::{render::drive_label, widgets::*};
@@ -31,21 +34,21 @@ pub(super) fn elevated_view(
 
     let mut page = div()
         .v_flex()
-        .gap_4()
+        .gap_2()
         .child(
             div()
                 .h_flex()
-                .gap_3()
+                .gap_2()
                 .items_center()
                 .child(Spinner::new())
                 .child(
                     div()
-                        .text_lg()
+                        .text_sm()
                         .font_weight(FontWeight::SEMIBOLD)
                         .child(title),
                 ),
         )
-        .child(div().text_sm().text_color(p.muted_foreground).child(detail));
+        .child(div().text_xs().text_color(p.muted_foreground).child(detail));
 
     page = match stage {
         Some(SummaryProgress::Reading { done, total }) => {
@@ -57,7 +60,7 @@ pub(super) fn elevated_view(
             page.child(Progress::new("fast-progress").value(percent))
                 .child(
                     div()
-                        .text_sm()
+                        .text_xs()
                         .text_color(p.muted_foreground)
                         .child(format!(
                             "{} of {} records ({percent:.0}%)",
@@ -108,20 +111,34 @@ pub(super) fn walked_result(summary: &ScanSummary, p: Palette) -> Div {
     .child(stat_grid(&stats, p));
     if !summary.complete {
         page = page.child(
-            Alert::warning(
-                "partial-result",
-                "Some folders could not be read, so these totals are incomplete. The list below names them.",
-            )
-            .title("Partial result"),
+            div()
+                .text_xs()
+                .text_color(p.warning)
+                .child("Some folders could not be read, so these totals are low."),
         );
     }
     if !summary.issue_paths.is_empty() {
         let mut list = div()
             .v_flex()
-            .gap_1()
+            .gap_0p5()
             .child(section_heading("Unreadable folders", p));
-        for line in &summary.issue_paths {
-            list = list.child(div().text_sm().text_color(p.warning).child(line.clone()));
+        for line in summary.issue_paths.iter().take(MAX_ISSUES) {
+            list = list.child(
+                div()
+                    .text_xs()
+                    .text_color(p.warning)
+                    .truncate()
+                    .child(line.clone()),
+            );
+        }
+        let more = summary.issue_paths.len().saturating_sub(MAX_ISSUES);
+        if more > 0 {
+            list = list.child(
+                div()
+                    .text_xs()
+                    .text_color(p.muted_foreground)
+                    .child(format!("{more} more in the log")),
+            );
         }
         page = page.child(list);
     }
@@ -171,26 +188,26 @@ pub(super) fn result_page(title: &str, method: &str, complete: bool, p: Palette)
     } else {
         Tag::warning().child("Partial")
     };
-    div()
-        .v_flex()
-        .gap_4()
-        .child(
-            div()
-                .h_flex()
-                .gap_3()
-                .items_center()
-                .child(
-                    div()
-                        .text_lg()
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .child(title.to_string()),
-                )
-                .child(completeness),
-        )
-        .child(
-            div()
-                .text_sm()
-                .text_color(p.muted_foreground)
-                .child(method.to_string()),
-        )
+    div().v_flex().gap_2().child(
+        div()
+            .h_flex()
+            .gap_2()
+            .items_center()
+            .child(
+                div()
+                    .text_sm()
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .child(title.to_string()),
+            )
+            .child(
+                div()
+                    .flex_1()
+                    .min_w_0()
+                    .text_xs()
+                    .text_color(p.muted_foreground)
+                    .truncate()
+                    .child(method.to_string()),
+            )
+            .child(completeness),
+    )
 }

@@ -14,6 +14,34 @@ use crate::{explore, scan::format_count};
 /// Height of the status line above the folder tree, in pixels.
 const STATUS_PX: f32 = 22.0;
 
+/// The inner size of a widget body, in pixels. Graphs size themselves from it, so they fit
+/// the widget instead of being drawn at a fixed size and cut off.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct Room {
+    pub(super) w: f32,
+    pub(super) h: f32,
+}
+
+/// Pixels a body loses to the 2px gap, its padding and borders, across and down. The header
+/// is added on top of the vertical figure.
+const CHROME_W: f32 = 2.0 * PAD_PX + 6.0;
+const CHROME_H: f32 = 2.0 * PAD_PX + 6.0;
+/// Space between a widget's edge and its content, in pixels.
+const PAD_PX: f32 = 5.0;
+
+/// The room inside `kind`'s body, from its frame and the workspace bounds of the last frame.
+fn room(shell: &Shell, kind: WidgetKind) -> Room {
+    match (shell.layout.frame(kind), shell.workspace_bounds.get()) {
+        (Some(frame), Some(bounds)) => Room {
+            w: (frame.w * f32::from(bounds.size.width) - CHROME_W).max(0.0),
+            h: (frame.h * f32::from(bounds.size.height) - CHROME_H - super::workspace::HEADER_PX)
+                .max(0.0),
+        },
+        // Before the first layout: a middling size, corrected on the next frame.
+        _ => Room { w: 400.0, h: 300.0 },
+    }
+}
+
 /// A box that fills its parent exactly. Absolute insets give a definite size, which a flex or
 /// percentage height does not always give the list inside it.
 fn fill() -> Div {
@@ -33,15 +61,22 @@ pub(super) fn body(shell: &Shell, kind: WidgetKind, p: Palette, handle: Entity<S
             graph(shell, kind, p, handle)
         }
     };
-    let frame = fill().p_2();
-    // Lists can outgrow their widget, so they scroll. Graphs fit the widget and clip instead of
-    // scrolling, so nothing is scrollable by default.
+    // The content box sits PAD_PX inside the widget. Padding on an absolute box would not move
+    // absolute children, so the gap is an inset instead.
+    let content = div()
+        .absolute()
+        .top(px(PAD_PX))
+        .bottom(px(PAD_PX))
+        .left(px(PAD_PX))
+        .right(px(PAD_PX));
+    // Graphs size themselves to the room and clip as a guard. Lists scroll only when the widget
+    // is too small for them.
     match kind {
         WidgetKind::Tree | WidgetKind::Treemap | WidgetKind::Sunburst | WidgetKind::Pie => {
-            frame.child(fill().overflow_hidden().child(inner))
+            fill().child(content.overflow_hidden().child(inner))
         }
         WidgetKind::Summary | WidgetKind::Extensions => {
-            frame.child(fill().overflow_y_scrollbar().child(inner))
+            fill().child(content.child(fill().overflow_y_scrollbar().child(inner)))
         }
     }
 }
@@ -75,7 +110,13 @@ fn tree(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Div {
                 .bottom_0()
                 .left_0()
                 .right_0()
-                .child(files_tree::files_view(&state, files, p, handle)),
+                .child(files_tree::files_view(
+                    &state,
+                    files,
+                    p,
+                    handle,
+                    (room(shell, WidgetKind::Tree).h - STATUS_PX - 4.0).max(0.0),
+                )),
         )
 }
 
@@ -147,23 +188,33 @@ fn graph(shell: &Shell, kind: WidgetKind, p: Palette, handle: Entity<Shell>) -> 
         return empty_state::no_tree(kind, shell.is_scanning());
     };
     match kind {
-        WidgetKind::Treemap => treemap::treemap_page(&files, shell.focus, handle, p, look(shell)),
+        WidgetKind::Treemap => {
+            treemap::treemap_page(&files, shell.focus, handle, p, look(shell, kind))
+        }
         WidgetKind::Sunburst => rings::sunburst_page(
             &files,
             shell.focus,
             handle,
             p,
-            look(shell),
+            look(shell, kind),
             shell.sunburst_hover.filter(|_| shell.menu.is_none()),
             shell.sunburst_bounds.clone(),
         ),
-        _ => views::pie_card(&files, shell.focus, p, handle, shell.basis),
+        _ => views::pie_card(
+            &files,
+            shell.focus,
+            p,
+            handle,
+            shell.basis,
+            room(shell, kind),
+        ),
     }
 }
 
 /// How the treemap and sunburst draw right now.
-pub(super) fn look(shell: &Shell) -> treemap::Look<'_> {
+pub(super) fn look(shell: &Shell, kind: WidgetKind) -> treemap::Look<'_> {
     treemap::Look {
+        room: room(shell, kind),
         basis: shell.basis,
         query: &shell.query,
         selected: shell.selected,
