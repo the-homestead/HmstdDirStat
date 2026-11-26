@@ -234,7 +234,9 @@ impl From<RawLayout> for WorkspaceLayout {
                 frame: entry.frame.sanitized(kind.default_frame()),
             });
         }
-        Self { widgets }
+        // A saved layout may overlap (older builds did not prevent it). Push apart; if that
+        // cannot fit, use the default layout.
+        crate::layout_resize::settle(&Self { widgets }).unwrap_or_default()
     }
 }
 

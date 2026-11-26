@@ -1,130 +1,179 @@
-//! Resizing that shares space. When a widget's edge moves, every widget that touches that edge
-//! moves its matching edge by the same amount, so widgets take room from each other and never
-//! overlap. A widget stops where a neighbour would fall below its minimum size.
+//! Moving and resizing widgets, with the neighbours they run into pushed out of the way.
+//!
+//! A moved or resized widget takes room from the widgets it overlaps. Each overlapping
+//! neighbour is pushed out along the axis of least overlap: it slides if the space beyond
+//! is free, and shrinks to the free space if it is not. No neighbour goes below `MIN_SIZE`.
+//! When nothing fits, the drag stops at the furthest position that still does. A result
+//! never overlaps and never leaves the workspace.
 
-use crate::workspace::{Edges, Frame, WidgetKind, WorkspaceLayout};
+use crate::workspace::{Edges, Frame, MIN_SIZE, WidgetKind, WorkspaceLayout};
 
-/// Two edges closer than this (as workspace fractions) count as the same edge.
-const EDGE_EPS: f32 = 1e-4;
+/// Float tolerance: frames that touch within this are not overlapping.
+const EPS: f32 = 1e-5;
+/// Pushes allowed for one step, so a cycle cannot run forever.
+const MAX_PUSHES: usize = 512;
+/// Bisection steps used when a drag must stop short of the pointer.
+const BISECT_STEPS: u32 = 20;
+/// Passes allowed when settling an overlapping saved layout.
+const MAX_SETTLE_PASSES: usize = 256;
 
-/// The axis an edge lies on: `X` for left and right edges, `Y` for top and bottom.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Axis {
-    X,
-    Y,
+type Slots = Vec<(WidgetKind, Frame)>;
+
+fn overlaps(a: Frame, b: Frame) -> bool {
+    a.x < b.x + b.w - EPS && b.x < a.x + a.w - EPS && a.y < b.y + b.h - EPS && b.y < a.y + a.h - EPS
 }
 
-/// Start and length of a frame along `axis`.
-fn span(frame: Frame, axis: Axis) -> (f32, f32) {
-    match axis {
-        Axis::X => (frame.x, frame.w),
-        Axis::Y => (frame.y, frame.h),
-    }
+fn inside(frame: Frame) -> bool {
+    frame.x >= -EPS
+        && frame.y >= -EPS
+        && frame.x + frame.w <= 1.0 + EPS
+        && frame.y + frame.h <= 1.0 + EPS
+        && frame.w >= MIN_SIZE - EPS
+        && frame.h >= MIN_SIZE - EPS
 }
 
-/// Start and length of a frame across `axis` (the other dimension).
-fn across(frame: Frame, axis: Axis) -> (f32, f32) {
-    match axis {
-        Axis::X => (frame.y, frame.h),
-        Axis::Y => (frame.x, frame.w),
-    }
-}
-
-fn with_span(frame: Frame, axis: Axis, start: f32, len: f32) -> Frame {
-    match axis {
-        Axis::X => Frame {
+fn with_span(frame: Frame, horizontal: bool, start: f32, len: f32) -> Frame {
+    if horizontal {
+        Frame {
             x: start,
             w: len,
             ..frame
-        },
-        Axis::Y => Frame {
+        }
+    } else {
+        Frame {
             y: start,
             h: len,
             ..frame
-        },
+        }
     }
 }
 
-/// Moves one edge of `kind` to `target`, and the matching edge of each neighbour that touches
-/// it. `moving_low` picks the left or top edge; otherwise the right or bottom edge.
-fn shift_edge(
-    out: &mut WorkspaceLayout,
-    kind: WidgetKind,
-    axis: Axis,
-    moving_low: bool,
-    target: f32,
-    min: f32,
-) {
-    let Some(start) = out.frame(kind) else {
-        return;
+/// Pushes `frame` clear of `pinned` on the axis where they overlap least. It slides when the
+/// space beyond `pinned` is free, and shrinks to the free space when it is not. `None` when
+/// even the shrunk frame would fall below `MIN_SIZE`.
+fn push_clear(pinned: Frame, frame: Frame) -> Option<Frame> {
+    let ox = (pinned.x + pinned.w).min(frame.x + frame.w) - pinned.x.max(frame.x);
+    let oy = (pinned.y + pinned.h).min(frame.y + frame.h) - pinned.y.max(frame.y);
+    let horizontal = ox < oy;
+    let (p_start, p_len, f_start, f_len) = if horizontal {
+        (pinned.x, pinned.w, frame.x, frame.w)
+    } else {
+        (pinned.y, pinned.h, frame.y, frame.h)
     };
-    let (lo, len) = span(start, axis);
-    let hi = lo + len;
-    let (a_lo, a_len) = across(start, axis);
-    let a_hi = a_lo + a_len;
-    let edge = if moving_low { lo } else { hi };
+    let high = f_start + f_len / 2.0 >= p_start + p_len / 2.0;
+    let edge = if high { p_start + p_len } else { p_start };
 
-    // Neighbours whose opposite edge sits on this edge and that share some of its length.
-    let touching: Vec<(WidgetKind, Frame)> = out
+    let slid = if high { edge } else { edge - f_len };
+    if slid >= -EPS && slid + f_len <= 1.0 + EPS {
+        return Some(with_span(frame, horizontal, slid, f_len));
+    }
+    let (start, len) = if high {
+        (edge, 1.0 - edge)
+    } else {
+        (0.0, edge)
+    };
+    (len >= MIN_SIZE - EPS).then(|| with_span(frame, horizontal, start, len))
+}
+
+/// True when every frame is inside the workspace and no two frames overlap.
+fn valid(slots: &[(WidgetKind, Frame)]) -> bool {
+    slots.iter().all(|(_, frame)| inside(*frame))
+        && slots
+            .iter()
+            .enumerate()
+            .all(|(i, (_, a))| slots[i + 1..].iter().all(|(_, b)| !overlaps(*a, *b)))
+}
+
+fn slots_of(layout: &WorkspaceLayout) -> Slots {
+    layout
         .widgets
         .iter()
-        .filter(|placed| placed.kind != kind)
-        .filter(|placed| {
-            let (n_lo, n_len) = span(placed.frame, axis);
-            let meets = if moving_low {
-                (n_lo + n_len - edge).abs() < EDGE_EPS
-            } else {
-                (n_lo - edge).abs() < EDGE_EPS
-            };
-            let (o_lo, o_len) = across(placed.frame, axis);
-            meets && o_lo < a_hi - EDGE_EPS && o_lo + o_len > a_lo + EDGE_EPS
-        })
         .map(|placed| (placed.kind, placed.frame))
-        .collect();
-
-    // The edge may move inside [floor, ceil]: no touching neighbour goes below `min`, and the
-    // widget itself keeps `min` (and stays in the workspace).
-    let (floor, ceil) = if moving_low {
-        let floor = touching
-            .iter()
-            .map(|(_, frame)| span(*frame, axis).0 + min)
-            .fold(0.0_f32, f32::max);
-        (floor, hi - min)
-    } else {
-        let ceil = touching
-            .iter()
-            .map(|(_, frame)| {
-                let (n_lo, n_len) = span(*frame, axis);
-                n_lo + n_len - min
-            })
-            .fold(1.0_f32, f32::min);
-        (lo + min, ceil)
-    };
-    if floor > ceil {
-        return;
-    }
-    let edge_new = target.clamp(floor, ceil);
-
-    for (neighbour, frame) in touching {
-        let (n_lo, n_len) = span(frame, axis);
-        let moved = if moving_low {
-            with_span(frame, axis, n_lo, edge_new - n_lo)
-        } else {
-            with_span(frame, axis, edge_new, n_lo + n_len - edge_new)
-        };
-        out.set_frame(neighbour, moved);
-    }
-    let own = if moving_low {
-        with_span(start, axis, edge_new, hi - edge_new)
-    } else {
-        with_span(start, axis, lo, edge_new - lo)
-    };
-    out.set_frame(kind, own);
+        .collect()
 }
 
-/// The layout after `kind` is resized from `base` (the layout when the drag began) by `dx`,
-/// `dy` in workspace fractions. Shared edges move with it, so no widget overlaps another.
-/// `min_w` and `min_h` are the smallest sizes in workspace fractions.
+fn layout_from(base: &WorkspaceLayout, slots: &Slots) -> WorkspaceLayout {
+    let mut out = base.clone();
+    for (placed, (_, frame)) in out.widgets.iter_mut().zip(slots) {
+        placed.frame = *frame;
+    }
+    out
+}
+
+/// Pushes every widget that overlaps `anchor` clear of it, then the widgets those pushes
+/// run into, and so on. False when a push cannot fit, or the chain comes back to `anchor`.
+fn clear_from(slots: &mut Slots, anchor: usize) -> bool {
+    let mut queue = vec![anchor];
+    let mut pushes = 0;
+    while let Some(pinned_ix) = queue.pop() {
+        let pinned = slots[pinned_ix].1;
+        for (ix, slot) in slots.iter_mut().enumerate() {
+            if ix == pinned_ix || !overlaps(pinned, slot.1) {
+                continue;
+            }
+            if ix == anchor {
+                return false;
+            }
+            pushes += 1;
+            if pushes > MAX_PUSHES {
+                return false;
+            }
+            match push_clear(pinned, slot.1) {
+                Some(frame) => slot.1 = frame,
+                None => return false,
+            }
+            queue.push(ix);
+        }
+    }
+    valid(slots)
+}
+
+/// The layout with `kind` at `frame` and its neighbours pushed clear. `None` if that cannot fit.
+fn attempt(base: &WorkspaceLayout, kind: WidgetKind, frame: Frame) -> Option<WorkspaceLayout> {
+    if !inside(frame) {
+        return None;
+    }
+    let mut slots = slots_of(base);
+    let ix = slots.iter().position(|(k, _)| *k == kind)?;
+    slots[ix].1 = frame;
+    clear_from(&mut slots, ix).then(|| layout_from(base, &slots))
+}
+
+/// Applies the furthest step along `target` that fits. Step 1 is the full target. If that
+/// does not fit, bisection finds the largest fraction that does. Step 0 is the base layout.
+fn place(
+    base: &WorkspaceLayout,
+    kind: WidgetKind,
+    target: impl Fn(f32) -> Frame,
+) -> WorkspaceLayout {
+    if let Some(layout) = attempt(base, kind, target(1.0)) {
+        return layout;
+    }
+    let (mut lo, mut hi) = (0.0_f32, 1.0_f32);
+    let mut best = base.clone();
+    for _ in 0..BISECT_STEPS {
+        let mid = (lo + hi) / 2.0;
+        match attempt(base, kind, target(mid)) {
+            Some(layout) => {
+                best = layout;
+                lo = mid;
+            }
+            None => hi = mid,
+        }
+    }
+    best
+}
+
+/// Moves `kind` by `dx`, `dy` (workspace fractions) from `base`, pushing neighbours out of the way.
+pub fn move_widget(base: &WorkspaceLayout, kind: WidgetKind, dx: f32, dy: f32) -> WorkspaceLayout {
+    let Some(start) = base.frame(kind) else {
+        return base.clone();
+    };
+    place(base, kind, |t| start.moved(t * dx, t * dy))
+}
+
+/// Resizes `kind` from `base` by dragging `edges` by `dx`, `dy`, pushing neighbours out of the way.
+/// `min_w` and `min_h` are the smallest sizes, in workspace fractions.
 pub fn resize_widget(
     base: &WorkspaceLayout,
     kind: WidgetKind,
@@ -137,29 +186,40 @@ pub fn resize_widget(
     let Some(start) = base.frame(kind) else {
         return base.clone();
     };
-    let target = start.resized(edges, dx, dy, min_w, min_h);
-    let mut out = base.clone();
-    if edges.left {
-        shift_edge(&mut out, kind, Axis::X, true, target.x, min_w);
+    place(base, kind, |t| {
+        start.resized(edges, t * dx, t * dy, min_w, min_h)
+    })
+}
+
+/// Pushes apart any widgets that overlap in a saved layout. `None` when they cannot all fit,
+/// so the caller can fall back to the default layout.
+pub fn settle(layout: &WorkspaceLayout) -> Option<WorkspaceLayout> {
+    let mut slots = slots_of(layout);
+    for _ in 0..MAX_SETTLE_PASSES {
+        let Some((a, b)) = first_overlap(&slots) else {
+            return valid(&slots).then(|| layout_from(layout, &slots));
+        };
+        let pinned = slots[a].1;
+        slots[b].1 = push_clear(pinned, slots[b].1)?;
     }
-    if edges.right {
-        shift_edge(&mut out, kind, Axis::X, false, target.x + target.w, min_w);
+    None
+}
+
+fn first_overlap(slots: &Slots) -> Option<(usize, usize)> {
+    for a in 0..slots.len() {
+        for b in a + 1..slots.len() {
+            if overlaps(slots[a].1, slots[b].1) {
+                return Some((a, b));
+            }
+        }
     }
-    if edges.top {
-        shift_edge(&mut out, kind, Axis::Y, true, target.y, min_h);
-    }
-    if edges.bottom {
-        shift_edge(&mut out, kind, Axis::Y, false, target.y + target.h, min_h);
-    }
-    out
+    None
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::workspace::{Placement, WorkspaceLayout};
-
-    const MIN: f32 = 0.1;
+    use crate::workspace::Placement;
 
     fn layout(placed: &[(WidgetKind, Frame)]) -> WorkspaceLayout {
         WorkspaceLayout {
@@ -181,13 +241,6 @@ mod tests {
         (a - b).abs() < 1e-4
     }
 
-    fn overlaps(a: Frame, b: Frame) -> bool {
-        a.x < b.x + b.w - 1e-4
-            && b.x < a.x + a.w - 1e-4
-            && a.y < b.y + b.h - 1e-4
-            && b.y < a.y + a.h - 1e-4
-    }
-
     fn side_by_side() -> WorkspaceLayout {
         layout(&[
             (WidgetKind::Tree, Frame::new(0.0, 0.0, 0.4, 1.0)),
@@ -195,99 +248,107 @@ mod tests {
         ])
     }
 
+    fn assert_valid(layout: &WorkspaceLayout) {
+        assert!(valid(&slots_of(layout)), "overlap or outside: {layout:?}");
+    }
+
     #[test]
-    fn growing_one_widget_shrinks_its_neighbour() {
+    fn moving_into_a_neighbour_pushes_it_and_shrinks_it_to_fit() {
+        let out = move_widget(&side_by_side(), WidgetKind::Tree, 0.2, 0.0);
+        let tree = frame_of(&out, WidgetKind::Tree);
+        let map = frame_of(&out, WidgetKind::Treemap);
+        assert!(close(tree.x, 0.2), "tree moved: {tree:?}");
+        assert!(
+            close(map.x, 0.6) && close(map.w, 0.4),
+            "treemap pushed: {map:?}"
+        );
+        assert_valid(&out);
+    }
+
+    #[test]
+    fn a_neighbour_slides_when_there_is_room() {
+        let base = layout(&[
+            (WidgetKind::Tree, Frame::new(0.0, 0.0, 0.3, 0.5)),
+            (WidgetKind::Summary, Frame::new(0.3, 0.0, 0.3, 0.5)),
+            (WidgetKind::Treemap, Frame::new(0.6, 0.0, 0.4, 0.5)),
+        ]);
+        let out = move_widget(&base, WidgetKind::Tree, 0.2, 0.0);
+        // Tree 0.2..0.5 pushes Summary to 0.5..0.8, which pushes Treemap to 0.8..1.0 (shrunk).
+        assert!(close(frame_of(&out, WidgetKind::Summary).x, 0.5));
+        let map = frame_of(&out, WidgetKind::Treemap);
+        assert!(close(map.x, 0.8) && close(map.w, 0.2), "{map:?}");
+        assert_valid(&out);
+    }
+
+    #[test]
+    fn resizing_pushes_the_neighbour_it_runs_into() {
         let out = resize_widget(
             &side_by_side(),
             WidgetKind::Tree,
             Edges::RIGHT,
             0.1,
             0.0,
-            MIN,
-            MIN,
+            0.05,
+            0.05,
         );
-        let tree = frame_of(&out, WidgetKind::Tree);
+        assert!(close(frame_of(&out, WidgetKind::Tree).w, 0.5));
         let map = frame_of(&out, WidgetKind::Treemap);
-        assert!(close(tree.w, 0.5));
-        assert!(close(map.x, 0.5) && close(map.w, 0.5));
-        assert!(!overlaps(tree, map));
+        assert!(close(map.x, 0.5) && close(map.w, 0.5), "{map:?}");
+        assert_valid(&out);
     }
 
     #[test]
-    fn neighbour_stops_at_its_minimum_size() {
-        let out = resize_widget(
-            &side_by_side(),
-            WidgetKind::Tree,
-            Edges::RIGHT,
-            0.9,
-            0.0,
-            MIN,
-            MIN,
-        );
-        let tree = frame_of(&out, WidgetKind::Tree);
-        let map = frame_of(&out, WidgetKind::Treemap);
-        assert!(
-            close(map.w, MIN),
-            "treemap keeps its minimum, got {}",
-            map.w
-        );
-        assert!(!overlaps(tree, map));
-    }
-
-    #[test]
-    fn dragging_a_left_edge_pushes_the_widget_on_its_left() {
-        let out = resize_widget(
-            &side_by_side(),
-            WidgetKind::Treemap,
-            Edges::LEFT,
-            -0.2,
-            0.0,
-            MIN,
-            MIN,
-        );
-        let tree = frame_of(&out, WidgetKind::Tree);
-        let map = frame_of(&out, WidgetKind::Treemap);
-        assert!(close(tree.w, 0.2));
-        assert!(close(map.x, 0.2) && close(map.w, 0.8));
-        assert!(!overlaps(tree, map));
-    }
-
-    #[test]
-    fn widgets_that_do_not_touch_the_edge_stay_put() {
+    fn every_drag_keeps_the_layout_valid() {
         let base = layout(&[
             (WidgetKind::Tree, Frame::new(0.0, 0.0, 0.4, 1.0)),
-            (WidgetKind::Treemap, Frame::new(0.4, 0.0, 0.6, 0.5)),
-            (WidgetKind::Pie, Frame::new(0.4, 0.5, 0.6, 0.5)),
+            (WidgetKind::Summary, Frame::new(0.4, 0.0, 0.3, 0.2)),
+            (WidgetKind::Extensions, Frame::new(0.7, 0.0, 0.3, 0.2)),
+            (WidgetKind::Treemap, Frame::new(0.4, 0.2, 0.6, 0.5)),
+            (WidgetKind::Pie, Frame::new(0.7, 0.7, 0.3, 0.3)),
         ]);
-        let out = resize_widget(
-            &base,
-            WidgetKind::Treemap,
-            Edges::BOTTOM,
-            0.0,
-            -0.2,
-            MIN,
-            MIN,
-        );
-        assert_eq!(
-            frame_of(&out, WidgetKind::Tree),
-            frame_of(&base, WidgetKind::Tree)
-        );
-        assert!(!overlaps(
-            frame_of(&out, WidgetKind::Treemap),
-            frame_of(&out, WidgetKind::Pie)
-        ));
+        for kind in WidgetKind::ALL {
+            if base.frame(kind).is_none() {
+                continue;
+            }
+            for step in -9..=9 {
+                let d = step as f32 * 0.1;
+                assert_valid(&move_widget(&base, kind, d, d));
+                assert_valid(&move_widget(&base, kind, d, -d));
+                assert_valid(&resize_widget(
+                    &base,
+                    kind,
+                    Edges::RIGHT,
+                    d,
+                    0.0,
+                    0.05,
+                    0.05,
+                ));
+                assert_valid(&resize_widget(&base, kind, Edges::TOP, 0.0, d, 0.05, 0.05));
+            }
+        }
     }
 
     #[test]
     fn a_drag_is_computed_from_its_start_layout() {
-        // Moving back and forth within one drag must not compound.
         let base = side_by_side();
-        let there = resize_widget(&base, WidgetKind::Tree, Edges::RIGHT, 0.2, 0.0, MIN, MIN);
-        let back = resize_widget(&base, WidgetKind::Tree, Edges::RIGHT, 0.0, 0.0, MIN, MIN);
-        assert_eq!(
-            frame_of(&back, WidgetKind::Tree),
-            frame_of(&base, WidgetKind::Tree)
-        );
-        assert!(close(frame_of(&there, WidgetKind::Tree).w, 0.6));
+        let _ = move_widget(&base, WidgetKind::Tree, 0.2, 0.0);
+        let back = move_widget(&base, WidgetKind::Tree, 0.0, 0.0);
+        assert_eq!(back, base);
+    }
+
+    #[test]
+    fn settle_pushes_apart_a_saved_overlap() {
+        let saved = layout(&[
+            (WidgetKind::Tree, Frame::new(0.0, 0.0, 0.4, 1.0)),
+            (WidgetKind::Summary, Frame::new(0.057, 0.0, 0.6, 0.5)),
+        ]);
+        let fixed = settle(&saved).expect("this overlap fits");
+        assert_valid(&fixed);
+    }
+
+    #[test]
+    fn settle_leaves_a_valid_layout_alone() {
+        let default = WorkspaceLayout::default();
+        assert_eq!(settle(&default), Some(default));
     }
 }

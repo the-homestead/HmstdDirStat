@@ -41,7 +41,6 @@ pub struct WidgetDrag {
 #[derive(Clone, Debug)]
 pub struct DragStart {
     pub pos: Point<Pixels>,
-    pub frame: Frame,
     /// The whole layout when the drag began. Each move is computed from it, not compounded.
     pub layout: hmstd_core::workspace::WorkspaceLayout,
 }
@@ -85,10 +84,9 @@ impl Shell {
     }
 
     /// A press on a widget starts a drag from the frame it has now.
-    pub fn begin_widget_drag(&mut self, frame: Frame, pos: Point<Pixels>) {
+    pub fn begin_widget_drag(&mut self, pos: Point<Pixels>) {
         self.drag_start = Some(DragStart {
             pos,
-            frame,
             layout: self.layout.clone(),
         });
     }
@@ -103,11 +101,7 @@ impl Shell {
         let dx = f32::from(pos.x - start.pos.x) / width;
         let dy = f32::from(pos.y - start.pos.y) / height;
         let layout = match drag.grip {
-            Grip::Move => {
-                let mut moved = start.layout.clone();
-                moved.set_frame(drag.kind, start.frame.moved(dx, dy));
-                moved
-            }
+            Grip::Move => hmstd_core::layout_resize::move_widget(&start.layout, drag.kind, dx, dy),
             Grip::Resize(edges) => hmstd_core::layout_resize::resize_widget(
                 &start.layout,
                 drag.kind,
@@ -230,6 +224,10 @@ fn card(
     let press = handle.clone();
     let header = div()
         .id(format!("widget-header-{name}"))
+        .absolute()
+        .top_0()
+        .left_0()
+        .right_0()
         .h_flex()
         .h(px(HEADER_PX))
         .flex_shrink_0()
@@ -259,9 +257,11 @@ fn card(
         .child(close_control(kind, p, handle.clone()));
 
     let mut card = div()
-        .relative()
-        .size_full()
-        .v_flex()
+        .absolute()
+        .top(px(WIDGET_GAP / 2.0))
+        .bottom(px(WIDGET_GAP / 2.0))
+        .left(px(WIDGET_GAP / 2.0))
+        .right(px(WIDGET_GAP / 2.0))
         .overflow_hidden()
         .rounded_md()
         .border_1()
@@ -271,11 +271,19 @@ fn card(
         .on_mouse_down(MouseButton::Left, move |event: &MouseDownEvent, _, cx| {
             press.update(cx, |shell, cx| {
                 shell.raise_widget(kind, cx);
-                shell.begin_widget_drag(frame, event.position);
+                shell.begin_widget_drag(event.position);
             });
         })
         .child(header)
-        .child(widget_bodies::body(shell, kind, p, handle));
+        .child(
+            div()
+                .absolute()
+                .top(px(HEADER_PX))
+                .bottom_0()
+                .left_0()
+                .right_0()
+                .child(widget_bodies::body(shell, kind, p, handle)),
+        );
     for grip in grips(kind) {
         card = card.child(grip);
     }
@@ -288,7 +296,6 @@ fn card(
         .top(relative(frame.y))
         .w(relative(frame.w))
         .h(relative(frame.h))
-        .p(px(WIDGET_GAP / 2.0))
         .child(card)
 }
 

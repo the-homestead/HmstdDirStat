@@ -11,6 +11,15 @@ use super::{
 };
 use crate::{explore, scan::format_count};
 
+/// Height of the status line above the folder tree, in pixels.
+const STATUS_PX: f32 = 22.0;
+
+/// A box that fills its parent exactly. Absolute insets give a definite size, which a flex or
+/// percentage height does not always give the list inside it.
+fn fill() -> Div {
+    div().absolute().top_0().bottom_0().left_0().right_0()
+}
+
 /// The body of one widget. Only list widgets (Summary, Extensions) scroll.
 pub(super) fn body(shell: &Shell, kind: WidgetKind, p: Palette, handle: Entity<Shell>) -> Div {
     let inner = match kind {
@@ -21,15 +30,15 @@ pub(super) fn body(shell: &Shell, kind: WidgetKind, p: Palette, handle: Entity<S
             graph(shell, kind, p, handle)
         }
     };
-    let frame = div().flex_1().min_h_0().w_full().p_2();
+    let frame = fill().p_2();
     // Lists can outgrow their widget, so they scroll. Graphs fit the widget and clip instead of
     // scrolling, so nothing is scrollable by default.
     match kind {
         WidgetKind::Tree | WidgetKind::Treemap | WidgetKind::Sunburst | WidgetKind::Pie => {
-            frame.child(div().size_full().overflow_hidden().child(inner))
+            frame.child(fill().overflow_hidden().child(inner))
         }
         WidgetKind::Summary | WidgetKind::Extensions => {
-            frame.child(div().size_full().overflow_y_scrollbar().child(inner))
+            frame.child(fill().overflow_y_scrollbar().child(inner))
         }
     }
 }
@@ -45,14 +54,24 @@ fn tree(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Div {
         .is_active()
         .then(|| files_tree::tree_matches(&files, &shell.query));
     div()
+        .relative()
         .size_full()
-        .v_flex()
-        .gap_2()
-        .child(tree_status(shell, p, count))
         .child(
             div()
-                .flex_1()
-                .min_h_0()
+                .absolute()
+                .top_0()
+                .left_0()
+                .right_0()
+                .h(px(STATUS_PX))
+                .child(tree_status(shell, p, count)),
+        )
+        .child(
+            div()
+                .absolute()
+                .top(px(STATUS_PX + 4.0))
+                .bottom_0()
+                .left_0()
+                .right_0()
                 .child(files_tree::files_view(&state, files, p, handle)),
         )
 }

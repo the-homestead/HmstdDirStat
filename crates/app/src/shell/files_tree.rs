@@ -98,6 +98,9 @@ const COL_SIZE: f32 = 100.;
 const COL_ON_DISK: f32 = 100.;
 const COL_ITEMS: f32 = 84.;
 
+/// Height of the column header above the folder tree, in pixels.
+const TREE_HEADER_PX: f32 = 24.0;
+
 /// The folder tree in the WizTree layout: the name, then % of parent, size, on-disk size and
 /// item count. Clicking a folder makes it the focus of the graphs below.
 pub fn files_view(
@@ -108,7 +111,13 @@ pub fn files_view(
 ) -> Div {
     let on_disk = explore::allocated_known(&files);
     let header = div()
+        .absolute()
+        .top_0()
+        .left_0()
+        .right_0()
+        .h(px(TREE_HEADER_PX))
         .h_flex()
+        .items_center()
         .px_3()
         .py_1()
         .gap_2()
@@ -150,9 +159,11 @@ pub fn files_view(
                 .child("Items"),
         );
     let body = div()
-        .flex_1()
-        .min_h_0()
-        .w_full()
+        .absolute()
+        .top(px(TREE_HEADER_PX))
+        .bottom_0()
+        .left_0()
+        .right_0()
         .border_1()
         .border_color(p.border)
         .rounded_lg()
@@ -187,7 +198,7 @@ pub fn files_view(
                 row.child(tree_cells(&files, node, icon, on_disk, p))
             },
         )));
-    div().v_flex().flex_1().min_h_0().child(header).child(body)
+    div().relative().size_full().child(header).child(body)
 }
 
 /// One tree row. Hovering it shows the full path, logical size and allocated size.
