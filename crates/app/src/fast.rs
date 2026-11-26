@@ -24,6 +24,8 @@ const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 pub struct FastPaths {
     /// The helper writes its summary (or an `error=` line) here.
     pub output: PathBuf,
+    /// The helper writes the full folder tree here, in `hmstd_ntfs::write_tree` format.
+    pub tree: PathBuf,
     /// The helper creates this as soon as it starts, which means approval was given.
     pub started: PathBuf,
     /// The helper rewrites this with its current stage, for the progress bar.
@@ -35,6 +37,7 @@ impl FastPaths {
         let base = std::env::temp_dir().join(format!("hmstd-fast-{}", std::process::id()));
         Self {
             output: base.with_extension("txt"),
+            tree: base.with_extension("tree"),
             started: base.with_extension("started"),
             progress: base.with_extension("progress"),
         }
@@ -42,6 +45,7 @@ impl FastPaths {
 
     pub fn clear(&self) {
         let _ = std::fs::remove_file(&self.output);
+        let _ = std::fs::remove_file(&self.tree);
         let _ = std::fs::remove_file(&self.started);
         let _ = std::fs::remove_file(&self.progress);
     }
@@ -56,9 +60,21 @@ pub fn raw_volume_name(drive: &Path) -> Option<String> {
 }
 
 /// Runs this program elevated as `--fast-helper <volume> <output>` and reads back its
-/// summary. Blocks until the helper exits, so call it off the UI thread.
-pub fn run_elevated(volume: &str, paths: &FastPaths) -> Result<VolumeSummary, String> {
+/// summary and full folder tree. Blocks until the helper exits, so call it off the UI thread.
+pub fn run_elevated(
+    volume: &str,
+    paths: &FastPaths,
+) -> Result<(VolumeSummary, hmstd_filesystem::FileTree), String> {
     paths.clear();
+    let result = run_elevated_inner(volume, paths);
+    paths.clear();
+    result
+}
+
+fn run_elevated_inner(
+    volume: &str,
+    paths: &FastPaths,
+) -> Result<(VolumeSummary, hmstd_filesystem::FileTree), String> {
     let exe = std::env::current_exe().map_err(|error| error.to_string())?;
 
     // Start-Process with -Verb RunAs is the only way without unsafe FFI. PowerShell
@@ -93,13 +109,18 @@ pub fn run_elevated(volume: &str, paths: &FastPaths) -> Result<VolumeSummary, St
             "administrator permission was declined, or the helper could not start".to_string()
         }
     });
-    paths.clear();
     let text = text?;
 
     if let Some(message) = text.lines().find_map(|line| line.strip_prefix("error=")) {
         return Err(message.to_string());
     }
-    VolumeSummary::from_text(&text).ok_or_else(|| "the helper's result was incomplete".to_string())
+    let summary = VolumeSummary::from_text(&text)
+        .ok_or_else(|| "the helper's result was incomplete".to_string())?;
+    let file = std::fs::File::open(&paths.tree)
+        .map_err(|error| format!("the helper's folder tree is missing: {error}"))?;
+    let tree = hmstd_ntfs::read_tree(std::io::BufReader::with_capacity(1 << 20, file))
+        .map_err(|error| format!("could not read the folder tree: {error}"))?;
+    Ok((summary, tree))
 }
 
 /// Entry point for the elevated helper. `args` are the arguments after `--fast-helper`.
@@ -111,6 +132,7 @@ pub fn helper_main(args: &[String]) -> i32 {
     };
     let output = PathBuf::from(output);
     let progress_path = output.with_extension("progress");
+    let tree_path = output.with_extension("tree");
     let _ = std::fs::write(output.with_extension("started"), "");
 
     let mut last_write: Option<Instant> = None;
@@ -125,7 +147,15 @@ pub fn helper_main(args: &[String]) -> i32 {
         let _ = std::fs::write(&progress_path, stage_line(stage));
     });
     let text = match result {
-        Ok(summary) => summary.to_text(),
+        Ok((summary, tree)) => {
+            // The tree goes first: the window only looks at the summary file once it is complete.
+            let written = std::fs::File::create(&tree_path)
+                .and_then(|file| hmstd_ntfs::write_tree(&tree, file).map(|_| ()));
+            match written {
+                Ok(()) => summary.to_text(),
+                Err(error) => format!("error=could not save the folder tree: {error}\n"),
+            }
+        }
         Err(error) => format!("error={}\n", error.to_string().replace('\n', " ")),
     };
     match std::fs::write(&output, text) {

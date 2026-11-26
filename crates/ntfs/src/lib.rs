@@ -11,6 +11,7 @@ mod reader;
 mod record;
 mod runlist;
 mod summary;
+mod tree_io;
 
 pub use boot::{BootSector, parse_boot_sector};
 pub use catalog::{BuildStats, Catalog, CatalogEntry};
@@ -21,3 +22,4 @@ pub use runlist::Run;
 pub use summary::{
     SummaryProgress, VolumeSummary, summarize_volume, summarize_volume_with_progress,
 };
+pub use tree_io::{read_tree, write_tree};

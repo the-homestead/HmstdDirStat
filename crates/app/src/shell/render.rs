@@ -188,7 +188,7 @@ fn content(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Div {
                     .v_flex()
                     .gap_6()
                     .child(summary_content(&shell.phase, p, handle.clone()));
-            if let (Phase::Walked(_), Some(files)) = (&shell.phase, files) {
+            if let (Phase::Walked(_) | Phase::FastDone(_), Some(files)) = (&shell.phase, files) {
                 page = page.child(views::pie_card(files, shell.focus, p, handle));
             }
             page

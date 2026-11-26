@@ -343,9 +343,10 @@ impl Shell {
         self.task = Some(cx.spawn(async move |this, cx| {
             let outcome = job.await;
             let _ = this.update(cx, |shell, cx| {
-                shell.phase = match outcome {
-                    Ok(summary) => {
+                let phase = match outcome {
+                    Ok((summary, tree)) => {
                         tracing::info!(volume = %summary.volume, files = summary.files, "fast scan finished");
+                        shell.install_tree(tree, cx);
                         Phase::FastDone(summary)
                     }
                     Err(message) => {
@@ -356,6 +357,7 @@ impl Shell {
                         }
                     }
                 };
+                shell.phase = phase;
                 cx.notify();
             });
         }));

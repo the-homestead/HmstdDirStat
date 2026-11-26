@@ -58,7 +58,7 @@ fn row_item(row: &Row, expand: bool) -> TreeItem {
 pub fn no_tree_message(p: Palette) -> Div {
     message_block(
         "No folder tree yet",
-        "Run a walk scan to build the folder tree. Fast mode keeps totals only for now: its tree is not sent back from the elevated helper yet.",
+        "Run a scan to build the folder tree. Walk and Fast scans both fill it.",
         p,
     )
 }

@@ -3,7 +3,7 @@
 
 use std::{fs::File, io::Read, time::Instant};
 
-use hmstd_filesystem::NodeId;
+use hmstd_filesystem::{FileTree, NodeId};
 
 use crate::{Catalog, NtfsError, parse_boot_sector, read_records_with_progress};
 
@@ -33,14 +33,15 @@ pub enum SummaryProgress {
 
 /// Reads and summarises a raw volume such as `//./C:`. Needs administrator rights.
 pub fn summarize_volume(volume: &str) -> Result<VolumeSummary, NtfsError> {
-    summarize_volume_with_progress(volume, |_| {})
+    summarize_volume_with_progress(volume, |_| {}).map(|(summary, _)| summary)
 }
 
-/// Same as [`summarize_volume`], and reports [`SummaryProgress`] as it goes.
+/// Same as [`summarize_volume`], and reports [`SummaryProgress`] as it goes. Also returns
+/// the full folder tree the totals were taken from.
 pub fn summarize_volume_with_progress<P: FnMut(SummaryProgress)>(
     volume: &str,
     mut progress: P,
-) -> Result<VolumeSummary, NtfsError> {
+) -> Result<(VolumeSummary, FileTree), NtfsError> {
     let started = Instant::now();
     let mut file = File::open(volume)?;
 
@@ -65,7 +66,7 @@ pub fn summarize_volume_with_progress<P: FnMut(SummaryProgress)>(
         .ok_or(NtfsError::Corrupt("empty tree"))?
         .totals();
 
-    Ok(VolumeSummary {
+    let summary = VolumeSummary {
         volume: volume.to_string(),
         files: totals.files,
         directories: totals.directories,
@@ -80,7 +81,8 @@ pub fn summarize_volume_with_progress<P: FnMut(SummaryProgress)>(
         bad_records: stats.bad_records,
         read_secs,
         total_secs: started.elapsed().as_secs_f64(),
-    })
+    };
+    Ok((summary, tree))
 }
 
 impl VolumeSummary {
