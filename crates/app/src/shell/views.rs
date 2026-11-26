@@ -36,12 +36,16 @@ pub fn build_tree_state(files: &FileTree, query: &Query, cx: &mut App) -> Entity
 }
 
 fn tree_items(level: &Level, expand: bool, parent: usize, query: &Query) -> Vec<TreeItem> {
+    // While searching, only rows that match, or lead to a match, are listed.
     let mut items: Vec<TreeItem> = level
         .rows
         .iter()
+        .filter(|row| {
+            !query.is_active() || query.hits(&row.child.name) || has_hit_below(row, query)
+        })
         .map(|row| row_item(row, expand, query))
         .collect();
-    if level.hidden > 0 {
+    if level.hidden > 0 && !query.is_active() {
         items.push(
             TreeItem::new(
                 format!("more-{parent}"),
@@ -54,16 +58,7 @@ fn tree_items(level: &Level, expand: bool, parent: usize, query: &Query) -> Vec<
 }
 
 fn row_item(row: &Row, expand: bool, query: &Query) -> TreeItem {
-    let mark = if query.hits(&row.child.name) {
-        "● "
-    } else {
-        ""
-    };
-    let label = format!(
-        "{mark}{}   {}",
-        row.child.name,
-        format_bytes(row.child.bytes)
-    );
+    let label = format!("{}   {}", row.child.name, format_bytes(row.child.bytes));
     // While a search is active, a folder opens when something inside it matches, so every
     // counted match is on screen.
     let open = expand || (query.is_active() && has_hit_below(row, query));
