@@ -27,17 +27,20 @@ pub enum WidgetKind {
     Treemap,
     Sunburst,
     Pie,
+    /// Byte-verified duplicate groups, with reclaimable space and per-file actions.
+    Duplicates,
 }
 
 impl WidgetKind {
     /// Every kind, in the order the View menu lists them.
-    pub const ALL: [WidgetKind; 6] = [
+    pub const ALL: [WidgetKind; 7] = [
         WidgetKind::Tree,
         WidgetKind::Summary,
         WidgetKind::Extensions,
         WidgetKind::Treemap,
         WidgetKind::Sunburst,
         WidgetKind::Pie,
+        WidgetKind::Duplicates,
     ];
 
     /// The title shown in the widget header and the View menu.
@@ -49,6 +52,7 @@ impl WidgetKind {
             Self::Treemap => "Treemap",
             Self::Sunburst => "Sunburst",
             Self::Pie => "Pie",
+            Self::Duplicates => "Duplicates",
         }
     }
 
@@ -61,6 +65,7 @@ impl WidgetKind {
             Self::Treemap => "treemap",
             Self::Sunburst => "sunburst",
             Self::Pie => "pie",
+            Self::Duplicates => "duplicates",
         }
     }
 
@@ -73,6 +78,7 @@ impl WidgetKind {
             Self::Treemap => Frame::new(0.40, 0.20, 0.60, 0.50),
             Self::Sunburst => Frame::new(0.40, 0.70, 0.30, 0.30),
             Self::Pie => Frame::new(0.70, 0.70, 0.30, 0.30),
+            Self::Duplicates => Frame::new(0.70, 0.20, 0.30, 0.50),
         }
     }
 }
@@ -388,7 +394,8 @@ mod tests {
             layout.widgets.last().map(|p| p.kind),
             Some(WidgetKind::Tree)
         );
-        assert_eq!(layout.widgets.len(), WidgetKind::ALL.len());
+        // Duplicates starts hidden, so the default layout holds one entry fewer than ALL.
+        assert_eq!(layout.widgets.len(), WidgetKind::ALL.len() - 1);
     }
 
     #[test]

@@ -1,0 +1,24 @@
+[package]
+name = "hmstd-duplicates"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+description = "Duplicate detection for HmstdDirStat: size, sample, BLAKE3 and byte-verify stages. Reports only; never deletes. GPUI-independent."
+
+[lib]
+name = "hmstd_duplicates"
+
+[dependencies]
+hmstd-filesystem = { path = "../filesystem" }
+hmstd-fileops = { path = "../fileops" }
+blake3.workspace = true
+rayon.workspace = true
+same-file.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

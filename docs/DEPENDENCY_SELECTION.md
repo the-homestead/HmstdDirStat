@@ -35,7 +35,7 @@ benchmarks (Phase 3), proptest for duplicate/path logic (Phase 6).
 | `criterion` | 0.8.2 | 3 | In-process microbenchmarks |
 | `proptest` | 1.12.0 | 6 | Path, grouping and diff invariants |
 | `sha2` | 0.11.2 | 6 | SHA-256/512 |
-| `blake3` | 1.8.7 | 6 | Fast strong hash |
+| `blake3` | 1.8.7 | P4 (accepted, section 8) | Fast strong hash |
 | `crc32fast` | 1.5.6 | 6 | Checksum only |
 | `md-5` / `sha1` | 0.11.0 | 6 | Legacy compatibility only |
 | `xxhash-rust` | 0.8.21 | 6 | Non-cryptographic pre-screen |
@@ -138,3 +138,25 @@ passed with it (advisories, bans, licenses, sources). Its MSRV is 1.87, below th
 
 Copy, move, and rename use `std` only; no other crate was added for file operations.
 Permanent delete uses `std::fs` only. The Recycle Bin call is injectable, so tests never reach the real bin.
+
+## 8. Duplicate detection (HmstdDirStat P4, Plan sections 8 and 20)
+
+Accepted for `hmstd-duplicates` (crates.io, read 2026-11-26). `cargo deny --all-features check` passed with all three.
+
+| Crate | Version | Why it is needed now |
+|---|---:|---|
+| `blake3` | 1.8.7 | Full-file digest (stage 4). Chosen over `sha2` 0.11.2 because the Plan names BLAKE3 as the fast strong hash and the pipeline needs only an equality test. Every reported group is also byte-verified (stage 5), so the digest is never the sole evidence. Default features; no `rayon` feature. |
+| `rayon` | 1.12.0 | Parallel stages on a custom pool built per run, bounded to 1..=4 threads by default. The global pool is never used. |
+| `same-file` | 1.0.6 | Hard-link identity on Windows. `MetadataExt::volume_serial_number` and `file_index` sit behind the unstable `windows_by_handle` feature on the workspace toolchain, and the workspace forbids `unsafe`, so the Win32 call cannot be written here. `same_file::Handle` wraps the same call behind a safe, hashable key. Already in Cargo.lock through another crate. |
+
+Decisions taken for P4 (owner can override):
+
+- Pipeline: size, then hard-link identity, then sample (BLAKE3 of the first and last 64 KiB), then full BLAKE3, then byte compare. Only groups that pass every stage are reported.
+- Zero-byte files are excluded by default (`min_size` 1). They reclaim nothing.
+- Reclaimable space is `(copies - 1) * size`, in logical bytes. It is reported beside the on-disk totals and never merged with them.
+- Hard links are detected with a handle per file, held for one size group at a time, so open handles are bounded by the largest size group.
+- No copy is marked as the keeper. Deleting goes through the existing delete preview, one copy per action.
+- A cancelled run returns no groups, so a partial result is never shown as complete.
+- Scope: regular files only. Folders, symlinks and special entries are skipped.
+- The duplicate panel is a widget (`WidgetKind::Duplicates`). It starts hidden and joins the tiled layout through View.
+

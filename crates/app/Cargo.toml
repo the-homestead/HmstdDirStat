@@ -12,6 +12,7 @@ name = "hmstd-dirstat"
 path = "src/main.rs"
 
 [dependencies]
+hmstd-duplicates = { path = "../duplicates" }
 hmstd-core = { path = "../core" }
 hmstd-filesystem = { path = "../filesystem" }
 hmstd-fileops = { path = "../fileops" }

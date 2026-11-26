@@ -3,6 +3,8 @@
 //! widgets laid out by `workspace.rs`; their bodies are in `widget_bodies.rs`.
 
 mod actions;
+mod duplicates;
+mod duplicates_view;
 mod empty_state;
 mod extensions_view;
 #[path = "../fileops_ui/mod.rs"]
@@ -149,6 +151,8 @@ pub struct Shell {
     transfer: fileops_ui::TransferUi,
     /// Rename dialog state.
     rename: fileops_ui::RenameUi,
+    /// Duplicate search run and its result.
+    dup: duplicates::DupUi,
 }
 
 impl Shell {
@@ -189,6 +193,7 @@ impl Shell {
             delete: fileops_ui::DeleteUi::default(),
             transfer: fileops_ui::TransferUi::default(),
             rename: fileops_ui::RenameUi::default(),
+            dup: duplicates::DupUi::default(),
         }
     }
 
@@ -225,6 +230,7 @@ impl Shell {
     }
 
     fn clear_tree(&mut self) {
+        self.dup.reset();
         self.tree = None;
         self.scan_root = None;
         self.query = Query::new(self.query.text(), None);

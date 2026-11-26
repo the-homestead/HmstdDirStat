@@ -40,10 +40,11 @@ pub(super) fn menu_overlay(shell: &Shell, p: Palette, handle: Entity<Shell>) -> 
                 .font_weight(FontWeight::SEMIBOLD)
                 .child(name),
         );
-    if is_dir {
+    // A folder opens itself. A file opens the folder that holds it.
+    if let Some(target) = if is_dir { Some(node) } else { entry.parent() } {
         let open = handle.clone();
         card = card.child(menu_item("menu-open", "Open folder", p, move |cx| {
-            open.update(cx, |shell, cx| shell.focus_on(node, cx));
+            open.update(cx, |shell, cx| shell.focus_on(target, cx));
         }));
     }
     let copy = handle.clone();

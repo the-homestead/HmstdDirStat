@@ -6,8 +6,8 @@ use gpui_kit::*;
 use hmstd_core::workspace::WidgetKind;
 
 use super::{
-    Phase, Shell, empty_state, extensions_view, files_tree, render::summary_content, rings,
-    treemap, views, widgets::*,
+    Phase, Shell, duplicates_view, empty_state, extensions_view, files_tree,
+    render::summary_content, rings, treemap, views, widgets::*,
 };
 use crate::{explore, scan::format_count};
 
@@ -66,6 +66,7 @@ pub(super) fn body(shell: &Shell, kind: WidgetKind, p: Palette, handle: Entity<S
         WidgetKind::Treemap | WidgetKind::Sunburst | WidgetKind::Pie => {
             graph(shell, kind, p, handle)
         }
+        WidgetKind::Duplicates => duplicates_view::body(shell, p, handle),
     };
     // The content box sits PAD_PX inside the widget. Padding on an absolute box would not move
     // absolute children, so the gap is an inset instead.
@@ -101,7 +102,7 @@ pub(super) fn body(shell: &Shell, kind: WidgetKind, p: Palette, handle: Entity<S
         WidgetKind::Tree | WidgetKind::Treemap | WidgetKind::Sunburst | WidgetKind::Pie => {
             fill().child(content.overflow_hidden().child(inner))
         }
-        WidgetKind::Summary | WidgetKind::Extensions => fill().child(
+        WidgetKind::Summary | WidgetKind::Extensions | WidgetKind::Duplicates => fill().child(
             content.child(
                 div()
                     .id(("widget-scroll", kind as usize))

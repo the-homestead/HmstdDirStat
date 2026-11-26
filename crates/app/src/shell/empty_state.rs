@@ -16,7 +16,7 @@ use hmstd_core::workspace::WidgetKind;
 use super::{Phase, Shell};
 
 /// The header every empty state shares: icon, title, description.
-fn empty(icon: Glyph, title: &str, description: &str) -> Empty {
+pub(super) fn empty(icon: Glyph, title: &str, description: &str) -> Empty {
     Empty::new().header(
         EmptyHeader::new()
             .media(
@@ -30,7 +30,7 @@ fn empty(icon: Glyph, title: &str, description: &str) -> Empty {
 }
 
 /// Centres an empty state in the widget body.
-fn centred(empty: Empty) -> Div {
+pub(super) fn centred(empty: Empty) -> Div {
     div().size_full().flex().child(empty)
 }
 
@@ -78,6 +78,7 @@ pub(super) fn no_tree(kind: WidgetKind, scanning: bool) -> Div {
         WidgetKind::Treemap => (Glyph::LayoutGrid, "No treemap yet"),
         WidgetKind::Sunburst => (Glyph::Disc, "No sunburst yet"),
         WidgetKind::Pie => (Glyph::ChartPie, "No pie chart yet"),
+        WidgetKind::Duplicates => (Glyph::Copy, "No duplicate search yet"),
     };
     let description = if scanning {
         "Scanning. This fills in when the scan finishes."
