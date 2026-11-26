@@ -19,6 +19,9 @@ mod progress;
 mod report;
 mod sample;
 
+#[cfg(test)]
+mod verify_tests;
+
 pub use hash::{Digest, digest_hex};
 pub use identity::file_key;
 pub use items::file_items;

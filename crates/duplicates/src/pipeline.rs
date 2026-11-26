@@ -50,10 +50,10 @@ struct Tagged<T> {
 }
 
 /// Members whose full digest and sample agree. Not yet byte-verified.
-struct Class {
-    size: u64,
-    digest: Digest,
-    members: Vec<DuplicateMember>,
+pub(crate) struct Class {
+    pub(crate) size: u64,
+    pub(crate) digest: Digest,
+    pub(crate) members: Vec<DuplicateMember>,
 }
 
 /// Finds duplicate files among `items` (the entries of a tree or selection).
@@ -271,7 +271,10 @@ fn verify_classes(
 
 /// Splits one class into byte-identical partitions. Only partitions of two or
 /// more members become groups.
-fn verify_class(class: Class, progress: &Progress) -> (Vec<DuplicateGroup>, Vec<Failure>) {
+pub(crate) fn verify_class(
+    class: Class,
+    progress: &Progress,
+) -> (Vec<DuplicateGroup>, Vec<Failure>) {
     let mut failures = Vec::new();
     let mut partitions: Vec<Vec<DuplicateMember>> = Vec::new();
     'member: for member in class.members {
