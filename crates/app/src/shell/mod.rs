@@ -157,6 +157,13 @@ impl Shell {
         }
     }
 
+    /// Rebuilds the folder tree with the current search, so matching rows are marked.
+    pub fn refresh_tree_state(&mut self, cx: &mut Context<Self>) {
+        if let Some(files) = self.tree.clone() {
+            self.tree_state = Some(views::build_tree_state(&files, &self.query, cx));
+        }
+    }
+
     /// Creates the search box once, and keeps `query` in step with what the user types.
     pub fn ensure_search(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.search_input.is_some() {
@@ -170,6 +177,7 @@ impl Shell {
                 if matches!(event, InputEvent::Change) {
                     let text = input.read(cx).value();
                     shell.query = Query::new(&text);
+                    shell.refresh_tree_state(cx);
                     cx.notify();
                 }
             },
@@ -187,7 +195,7 @@ impl Shell {
 
     /// Keeps a finished walk's tree for the views and builds the Files tab from it.
     fn install_tree(&mut self, files: FileTree, cx: &mut Context<Self>) {
-        self.tree_state = Some(views::build_tree_state(&files, cx));
+        self.tree_state = Some(views::build_tree_state(&files, &self.query, cx));
         self.tree = Some(Arc::new(files));
         self.focus = NodeId::ROOT;
     }

@@ -13,6 +13,8 @@ use gpui_kit::component::{
 use gpui_kit::*;
 use hmstd_filesystem::{FileTree, NodeId};
 
+use crate::search::Query;
+
 use super::{Shell, widgets::*};
 use crate::{
     explore::{self, Basis, Level, Row},
@@ -26,14 +28,19 @@ const TREE_ROWS_PER_FOLDER: usize = 40;
 const PIE_SLICES: usize = 10;
 
 /// Builds the Files tab's tree from a finished walk. The top folder level starts open.
-pub fn build_tree_state(files: &FileTree, cx: &mut App) -> Entity<TreeState> {
+/// Builds the folder tree. Rows whose name matches `query` are marked with a dot.
+pub fn build_tree_state(files: &FileTree, query: &Query, cx: &mut App) -> Entity<TreeState> {
     let rows = explore::level(files, NodeId::ROOT, TREE_LEVELS, TREE_ROWS_PER_FOLDER);
-    let items = tree_items(&rows, true, 0);
+    let items = tree_items(&rows, true, 0, query);
     cx.new(|cx| TreeState::new(cx).items(items))
 }
 
-fn tree_items(level: &Level, expand: bool, parent: usize) -> Vec<TreeItem> {
-    let mut items: Vec<TreeItem> = level.rows.iter().map(|row| row_item(row, expand)).collect();
+fn tree_items(level: &Level, expand: bool, parent: usize, query: &Query) -> Vec<TreeItem> {
+    let mut items: Vec<TreeItem> = level
+        .rows
+        .iter()
+        .map(|row| row_item(row, expand, query))
+        .collect();
     if level.hidden > 0 {
         items.push(
             TreeItem::new(
@@ -46,13 +53,53 @@ fn tree_items(level: &Level, expand: bool, parent: usize) -> Vec<TreeItem> {
     items
 }
 
-fn row_item(row: &Row, expand: bool) -> TreeItem {
-    let label = format!("{}   {}", row.child.name, format_bytes(row.child.bytes));
-    let mut item = TreeItem::new(row.child.node.index().to_string(), label).expanded(expand);
+fn row_item(row: &Row, expand: bool, query: &Query) -> TreeItem {
+    let mark = if query.hits(&row.child.name) {
+        "● "
+    } else {
+        ""
+    };
+    let label = format!(
+        "{mark}{}   {}",
+        row.child.name,
+        format_bytes(row.child.bytes)
+    );
+    // While a search is active, a folder opens when something inside it matches, so every
+    // counted match is on screen.
+    let open = expand || (query.is_active() && has_hit_below(row, query));
+    let mut item = TreeItem::new(row.child.node.index().to_string(), label).expanded(open);
     if let Some(below) = &row.below {
-        item = item.children(tree_items(below, false, row.child.node.index()));
+        item = item.children(tree_items(below, false, row.child.node.index(), query));
     }
     item
+}
+
+/// True when some row inside this folder matches the query.
+fn has_hit_below(row: &Row, query: &Query) -> bool {
+    row.below.as_ref().is_some_and(|below| {
+        below
+            .rows
+            .iter()
+            .any(|child| query.hits(&child.child.name) || has_hit_below(child, query))
+    })
+}
+
+/// How many shown rows of the folder tree match the query.
+pub fn tree_matches(files: &FileTree, query: &Query) -> usize {
+    fn count(level: &Level, query: &Query) -> usize {
+        level
+            .rows
+            .iter()
+            .map(|row| {
+                usize::from(query.hits(&row.child.name))
+                    + row.below.as_ref().map_or(0, |below| count(below, query))
+            })
+            .sum()
+    }
+    count(
+        &explore::level(files, NodeId::ROOT, TREE_LEVELS, TREE_ROWS_PER_FOLDER),
+        query,
+    )
 }
 
 /// Shown on the folder-based tabs when there is no tree (no walk yet, or a Fast read).

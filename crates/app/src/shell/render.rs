@@ -196,9 +196,19 @@ fn content(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Div {
             }
             page
         }
-        View::Files => match &shell.tree_state {
-            Some(state) => views::files_view(state, p),
-            None => views::no_tree_message(p),
+        View::Files => match (&shell.tree_state, files) {
+            (Some(state), Some(files)) => {
+                let count = shell
+                    .query
+                    .is_active()
+                    .then(|| views::tree_matches(files, &shell.query));
+                div()
+                    .v_flex()
+                    .gap_3()
+                    .child(views::search_bar(shell.search_input.as_ref(), count, p))
+                    .child(views::files_view(state, p))
+            }
+            _ => views::no_tree_message(p),
         },
         View::Treemap => match files {
             Some(files) => {
