@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="320" viewBox="0 0 640 320" role="img" aria-labelledby="t d">
+  <title id="t">TimberStat</title>
+  <desc id="d">TimberStat: see where your disk space went, then clean it up. A treemap of a real C: drive scan.</desc>
+  <rect width="640" height="320" fill="#f7ecd4"/>
+  <rect x="6" y="6" width="628" height="308" rx="18" fill="none" stroke="#351507" stroke-width="4"/>
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+    <g transform="translate(30 22) scale(0.860)" stroke="#351507" stroke-width="5" stroke-linejoin="round">
+      <path d="M 14 20 Q 14 12 22 12 L 42 12 Q 46 12 48 15 L 52 20 L 84 20 Q 90 20 89.5 26 L 87 56 L 14 56 Z" fill="#fbe8c0"/>
+      <path d="M 18 24 Q 18 17 24 17 L 41 17 L 47 24 L 83 24 Q 85.5 24 85 27 L 83 54 L 18 54 Z" fill="#5d6327" stroke="none"/>
+      <path d="M 16 28 Q 16 23 21 23 L 35 23 Q 38 23 40 26 L 42 29 L 47 29 Q 51 29 51 33 L 51 56 L 16 56 Z" fill="#f2a823"/>
+      <path d="M 53 42 Q 53 39 56 39 L 61 39 L 64 43 L 67 43 Q 70 43 70 46 L 70 56 L 53 56 Z" fill="#9aa456"/>
+      <path d="M 72 49 Q 72 46 75 46 L 78 46 L 80 49 L 82 49 Q 85 49 85 52 L 85 56 L 72 56 Z" fill="#fbe8c0"/>
+      <path d="M 10 53 L 90 53 Q 94 53 93.5 57 L 88 85 Q 87 89 83 89 L 17 89 Q 13 89 12 85 L 6.5 57 Q 6 53 10 53 Z" fill="#5d6327"/>
+      <path d="M 11 57.5 L 89 57.5" stroke="#fbe8c0" stroke-width="3.5" stroke-linecap="round"/>
+    </g>
+  <text x="126" y="84" font-size="50" font-weight="800" fill="#351507" letter-spacing="-1">TimberStat</text>
+  <text x="38" y="138" font-size="21" fill="#4a2a12">See where your disk space went, then clean it up.</text>
+  <text x="38" y="170" font-size="14" fill="#7a5a3a" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">Disk analyser + file manager · Windows · Linux · Rust</text>
+  <rect x="36.0" y="190.0" width="308.5" height="94.0" rx="4" fill="#f2a823" stroke="#351507" stroke-width="2.5"/>
+  <text x="44.0" y="211.0" font-size="15" font-weight="700" fill="#351507">Users</text>
+  <rect x="344.5" y="190.0" width="60.1" height="94.0" rx="4" fill="#5d6327" stroke="#351507" stroke-width="2.5"/>
+  <rect x="404.6" y="190.0" width="53.1" height="94.0" rx="4" fill="#9aa456" stroke="#351507" stroke-width="2.5"/>
+  <rect x="457.7" y="190.0" width="72.0" height="49.7" rx="4" fill="#8a5a2b" stroke="#351507" stroke-width="2.5"/>
+  <rect x="457.7" y="239.7" width="72.0" height="44.3" rx="4" fill="#7d8236" stroke="#351507" stroke-width="2.5"/>
+  <rect x="529.8" y="190.0" width="74.2" height="41.5" rx="4" fill="#9aa456" stroke="#351507" stroke-width="2.5"/>
+  <text x="537.8" y="211.0" font-size="15" font-weight="700" fill="#351507">Dev</text>
+  <rect x="529.8" y="231.5" width="48.4" height="52.5" rx="4" fill="#5d6327" stroke="#351507" stroke-width="2.5"/>
+  <rect x="578.2" y="231.5" width="25.8" height="52.5" rx="4" fill="#8a5a2b" stroke="#351507" stroke-width="2.5"/>
+  </g>
+</svg>
