@@ -98,6 +98,8 @@ pub struct Shell {
     sunburst_hover: Option<(NodeId, Point<Pixels>)>,
     /// Which size the treemap, sunburst and pie show.
     basis: Basis,
+    /// Scales the window's rem size (text and rem-based spacing). Clamped at load.
+    ui_scale: f32,
     /// Which widgets show, where, and in what stacking order.
     layout: WorkspaceLayout,
     /// Where the widget drag in progress began, if one is running.
@@ -124,7 +126,12 @@ pub struct Shell {
 }
 
 impl Shell {
-    pub fn new(volumes: Vec<PathBuf>, log_dir: PathBuf, layout: WorkspaceLayout) -> Self {
+    pub fn new(
+        volumes: Vec<PathBuf>,
+        log_dir: PathBuf,
+        layout: WorkspaceLayout,
+        ui_scale: f32,
+    ) -> Self {
         Self {
             volumes,
             phase: Phase::Idle,
@@ -136,6 +143,7 @@ impl Shell {
             sunburst_bounds: Rc::new(Cell::new(None)),
             sunburst_hover: None,
             basis: Basis::Logical,
+            ui_scale: hmstd_core::config::clamp_ui_scale(ui_scale),
             layout,
             drag_start: None,
             workspace_size: Rc::new(Cell::new(None)),

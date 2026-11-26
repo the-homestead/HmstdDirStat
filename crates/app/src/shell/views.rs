@@ -172,31 +172,37 @@ pub fn files_view(
         .border_1()
         .border_color(p.border)
         .rounded_lg()
-        .child(tree(state, move |ix, entry, selected, _window, _cx| {
-            let icon = if !entry.is_folder() {
-                IconName::File
-            } else if entry.is_expanded() {
-                IconName::FolderOpen
-            } else {
-                IconName::Folder
-            };
-            let node = entry
-                .item()
-                .id
-                .parse::<usize>()
-                .ok()
-                .and_then(NodeId::from_index);
-            let mut row = ListItem::new(ix)
-                .selected(selected)
-                .pl(px(16.) * entry.depth() + px(12.));
-            if let Some(node) = node {
-                let handle = handle.clone();
-                row = row.on_click(move |_, _, cx| {
-                    handle.update(cx, |shell, cx| shell.tree_select(node, cx));
-                });
-            }
-            row.child(tree_cells(&files, node, icon, on_disk, p))
-        }));
+        .relative()
+        // The list needs a definite box to size its rows. A flex child's `size_full()` resolves
+        // to zero, which is why the rows did not show after the layout change.
+        .child(div().absolute().top_0().left_0().size_full().child(tree(
+            state,
+            move |ix, entry, selected, _window, _cx| {
+                let icon = if !entry.is_folder() {
+                    IconName::File
+                } else if entry.is_expanded() {
+                    IconName::FolderOpen
+                } else {
+                    IconName::Folder
+                };
+                let node = entry
+                    .item()
+                    .id
+                    .parse::<usize>()
+                    .ok()
+                    .and_then(NodeId::from_index);
+                let mut row = ListItem::new(ix)
+                    .selected(selected)
+                    .pl(px(16.) * entry.depth() + px(12.));
+                if let Some(node) = node {
+                    let handle = handle.clone();
+                    row = row.on_click(move |_, _, cx| {
+                        handle.update(cx, |shell, cx| shell.tree_select(node, cx));
+                    });
+                }
+                row.child(tree_cells(&files, node, icon, on_disk, p))
+            },
+        )));
     div().v_flex().flex_1().min_h_0().child(header).child(body)
 }
 

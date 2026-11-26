@@ -57,6 +57,7 @@ fn main() -> Result<()> {
             // Must run before any GPUI Kit component is used.
             gpui_kit::init(cx);
             apply_theme(app_config.theme, cx);
+            let ui_scale = app_config.ui_scale;
 
             if let Err(error) = gpui_kit::open_window(
                 WindowOptions {
@@ -72,7 +73,7 @@ fn main() -> Result<()> {
                     ..Default::default()
                 },
                 cx,
-                |_, cx| cx.new(|_| Shell::new(volumes, log_dir.clone(), layout.clone())),
+                |_, cx| cx.new(|_| Shell::new(volumes, log_dir.clone(), layout.clone(), ui_scale)),
             ) {
                 tracing::error!(%error, "could not open the main window");
                 cx.quit();

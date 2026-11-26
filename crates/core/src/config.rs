@@ -10,6 +10,21 @@ use serde::{Deserialize, Serialize};
 use crate::error::ConfigError;
 use crate::workspace::WorkspaceLayout;
 
+/// Smallest and largest UI scale a config file may ask for. Values outside are clamped.
+pub const UI_SCALE_MIN: f32 = 0.6;
+pub const UI_SCALE_MAX: f32 = 1.5;
+/// Starting point: smaller than GPUI's 16px rem, since the default text read too large.
+pub const DEFAULT_UI_SCALE: f32 = 0.85;
+
+/// Clamps a UI scale to the supported range. A non-finite value falls back to the default.
+pub fn clamp_ui_scale(value: f32) -> f32 {
+    if value.is_finite() {
+        value.clamp(UI_SCALE_MIN, UI_SCALE_MAX)
+    } else {
+        DEFAULT_UI_SCALE
+    }
+}
+
 /// The only configuration schema this build reads or writes.
 pub const CURRENT_SCHEMA_VERSION: u32 = 1;
 
@@ -39,6 +54,9 @@ pub struct AppConfig {
     pub schema_version: u32,
     #[serde(default)]
     pub theme: ThemePreference,
+    /// Scales text and rem-based spacing. Set in config.json or with `HMSTD_UI_SCALE`.
+    #[serde(default = "default_ui_scale")]
+    pub ui_scale: f32,
     /// The widget layout last saved. `None` until the user changes it.
     #[serde(default)]
     pub workspace: Option<WorkspaceLayout>,
@@ -49,6 +67,7 @@ impl Default for AppConfig {
         Self {
             schema_version: CURRENT_SCHEMA_VERSION,
             theme: ThemePreference::default(),
+            ui_scale: DEFAULT_UI_SCALE,
             workspace: None,
         }
     }
@@ -79,6 +98,7 @@ fn layered_load(path: &Path, env: Option<Environment>) -> Result<AppConfig, Conf
     let mut builder = Config::builder()
         .set_default("schema_version", i64::from(CURRENT_SCHEMA_VERSION))?
         .set_default("theme", "system")?
+        .set_default("ui_scale", f64::from(DEFAULT_UI_SCALE))?
         .add_source(File::from(path).format(FileFormat::Json).required(false));
     if let Some(env) = env {
         builder = builder.add_source(env);
@@ -200,6 +220,7 @@ mod tests {
             let config = AppConfig {
                 schema_version: CURRENT_SCHEMA_VERSION,
                 theme,
+                ui_scale: DEFAULT_UI_SCALE,
                 workspace: None,
             };
             save_to(&path, &config).unwrap();
@@ -228,6 +249,7 @@ mod tests {
         let dark = AppConfig {
             schema_version: CURRENT_SCHEMA_VERSION,
             theme: ThemePreference::Dark,
+            ui_scale: DEFAULT_UI_SCALE,
             workspace: None,
         };
         save_to(&path, &dark).unwrap();
@@ -325,5 +347,28 @@ mod tests {
         let config = layered_load(&path, no_env()).unwrap();
         assert_eq!(config.theme, ThemePreference::Dark);
         assert_eq!(config.schema_version, CURRENT_SCHEMA_VERSION);
+    }
+}
+
+fn default_ui_scale() -> f32 {
+    DEFAULT_UI_SCALE
+}
+
+#[cfg(test)]
+mod ui_scale_tests {
+    use super::*;
+
+    #[test]
+    fn ui_scale_is_clamped_and_non_finite_falls_back() {
+        assert_eq!(clamp_ui_scale(1.0), 1.0);
+        assert_eq!(clamp_ui_scale(0.1), UI_SCALE_MIN);
+        assert_eq!(clamp_ui_scale(9.0), UI_SCALE_MAX);
+        assert_eq!(clamp_ui_scale(f32::NAN), DEFAULT_UI_SCALE);
+    }
+
+    #[test]
+    fn missing_ui_scale_uses_the_default() {
+        let config: AppConfig = serde_json::from_str(r#"{"schema_version":1}"#).unwrap();
+        assert_eq!(config.ui_scale, DEFAULT_UI_SCALE);
     }
 }

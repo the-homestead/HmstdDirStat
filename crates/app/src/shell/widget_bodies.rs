@@ -10,8 +10,7 @@ use super::{
 };
 use crate::{explore, scan::format_count};
 
-/// The body of one widget. The folder tree scrolls itself, so only the other widgets get a
-/// scrollbar here.
+/// The body of one widget. Only list widgets (Summary, Extensions) scroll.
 pub(super) fn body(shell: &Shell, kind: WidgetKind, p: Palette, handle: Entity<Shell>) -> Div {
     let inner = match kind {
         WidgetKind::Tree => tree(shell, p, handle),
@@ -22,10 +21,15 @@ pub(super) fn body(shell: &Shell, kind: WidgetKind, p: Palette, handle: Entity<S
         }
     };
     let frame = div().flex_1().min_h_0().w_full().p_2();
-    if kind == WidgetKind::Tree {
-        frame.child(inner)
-    } else {
-        frame.child(div().size_full().overflow_y_scrollbar().child(inner))
+    // Lists can outgrow their widget, so they scroll. Graphs fit the widget and clip instead of
+    // scrolling, so nothing is scrollable by default.
+    match kind {
+        WidgetKind::Tree | WidgetKind::Treemap | WidgetKind::Sunburst | WidgetKind::Pie => {
+            frame.child(div().size_full().overflow_hidden().child(inner))
+        }
+        WidgetKind::Summary | WidgetKind::Extensions => {
+            frame.child(div().size_full().overflow_y_scrollbar().child(inner))
+        }
     }
 }
 
