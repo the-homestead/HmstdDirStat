@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="380" viewBox="0 0 1200 380" role="img" aria-labelledby="title desc">
+  <title id="title">TimberStat</title>
+  <desc id="desc">TimberStat, a disk usage analyser and file manager for Windows and Linux. Beside the name, a treemap of a real 1.2 TiB C: drive scan: Users 668 GiB, Program Files 130 GiB, Program Files (x86) 115 GiB and smaller folders.</desc>
+  <rect x="3" y="3" width="1194" height="374" rx="26" fill="#f7ecd4" stroke="#351507" stroke-width="5"/>
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+    <g transform="translate(50 46) scale(1.200)" stroke="#351507" stroke-width="5" stroke-linejoin="round">
+      <path d="M 14 20 Q 14 12 22 12 L 42 12 Q 46 12 48 15 L 52 20 L 84 20 Q 90 20 89.5 26 L 87 56 L 14 56 Z" fill="#fbe8c0"/>
+      <path d="M 18 24 Q 18 17 24 17 L 41 17 L 47 24 L 83 24 Q 85.5 24 85 27 L 83 54 L 18 54 Z" fill="#5d6327" stroke="none"/>
+      <path d="M 16 28 Q 16 23 21 23 L 35 23 Q 38 23 40 26 L 42 29 L 47 29 Q 51 29 51 33 L 51 56 L 16 56 Z" fill="#f2a823"/>
+      <path d="M 53 42 Q 53 39 56 39 L 61 39 L 64 43 L 67 43 Q 70 43 70 46 L 70 56 L 53 56 Z" fill="#9aa456"/>
+      <path d="M 72 49 Q 72 46 75 46 L 78 46 L 80 49 L 82 49 Q 85 49 85 52 L 85 56 L 72 56 Z" fill="#fbe8c0"/>
+      <path d="M 10 53 L 90 53 Q 94 53 93.5 57 L 88 85 Q 87 89 83 89 L 17 89 Q 13 89 12 85 L 6.5 57 Q 6 53 10 53 Z" fill="#5d6327"/>
+      <path d="M 11 57.5 L 89 57.5" stroke="#fbe8c0" stroke-width="3.5" stroke-linecap="round"/>
+    </g>
+    <text x="186" y="134" font-size="76" font-weight="800" fill="#351507" letter-spacing="-1">TimberStat</text>
+    <text x="60" y="222" font-size="32" fill="#4a2a12">See where your disk space went,</text>
+    <text x="60" y="262" font-size="32" fill="#4a2a12">then clean it up.</text>
+    <text x="60" y="322" font-size="20" fill="#7a5a3a" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">Windows · Linux · Rust + GPUI · GPL-3.0</text>
+    <text x="640" y="54" font-size="20" fill="#7a5a3a" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">C:\ · 7,176,706 files · 1.2 TiB</text>
+    <rect x="640.0" y="72.0" width="273.8" height="260.0" rx="6" fill="#f2a823" stroke="#351507" stroke-width="3.5"/>
+    <text x="651.0" y="99.0" font-size="22" font-weight="700" fill="#351507">Users</text>
+    <text x="651.0" y="122.0" font-size="18" fill="#351507" opacity="0.85" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">668.1 GiB</text>
+    <rect x="913.8" y="72.0" width="122.2" height="113.4" rx="6" fill="#5d6327" stroke="#351507" stroke-width="3.5"/>
+    <text x="924.8" y="99.0" font-size="18" font-weight="700" fill="#fbe8c0">Program</text>
+    <text x="924.8" y="120.0" font-size="18" font-weight="700" fill="#fbe8c0">Files</text>
+    <text x="924.8" y="143.0" font-size="18" fill="#fbe8c0" opacity="0.85" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">130.1 GiB</text>
+    <rect x="1036.0" y="72.0" width="108.0" height="113.4" rx="6" fill="#9aa456" stroke="#351507" stroke-width="3.5"/>
+    <rect x="913.8" y="185.4" width="113.4" height="77.4" rx="6" fill="#8a5a2b" stroke="#351507" stroke-width="3.5"/>
+    <text x="924.8" y="212.4" font-size="18" font-weight="700" fill="#fbe8c0">Riot</text>
+    <text x="924.8" y="233.4" font-size="18" font-weight="700" fill="#fbe8c0">Games</text>
+    <rect x="913.8" y="262.8" width="113.4" height="69.2" rx="6" fill="#7d8236" stroke="#351507" stroke-width="3.5"/>
+    <rect x="1027.2" y="185.4" width="116.8" height="64.8" rx="6" fill="#9aa456" stroke="#351507" stroke-width="3.5"/>
+    <text x="1038.2" y="212.4" font-size="18" font-weight="700" fill="#351507">Dev</text>
+    <text x="1038.2" y="235.4" font-size="18" fill="#351507" opacity="0.85" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">71.0 GiB</text>
+    <rect x="1027.2" y="250.2" width="76.2" height="81.8" rx="6" fill="#5d6327" stroke="#351507" stroke-width="3.5"/>
+    <rect x="1103.4" y="250.2" width="40.6" height="81.8" rx="6" fill="#8a5a2b" stroke="#351507" stroke-width="3.5"/>
+  </g>
+</svg>
