@@ -3134,6 +3134,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "hmstd-archive"
+version = "0.1.0"
+dependencies = [
+ "hmstd-fileops",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "hmstd-core"
 version = "0.1.0"
 dependencies = [
