@@ -5,10 +5,34 @@ use gpui_kit::*;
 use hmstd_filesystem::{EntryKind, NodeId};
 use std::path::PathBuf;
 
-use super::{ContextMenu, Shell, rings};
+use super::{ContextMenu, Graph, Shell, rings};
 use crate::explore::Basis;
 
 impl Shell {
+    /// A tree row was clicked: a folder becomes the focus of the graphs, a file is selected.
+    pub fn tree_select(&mut self, node: NodeId, cx: &mut Context<Self>) {
+        let is_dir = self
+            .tree
+            .as_deref()
+            .and_then(|files| files.node(node))
+            .is_some_and(|entry| entry.kind() == EntryKind::Directory);
+        if is_dir {
+            self.focus_on(node, cx);
+        } else {
+            self.menu = None;
+            self.selected = Some(node);
+            cx.notify();
+        }
+    }
+
+    /// Chooses which graph the lower area shows.
+    pub fn set_graph(&mut self, graph: Graph, cx: &mut Context<Self>) {
+        self.graph = graph;
+        // The pointer may leave the sunburst while another graph is showing.
+        self.sunburst_hover = None;
+        cx.notify();
+    }
+
     pub fn set_basis(&mut self, basis: Basis, cx: &mut Context<Self>) {
         if self.basis != basis {
             self.basis = basis;

@@ -15,7 +15,7 @@ impl NodeId {
         self.0 as usize
     }
 
-    pub(crate) fn from_index(index: usize) -> Option<NodeId> {
+    pub fn from_index(index: usize) -> Option<NodeId> {
         u32::try_from(index).ok().map(NodeId)
     }
 }

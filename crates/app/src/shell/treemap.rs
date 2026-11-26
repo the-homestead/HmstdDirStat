@@ -15,8 +15,8 @@ use crate::{
 };
 
 /// Width to height the layout is made for. The board is full width at a fixed height.
-const ASPECT: f64 = 2.0;
-const BOARD_HEIGHT: f32 = 480.;
+const ASPECT: f64 = 1.8;
+const BOARD_HEIGHT: f32 = 300.;
 /// Height of a folder's name strip, in pixels.
 const HEADER_PX: f32 = 18.;
 /// Tiles at least this share of the focused folder get a visible label.
@@ -40,19 +40,6 @@ fn limits(basis: Basis) -> Limits {
         children: 40,
         min_share: 0.0008,
     }
-}
-
-/// How many tiles drawn for this view match the query. Counts what is on screen, so a match
-/// too small to draw is not counted.
-pub fn matches_in_view(files: &FileTree, focus: NodeId, basis: Basis, query: &Query) -> usize {
-    count_tiles(&tiles::nested(files, focus, ASPECT, limits(basis)), query)
-}
-
-fn count_tiles(tiles: &[Tile], query: &Query) -> usize {
-    tiles
-        .iter()
-        .map(|tile| usize::from(query.hits(&tile.name)) + count_tiles(&tile.children, query))
-        .sum()
 }
 
 pub fn treemap_page(

@@ -11,7 +11,9 @@ use gpui_kit::component::{
     *,
 };
 use gpui_kit::*;
-use hmstd_filesystem::{FileTree, NodeId};
+use std::sync::Arc;
+
+use hmstd_filesystem::{EntryKind, FileTree, NodeId};
 
 use crate::search::Query;
 
@@ -58,11 +60,11 @@ fn tree_items(level: &Level, expand: bool, parent: usize, query: &Query) -> Vec<
 }
 
 fn row_item(row: &Row, expand: bool, query: &Query) -> TreeItem {
-    let label = format!("{}   {}", row.child.name, format_bytes(row.child.bytes));
     // While a search is active, a folder opens when something inside it matches, so every
     // counted match is on screen.
     let open = expand || (query.is_active() && has_hit_below(row, query));
-    let mut item = TreeItem::new(row.child.node.index().to_string(), label).expanded(open);
+    let mut item =
+        TreeItem::new(row.child.node.index().to_string(), row.child.name.clone()).expanded(open);
     if let Some(below) = &row.below {
         item = item.children(tree_items(below, false, row.child.node.index(), query));
     }
@@ -106,38 +108,177 @@ pub fn no_tree_message(p: Palette) -> Div {
     )
 }
 
-/// The Files tab: every folder and file of the walk, largest first, expandable.
-pub fn files_view(state: &Entity<TreeState>, p: Palette) -> Div {
-    div()
-        .v_flex()
-        .gap_3()
-        .child(section_heading("Folder tree, largest first", p))
+/// Height of the folder tree, in pixels.
+const TREE_PANEL_HEIGHT: f32 = 380.;
+/// Column widths shared by the header and every row, in pixels.
+const COL_PERCENT: f32 = 96.;
+const COL_SIZE: f32 = 100.;
+const COL_ON_DISK: f32 = 100.;
+const COL_ITEMS: f32 = 84.;
+
+/// The folder tree in the WizTree layout: the name, then % of parent, size, on-disk size and
+/// item count. Clicking a folder makes it the focus of the graphs below.
+pub fn files_view(
+    state: &Entity<TreeState>,
+    files: Arc<FileTree>,
+    p: Palette,
+    handle: Entity<Shell>,
+) -> Div {
+    let on_disk = explore::allocated_known(&files);
+    let header = div()
+        .h_flex()
+        .px_3()
+        .py_1()
+        .gap_2()
+        .text_xs()
+        .text_color(p.muted_foreground)
+        .border_b_1()
+        .border_color(p.border)
+        .child(div().flex_1().min_w_0().child("Folder"))
         .child(
             div()
-                .h(px(540.))
-                .w_full()
-                .border_1()
-                .border_color(p.border)
-                .rounded_lg()
-                .child(tree(state, |ix, entry, selected, _window, _cx| {
-                    let icon = if !entry.is_folder() {
-                        IconName::File
-                    } else if entry.is_expanded() {
-                        IconName::FolderOpen
-                    } else {
-                        IconName::Folder
-                    };
-                    ListItem::new(ix)
-                        .selected(selected)
-                        .pl(px(16.) * entry.depth() + px(12.))
-                        .child(
-                            div()
-                                .h_flex()
-                                .gap_2()
-                                .child(icon)
-                                .child(entry.item().label.clone()),
-                        )
-                })),
+                .w(px(COL_PERCENT))
+                .border_l_1()
+                .border_color(p.muted_foreground.opacity(0.4))
+                .text_right()
+                .child("% of parent"),
+        )
+        .child(
+            div()
+                .w(px(COL_SIZE))
+                .border_l_1()
+                .border_color(p.muted_foreground.opacity(0.4))
+                .text_right()
+                .child("Size"),
+        )
+        .child(
+            div()
+                .w(px(COL_ON_DISK))
+                .border_l_1()
+                .border_color(p.muted_foreground.opacity(0.4))
+                .text_right()
+                .child("On-disk"),
+        )
+        .child(
+            div()
+                .w(px(COL_ITEMS))
+                .border_l_1()
+                .border_color(p.muted_foreground.opacity(0.4))
+                .text_right()
+                .child("Items"),
+        );
+    let body = div()
+        .h(px(TREE_PANEL_HEIGHT))
+        .w_full()
+        .border_1()
+        .border_color(p.border)
+        .rounded_lg()
+        .child(tree(state, move |ix, entry, selected, _window, _cx| {
+            let icon = if !entry.is_folder() {
+                IconName::File
+            } else if entry.is_expanded() {
+                IconName::FolderOpen
+            } else {
+                IconName::Folder
+            };
+            let node = entry
+                .item()
+                .id
+                .parse::<usize>()
+                .ok()
+                .and_then(NodeId::from_index);
+            let mut row = ListItem::new(ix)
+                .selected(selected)
+                .pl(px(16.) * entry.depth() + px(12.));
+            if let Some(node) = node {
+                let handle = handle.clone();
+                row = row.on_click(move |_, _, cx| {
+                    handle.update(cx, |shell, cx| shell.tree_select(node, cx));
+                });
+            }
+            row.child(tree_cells(&files, node, icon, on_disk, p))
+        }));
+    div().v_flex().child(header).child(body)
+}
+
+/// One tree row's cells, aligned under the header.
+fn tree_cells(
+    files: &FileTree,
+    node: Option<NodeId>,
+    icon: IconName,
+    on_disk: bool,
+    p: Palette,
+) -> Div {
+    let Some(id) = node else {
+        return div().child("Unknown item");
+    };
+    let Some(entry) = files.node(id) else {
+        return div().child("Unknown item");
+    };
+    let bytes = explore::bytes_of(files, id, Basis::Logical);
+    let share = entry.parent().and_then(|parent| {
+        let whole = explore::bytes_of(files, parent, Basis::Logical);
+        (whole > 0).then(|| bytes as f64 * 100.0 / whole as f64)
+    });
+    let share_text = share.map_or_else(|| "—".to_string(), |s| format!("{s:.1}%"));
+    let items = (entry.kind() == EntryKind::Directory).then(|| {
+        let totals = entry.totals();
+        format_count(totals.files + totals.directories)
+    });
+    let on_disk_text = if on_disk {
+        format_bytes(explore::bytes_of(files, id, Basis::Allocated))
+    } else {
+        "—".to_string()
+    };
+    let name = entry.name().to_string_lossy().into_owned();
+    div()
+        .h_flex()
+        .flex_1()
+        .min_w_0()
+        .gap_2()
+        .items_center()
+        .child(
+            div()
+                .flex_1()
+                .min_w_0()
+                .h_flex()
+                .gap_2()
+                .child(icon)
+                .child(div().truncate().child(name)),
+        )
+        .child(
+            div()
+                .w(px(COL_PERCENT))
+                .border_l_1()
+                .border_color(p.muted_foreground.opacity(0.4))
+                .text_right()
+                .text_color(p.muted_foreground)
+                .child(share_text),
+        )
+        .child(
+            div()
+                .w(px(COL_SIZE))
+                .border_l_1()
+                .border_color(p.muted_foreground.opacity(0.4))
+                .text_right()
+                .child(format_bytes(bytes)),
+        )
+        .child(
+            div()
+                .w(px(COL_ON_DISK))
+                .border_l_1()
+                .border_color(p.muted_foreground.opacity(0.4))
+                .text_right()
+                .child(on_disk_text),
+        )
+        .child(
+            div()
+                .w(px(COL_ITEMS))
+                .border_l_1()
+                .border_color(p.muted_foreground.opacity(0.4))
+                .text_right()
+                .text_color(p.muted_foreground)
+                .child(items.unwrap_or_default()),
         )
 }
 
@@ -214,7 +355,7 @@ pub fn pie_card(
 }
 
 pub(super) fn legend(items: Vec<Item>, total: u64, p: Palette, handle: Entity<Shell>) -> Div {
-    let mut list = div().v_flex().gap_1().flex_1().min_w(px(320.));
+    let mut list = div().v_flex().gap_1().flex_1().min_w_0();
     for (index, item) in items.into_iter().enumerate() {
         let share = if total > 0 {
             item.bytes as f64 * 100.0 / total as f64

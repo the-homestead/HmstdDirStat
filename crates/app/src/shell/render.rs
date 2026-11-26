@@ -1,24 +1,18 @@
 //! Layout for the main window: sidebar, visualization tabs, phase content, status bar.
 
 use gpui_kit::component::{
-    button::Button,
-    label::Label,
-    progress::Progress,
-    scroll::*,
-    spinner::Spinner,
-    status_bar::StatusBar,
-    switch::Switch,
-    tab::{Tab, TabBar},
-    tag::Tag,
-    *,
+    button::Button, label::Label, progress::Progress, scroll::*, spinner::Spinner,
+    status_bar::StatusBar, switch::Switch, tag::Tag, *,
 };
 use gpui_kit::*;
 use hmstd_ntfs::SummaryProgress;
 
 use super::{
-    Phase, Shell, View, menu::menu_overlay, results::*, rings, treemap, views, widgets::*,
+    Graph, Phase, Shell, menu::menu_overlay, results::*, rings, treemap, views, widgets::*,
 };
-use crate::theme::toggle_theme;
+use crate::{explore, scan::format_count, theme::toggle_theme};
+use gpui_kit::component::tab::{Tab, TabBar};
+use hmstd_filesystem::FileTree;
 
 impl Render for Shell {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
@@ -38,7 +32,6 @@ impl Render for Shell {
                     .h_full()
                     .v_flex()
                     .min_w_0()
-                    .child(tab_header(self.view, p, handle.clone()))
                     .child(
                         div()
                             .flex_1()
@@ -160,118 +153,120 @@ fn sidebar(shell: &Shell, p: Palette, handle: Entity<Shell>, cx: &App) -> Div {
         )
 }
 
-fn tab_header(view: View, p: Palette, handle: Entity<Shell>) -> Div {
-    let tabs = TabBar::new("visualizations")
-        .underline()
-        .selected_index(view.index())
-        .on_click(move |index: &usize, _, cx| {
-            let next = View::from_index(*index);
-            handle.update(cx, |shell, cx| shell.set_view(next, cx));
-        })
-        .child(Tab::new().label("Summary"))
-        .child(Tab::new().label("Files"))
-        .child(Tab::new().label("Treemap"))
-        .child(Tab::new().label("Sunburst"));
+/// Height of the graph row, in pixels.
+const GRAPH_HEIGHT: f32 = 420.;
 
-    div()
-        .h_flex()
-        .px_6()
-        .pt_4()
-        .border_b_1()
-        .border_color(p.border)
-        .child(tabs)
-}
-
+/// The main screen: the folder tree on top, the graphs below. Before a tree exists, the
+/// scan's progress or result is shown instead.
 fn content(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Div {
-    let files = shell.tree.as_deref();
-    match shell.view {
-        View::Summary => {
-            let mut page =
-                div()
-                    .v_flex()
-                    .gap_6()
-                    .child(summary_content(&shell.phase, p, handle.clone()));
-            if let (Phase::Walked(_) | Phase::FastDone(_), Some(files)) = (&shell.phase, files) {
-                page = page.child(views::pie_card(files, shell.focus, p, handle, shell.basis));
-            }
+    let (Some(files), Some(state)) = (shell.tree.clone(), shell.tree_state.clone()) else {
+        let page = div()
+            .v_flex()
+            .gap_6()
+            .child(summary_content(&shell.phase, p, handle));
+        return if matches!(shell.phase, Phase::Idle) {
+            page.child(views::no_tree_message(p))
+        } else {
             page
-        }
-        View::Files => match (&shell.tree_state, files) {
-            (Some(state), Some(files)) => {
-                let count = shell
-                    .query
-                    .is_active()
-                    .then(|| views::tree_matches(files, &shell.query));
-                div()
-                    .v_flex()
-                    .gap_3()
-                    .child(views::search_bar(shell.search_input.as_ref(), count, p))
-                    .child(views::files_view(state, p))
-            }
-            _ => views::no_tree_message(p),
-        },
-        View::Treemap => match files {
-            Some(files) => {
-                let count = shell.query.is_active().then(|| {
-                    treemap::matches_in_view(files, shell.focus, shell.basis, &shell.query)
-                });
-                viz_chrome(
-                    shell,
-                    p,
-                    handle.clone(),
-                    count,
-                    treemap::treemap_page(files, shell.focus, handle, p, look(shell)),
-                )
-            }
-            None => views::no_tree_message(p),
-        },
-        View::Sunburst => match files {
-            Some(files) => {
-                let count = shell
-                    .query
-                    .is_active()
-                    .then(|| rings::matches_in_view(files, shell.focus, shell.basis, &shell.query));
-                viz_chrome(
-                    shell,
-                    p,
-                    handle.clone(),
-                    count,
-                    rings::sunburst_page(
-                        files,
-                        shell.focus,
-                        handle,
-                        p,
-                        look(shell),
-                        // No hover card while a menu is open: the two would sit on top of each other.
-                        shell.sunburst_hover.filter(|_| shell.menu.is_none()),
-                        shell.sunburst_bounds.clone(),
-                    ),
-                )
-            }
-            None => views::no_tree_message(p),
-        },
-    }
+        };
+    };
+    let count = shell
+        .query
+        .is_active()
+        .then(|| views::tree_matches(&files, &shell.query));
+    div()
+        .v_flex()
+        .gap_4()
+        .child(toolbar(shell, &files, p, handle.clone(), count))
+        .child(views::files_view(&state, files.clone(), p, handle.clone()))
+        .child(graphs(shell, &files, p, handle))
 }
 
-/// The size toggle and search box above a view drawn by size or name. `count` is how many
-/// shown items match, or `None` when search is off.
-fn viz_chrome(
+/// Above the tree: what finished, a warning for partial totals, the size toggle and search.
+fn toolbar(
     shell: &Shell,
+    files: &FileTree,
     p: Palette,
     handle: Entity<Shell>,
     count: Option<usize>,
-    page: Div,
 ) -> Div {
-    let available = shell
-        .tree
-        .as_deref()
-        .is_some_and(crate::explore::allocated_known);
+    let (status, partial) = match &shell.phase {
+        Phase::Walked(summary) => (
+            format!(
+                "Walk complete: {} files, {} folders",
+                format_count(summary.files),
+                format_count(summary.directories)
+            ),
+            !summary.complete,
+        ),
+        Phase::FastDone(summary) => (
+            format!(
+                "Fast read complete: {} files, {} folders",
+                format_count(summary.files),
+                format_count(summary.directories)
+            ),
+            !summary.complete,
+        ),
+        _ => (String::new(), false),
+    };
+    let mut bar = div()
+        .v_flex()
+        .gap_2()
+        .child(div().text_sm().text_color(p.muted_foreground).child(status))
+        .child(views::basis_toggle(
+            shell.basis,
+            explore::allocated_known(files),
+            handle,
+            p,
+        ))
+        .child(views::search_bar(shell.search_input.as_ref(), count, p));
+    if partial {
+        bar = bar.child(
+            div()
+                .text_sm()
+                .text_color(p.warning)
+                .child("PARTIAL: some folders could not be read, so totals are incomplete."),
+        );
+    }
+    bar
+}
+
+/// The lower area: one graph at a time, chosen by tab, for the focused folder.
+fn graphs(shell: &Shell, files: &FileTree, p: Palette, handle: Entity<Shell>) -> Div {
+    let body = match shell.graph {
+        Graph::Treemap => treemap::treemap_page(files, shell.focus, handle.clone(), p, look(shell)),
+        Graph::Sunburst => rings::sunburst_page(
+            files,
+            shell.focus,
+            handle.clone(),
+            p,
+            look(shell),
+            shell.sunburst_hover.filter(|_| shell.menu.is_none()),
+            shell.sunburst_bounds.clone(),
+        ),
+        Graph::Pie => views::pie_card(files, shell.focus, p, handle.clone(), shell.basis),
+    };
+    let tabs = TabBar::new("graphs")
+        .underline()
+        .selected_index(shell.graph.index())
+        .on_click(move |index: &usize, _, cx| {
+            let next = Graph::from_index(*index);
+            handle.update(cx, |shell, cx| shell.set_graph(next, cx));
+        })
+        .child(Tab::new().label("Treemap"))
+        .child(Tab::new().label("Sunburst"))
+        .child(Tab::new().label("Pie"));
     div()
         .v_flex()
-        .gap_3()
-        .child(views::basis_toggle(shell.basis, available, handle, p))
-        .child(views::search_bar(shell.search_input.as_ref(), count, p))
-        .child(page)
+        .gap_2()
+        .p_3()
+        .h(px(GRAPH_HEIGHT))
+        .rounded_lg()
+        .border_1()
+        .border_color(p.border)
+        .bg(p.surface)
+        .child(tabs)
+        .child(body)
 }
 
 /// How the treemap and sunburst draw right now.

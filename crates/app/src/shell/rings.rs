@@ -20,7 +20,6 @@ use crate::{
     explore::{self, Basis},
     layout,
     scan::format_bytes,
-    search::Query,
 };
 
 const SUNBURST_TOP: usize = 16;
@@ -35,18 +34,6 @@ struct DrawnArc {
     end: f32,
     depth: u32,
     color: Hsla,
-}
-
-/// How many arcs drawn for this view match the query.
-pub fn matches_in_view(files: &FileTree, focus: NodeId, basis: Basis, query: &Query) -> usize {
-    sunburst_arcs(files, focus, basis)
-        .iter()
-        .filter(|arc| {
-            files
-                .node(arc.item)
-                .is_some_and(|entry| query.hits(&entry.name().to_string_lossy()))
-        })
-        .count()
 }
 
 /// The arcs the sunburst draws for `focus`: one per visible item, ring by ring.
@@ -125,7 +112,8 @@ pub fn sunburst_page(
         .collect();
     let focus_total = explore::bytes_of(files, focus, basis);
 
-    let side = px(440.);
+    // Fits the graph row (340 px card): title, breadcrumb and padding take the rest.
+    let side = px(300.);
     let rings = canvas(
         |_, _, _| (),
         move |bounds, _, window, _| {

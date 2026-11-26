@@ -67,31 +67,28 @@ pub enum Phase {
     },
 }
 
-/// Which visualization the main area shows.
+/// Which graph the lower area shows. One at a time, chosen by tab.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum View {
-    Summary,
-    Files,
+pub enum Graph {
     Treemap,
     Sunburst,
+    Pie,
 }
 
-impl View {
+impl Graph {
     fn from_index(index: usize) -> Self {
         match index {
-            1 => Self::Files,
-            2 => Self::Treemap,
-            3 => Self::Sunburst,
-            _ => Self::Summary,
+            1 => Self::Sunburst,
+            2 => Self::Pie,
+            _ => Self::Treemap,
         }
     }
 
     fn index(self) -> usize {
         match self {
-            Self::Summary => 0,
-            Self::Files => 1,
-            Self::Treemap => 2,
-            Self::Sunburst => 3,
+            Self::Treemap => 0,
+            Self::Sunburst => 1,
+            Self::Pie => 2,
         }
     }
 }
@@ -107,7 +104,6 @@ pub struct Shell {
     volumes: Vec<PathBuf>,
     phase: Phase,
     fast_mode: bool,
-    view: View,
     /// Where the log files are written; the sidebar opens this folder.
     log_dir: PathBuf,
     /// The tree from the last walk, shared by the views. Fast mode leaves it empty.
@@ -121,6 +117,8 @@ pub struct Shell {
     sunburst_hover: Option<(NodeId, Point<Pixels>)>,
     /// Which size the treemap, sunburst and pie show.
     basis: Basis,
+    /// The graph the lower area shows.
+    graph: Graph,
     /// The tile or arc the user selected with a single click.
     selected: Option<NodeId>,
     /// The open right-click menu, if any.
@@ -140,7 +138,6 @@ impl Shell {
             volumes,
             phase: Phase::Idle,
             fast_mode: false,
-            view: View::Summary,
             log_dir,
             tree: None,
             tree_state: None,
@@ -148,6 +145,7 @@ impl Shell {
             sunburst_bounds: Rc::new(Cell::new(None)),
             sunburst_hover: None,
             basis: Basis::Logical,
+            graph: Graph::Treemap,
             selected: None,
             menu: None,
             search_input: None,
@@ -252,13 +250,6 @@ impl Shell {
             self.fast_mode = on;
             cx.notify();
         }
-    }
-
-    fn set_view(&mut self, view: View, cx: &mut Context<Self>) {
-        self.view = view;
-        // The pointer may leave the sunburst while another tab is showing.
-        self.sunburst_hover = None;
-        cx.notify();
     }
 
     /// Scans the chosen drive with the mode the user has selected.
