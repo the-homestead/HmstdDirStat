@@ -9,6 +9,7 @@ mod menu;
 mod render;
 mod results;
 mod rings;
+mod settings;
 mod treemap;
 mod view_menu;
 mod views;
@@ -99,6 +100,9 @@ pub struct Shell {
     sunburst_hover: Option<(NodeId, Point<Pixels>)>,
     /// Which size the treemap, sunburst and pie show.
     basis: Basis,
+    /// Extension totals for the focused folder. Recomputed by `refresh_extensions` when the
+    /// focus, basis or tree changes, never per frame.
+    extension_totals: Arc<Vec<crate::extensions::ExtensionTotal>>,
     /// Scales the window's rem size (text and rem-based spacing). Clamped at load.
     ui_scale: f32,
     /// Which widgets show, where, and in what stacking order.
@@ -109,6 +113,8 @@ pub struct Shell {
     workspace_size: Rc<Cell<Option<Size<Pixels>>>>,
     /// Whether the View menu is open.
     view_menu: bool,
+    /// Whether the Settings panel is open.
+    settings_open: bool,
     /// The layout changed and has not been written yet.
     layout_dirty: bool,
     /// The running layout write. Replacing it drops a write that has not started.
@@ -144,11 +150,13 @@ impl Shell {
             sunburst_bounds: Rc::new(Cell::new(None)),
             sunburst_hover: None,
             basis: Basis::Logical,
+            extension_totals: Arc::new(Vec::new()),
             ui_scale: hmstd_core::config::clamp_ui_scale(ui_scale),
             layout,
             drag_start: None,
             workspace_size: Rc::new(Cell::new(None)),
             view_menu: false,
+            settings_open: false,
             layout_dirty: false,
             layout_save: None,
             selected: None,
@@ -194,6 +202,7 @@ impl Shell {
         self.query = Query::new(self.query.text(), None);
         self.tree_state = None;
         self.focus = NodeId::ROOT;
+        self.refresh_extensions();
         self.sunburst_hover = None;
     }
 
@@ -203,10 +212,21 @@ impl Shell {
         self.tree_state = Some(files_tree::build_tree_state(&files, &self.query, cx));
         self.tree = Some(Arc::new(files));
         self.focus = NodeId::ROOT;
+        self.refresh_extensions();
+    }
+
+    /// Recomputes the Extensions totals for the focused folder. This walks the whole subtree,
+    /// so it runs only when the focus, basis or tree changes.
+    pub fn refresh_extensions(&mut self) {
+        self.extension_totals = Arc::new(match &self.tree {
+            Some(files) => crate::extensions::totals(files, self.focus, self.basis),
+            None => Vec::new(),
+        });
     }
 
     pub fn focus_on(&mut self, node: NodeId, cx: &mut Context<Self>) {
         self.focus = node;
+        self.refresh_extensions();
         self.selected = None;
         self.menu = None;
         self.sunburst_hover = None;
@@ -243,6 +263,7 @@ impl Shell {
             .and_then(|node| node.parent());
         if let Some(parent) = parent {
             self.focus = parent;
+            self.refresh_extensions();
             self.sunburst_hover = None;
             cx.notify();
         }

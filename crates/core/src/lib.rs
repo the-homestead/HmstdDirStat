@@ -5,6 +5,7 @@
 
 pub mod config;
 pub mod error;
+pub mod layout_resize;
 pub mod logging;
 pub mod workspace;
 

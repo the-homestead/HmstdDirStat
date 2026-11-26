@@ -28,6 +28,7 @@ impl Shell {
     pub fn set_basis(&mut self, basis: Basis, cx: &mut Context<Self>) {
         if self.basis != basis {
             self.basis = basis;
+            self.refresh_extensions();
             cx.notify();
         }
     }

@@ -10,7 +10,7 @@ use gpui_kit::*;
 use hmstd_ntfs::SummaryProgress;
 
 use super::{
-    Phase, Shell, menu::menu_overlay, results::*, view_menu, views, widgets::*, workspace,
+    Phase, Shell, menu::menu_overlay, results::*, settings, view_menu, views, widgets::*, workspace,
 };
 use crate::{explore, theme::toggle_theme};
 
@@ -37,6 +37,7 @@ impl Render for Shell {
             )
             .child(status_bar(self, p))
             .children(menu_overlay(self, p, handle.clone()))
+            .children(settings::overlay(self, p, handle.clone()))
             .children(view_menu::overlay(self, p, handle))
     }
 }
@@ -109,6 +110,7 @@ fn toolbar(shell: &Shell, p: Palette, handle: Entity<Shell>, cx: &App) -> Div {
                 }),
         )
         .child(view_menu::view_button(handle.clone()))
+        .child(settings::settings_button(handle.clone()))
         .child(
             Button::new("toggle-theme")
                 .outline()

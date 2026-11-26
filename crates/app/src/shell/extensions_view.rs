@@ -7,7 +7,7 @@ use gpui_kit::*;
 
 use super::{Shell, views, widgets::*};
 use crate::{
-    extensions::{self, ExtensionTotal},
+    extensions::ExtensionTotal,
     scan::{format_bytes, format_count},
 };
 
@@ -16,10 +16,11 @@ const MAX_ROWS: usize = 40;
 
 /// The widget body for the focused folder.
 pub(super) fn body(shell: &Shell, p: Palette) -> Div {
-    let Some(files) = shell.tree.clone() else {
+    if shell.tree.is_none() {
         return views::no_tree_message(p);
-    };
-    let rows = extensions::totals(&files, shell.focus, shell.basis);
+    }
+    // Cached on Shell. Walking the focused subtree here would run on every frame.
+    let rows = shell.extension_totals.clone();
     if rows.is_empty() {
         return div()
             .size_full()

@@ -38,10 +38,12 @@ pub struct WidgetDrag {
 }
 
 /// Where a widget drag began. Each move is measured from here, so a drag never drifts.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct DragStart {
     pub pos: Point<Pixels>,
     pub frame: Frame,
+    /// The whole layout when the drag began. Each move is computed from it, not compounded.
+    pub layout: hmstd_core::workspace::WorkspaceLayout,
 }
 
 /// The view GPUI shows under the pointer while a drag runs. The widget itself moves, so the
@@ -84,27 +86,39 @@ impl Shell {
 
     /// A press on a widget starts a drag from the frame it has now.
     pub fn begin_widget_drag(&mut self, frame: Frame, pos: Point<Pixels>) {
-        self.drag_start = Some(DragStart { pos, frame });
+        self.drag_start = Some(DragStart {
+            pos,
+            frame,
+            layout: self.layout.clone(),
+        });
     }
 
     /// Moves or resizes the dragged widget to follow the pointer.
     pub fn drag_widget(&mut self, drag: WidgetDrag, pos: Point<Pixels>, cx: &mut Context<Self>) {
-        let (Some(start), Some(size)) = (self.drag_start, self.workspace_size.get()) else {
+        let (Some(start), Some(size)) = (self.drag_start.clone(), self.workspace_size.get()) else {
             return;
         };
         let width = f32::from(size.width).max(1.);
         let height = f32::from(size.height).max(1.);
         let dx = f32::from(pos.x - start.pos.x) / width;
         let dy = f32::from(pos.y - start.pos.y) / height;
-        let frame = match drag.grip {
-            Grip::Move => start.frame.moved(dx, dy),
-            Grip::Resize(edges) => {
-                start
-                    .frame
-                    .resized(edges, dx, dy, MIN_WIDTH_PX / width, MIN_HEIGHT_PX / height)
+        let layout = match drag.grip {
+            Grip::Move => {
+                let mut moved = start.layout.clone();
+                moved.set_frame(drag.kind, start.frame.moved(dx, dy));
+                moved
             }
+            Grip::Resize(edges) => hmstd_core::layout_resize::resize_widget(
+                &start.layout,
+                drag.kind,
+                edges,
+                dx,
+                dy,
+                MIN_WIDTH_PX / width,
+                MIN_HEIGHT_PX / height,
+            ),
         };
-        self.layout.set_frame(drag.kind, frame);
+        self.layout = layout;
         self.layout_dirty = true;
         cx.notify();
     }
@@ -245,12 +259,8 @@ fn card(
         .child(close_control(kind, p, handle.clone()));
 
     let mut card = div()
-        .id(format!("widget-{name}"))
-        .absolute()
-        .left(relative(frame.x))
-        .top(relative(frame.y))
-        .w(relative(frame.w))
-        .h(relative(frame.h))
+        .relative()
+        .size_full()
         .v_flex()
         .overflow_hidden()
         .rounded_md()
@@ -269,7 +279,17 @@ fn card(
     for grip in grips(kind) {
         card = card.child(grip);
     }
-    card
+    // The frame is the slot. The card fills it inset by half the gap on each side, so two
+    // neighbours sit WIDGET_GAP apart.
+    div()
+        .id(format!("widget-{name}"))
+        .absolute()
+        .left(relative(frame.x))
+        .top(relative(frame.y))
+        .w(relative(frame.w))
+        .h(relative(frame.h))
+        .p(px(WIDGET_GAP / 2.0))
+        .child(card)
 }
 
 /// The × in a header. It hides the widget; View shows it again.
@@ -381,3 +401,6 @@ fn grips(kind: WidgetKind) -> Vec<Stateful<Div>> {
         .size(corner),
     ]
 }
+
+/// Space between neighbouring widgets, in pixels.
+const WIDGET_GAP: f32 = 2.0;

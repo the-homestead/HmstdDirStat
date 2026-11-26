@@ -169,6 +169,13 @@ pub fn store_workspace_layout(path: &Path, layout: &WorkspaceLayout) -> Result<(
 
 /// Persists a theme choice. Reads the file without environment overrides,
 /// replaces only the theme, and saves, so a one-run override is never written.
+/// Saves the UI scale, clamped to the supported range.
+pub fn store_ui_scale(path: &Path, scale: f32) -> Result<(), ConfigError> {
+    let mut config = layered_load(path, None)?;
+    config.ui_scale = clamp_ui_scale(scale);
+    save_to(path, &config)
+}
+
 pub fn store_theme_preference(path: &Path, theme: ThemePreference) -> Result<(), ConfigError> {
     let mut config = layered_load(path, None)?;
     config.theme = theme;
