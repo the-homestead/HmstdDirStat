@@ -1,5 +1,6 @@
-//! Treemap in the WizTree style: each folder is a box holding its children, sized by
-//! logical size. Click a folder to enter it; hover any tile for its name, size and share.
+//! Treemap in the WizTree style: each folder is a box holding its children, sized by the
+//! chosen basis. Click selects a tile, double-click enters a folder, right-click opens the
+//! tile menu, and hover shows name, size and share.
 
 use gpui_kit::component::{tooltip::Tooltip, *};
 use gpui_kit::*;
@@ -7,6 +8,7 @@ use hmstd_filesystem::{FileTree, NodeId};
 
 use super::{Shell, views::breadcrumb, widgets::*};
 use crate::{
+    explore::Basis,
     scan::format_bytes,
     tiles::{self, Limits, Tile},
 };
@@ -18,14 +20,26 @@ const BOARD_HEIGHT: f32 = 480.;
 const HEADER_PX: f32 = 18.;
 /// Tiles at least this share of the focused folder get a visible label.
 const LABEL_SHARE: f64 = 0.01;
-const LIMITS: Limits = Limits {
-    depth: 3,
-    children: 40,
-    min_share: 0.0008,
-};
 
-pub fn treemap_page(files: &FileTree, focus: NodeId, handle: Entity<Shell>, p: Palette) -> Div {
-    let tiles = tiles::nested(files, focus, ASPECT, LIMITS);
+fn limits(basis: Basis) -> Limits {
+    Limits {
+        basis,
+        depth: 3,
+        children: 40,
+        min_share: 0.0008,
+    }
+}
+
+pub fn treemap_page(
+    files: &FileTree,
+    focus: NodeId,
+    handle: Entity<Shell>,
+    p: Palette,
+    basis: Basis,
+    selected: Option<NodeId>,
+    tooltips: bool,
+) -> Div {
+    let tiles = tiles::nested(files, focus, ASPECT, limits(basis));
     let board = div()
         .relative()
         .w_full()
@@ -35,7 +49,7 @@ pub fn treemap_page(files: &FileTree, focus: NodeId, handle: Entity<Shell>, p: P
         .border_1()
         .border_color(p.border)
         .bg(p.surface)
-        .children(tile_views(&tiles, None, &handle, p));
+        .children(tile_views(&tiles, None, &handle, p, selected, tooltips));
     div()
         .v_flex()
         .gap_3()
@@ -50,6 +64,8 @@ fn tile_views(
     group: Option<Hsla>,
     handle: &Entity<Shell>,
     p: Palette,
+    selected: Option<NodeId>,
+    tooltips: bool,
 ) -> Vec<Stateful<Div>> {
     tiles
         .iter()
@@ -63,6 +79,7 @@ fn tile_views(
                 format_bytes(tile.bytes),
                 tile.share * 100.0
             );
+            let is_selected = selected == Some(tile.node);
 
             let mut view = div()
                 .id(("tile", tile.node.index()))
@@ -73,18 +90,32 @@ fn tile_views(
                 .h(relative(tile.rect.h as f32))
                 .overflow_hidden()
                 .border_1()
-                .border_color(p.background)
-                .tooltip(move |window, cx| Tooltip::new(tip.clone()).build(window, cx));
+                .border_color(if is_selected {
+                    p.foreground
+                } else {
+                    p.background
+                })
+                .cursor_pointer();
+            if tooltips {
+                view = view.tooltip(move |window, cx| Tooltip::new(tip.clone()).build(window, cx));
+            }
 
-            if tile.is_dir {
-                let node = tile.node;
-                let handle = handle.clone();
-                view = view.cursor_pointer().on_click(move |_, _, cx| {
-                    handle.update(cx, |shell, cx| shell.focus_on(node, cx));
-                    // The folder's parent also listens for clicks; only the innermost folder should act.
+            // Each tile handles its own clicks and stops them reaching the folder around it,
+            // so the innermost tile under the pointer is the one that acts.
+            let node = tile.node;
+            let click_handle = handle.clone();
+            let menu_handle = handle.clone();
+            view = view
+                .on_click(move |event: &ClickEvent, _, cx| {
+                    let count = event.click_count();
+                    click_handle.update(cx, |shell, cx| shell.click_node(node, count, cx));
+                    cx.stop_propagation();
+                })
+                .on_mouse_down(MouseButton::Right, move |event: &MouseDownEvent, _, cx| {
+                    let at = event.position;
+                    menu_handle.update(cx, |shell, cx| shell.open_menu(node, at, cx));
                     cx.stop_propagation();
                 });
-            }
 
             if tile.children.is_empty() {
                 view = view.bg(color.opacity(0.8)).p_1();
@@ -121,7 +152,14 @@ fn tile_views(
                             .left(px(0.))
                             .right(px(0.))
                             .bottom(px(0.))
-                            .children(tile_views(&tile.children, Some(color), handle, p)),
+                            .children(tile_views(
+                                &tile.children,
+                                Some(color),
+                                handle,
+                                p,
+                                selected,
+                                tooltips,
+                            )),
                     );
             }
             view

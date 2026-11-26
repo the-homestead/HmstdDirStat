@@ -14,7 +14,7 @@ use hmstd_filesystem::{FileTree, NodeId};
 
 use super::{Shell, widgets::*};
 use crate::{
-    explore::{self, Level, Row},
+    explore::{self, Basis, Level, Row},
     scan::{format_bytes, format_count},
 };
 
@@ -108,8 +108,14 @@ pub(super) struct Item {
 }
 
 /// The folder's share by item, as a pie chart with a clickable legend.
-pub fn pie_card(files: &FileTree, focus: NodeId, p: Palette, handle: Entity<Shell>) -> Div {
-    let slices = explore::slices(files, focus, PIE_SLICES);
+pub fn pie_card(
+    files: &FileTree,
+    focus: NodeId,
+    p: Palette,
+    handle: Entity<Shell>,
+    basis: Basis,
+) -> Div {
+    let slices = explore::slices(files, focus, PIE_SLICES, basis);
     let items: Vec<Item> = slices
         .iter()
         .enumerate()
@@ -204,6 +210,48 @@ pub(super) fn slot_color(index: usize, is_other: bool, p: Palette) -> Hsla {
     } else {
         p.chart[index % p.chart.len()]
     }
+}
+
+/// Chooses between logical and on-disk sizes. On-disk is disabled when the scan did not
+/// record it, with the reason shown beside the buttons (Plan §17: reduced functions are shown).
+pub fn basis_toggle(basis: Basis, available: bool, handle: Entity<Shell>, p: Palette) -> Div {
+    let logical_handle = handle.clone();
+    let allocated_handle = handle;
+    let note = if available {
+        "Logical is the apparent file size. On-disk is what the drive allocates."
+    } else {
+        "On-disk size is not recorded by this scan. Fast scans record it."
+    };
+    div()
+        .h_flex()
+        .gap_3()
+        .items_center()
+        .child(
+            div()
+                .text_sm()
+                .text_color(p.muted_foreground)
+                .child("Size shown"),
+        )
+        .child(
+            Button::new("basis-logical")
+                .outline()
+                .label("Logical")
+                .toggled(basis == Basis::Logical)
+                .on_click(move |_, _, cx| {
+                    logical_handle.update(cx, |shell, cx| shell.set_basis(Basis::Logical, cx));
+                }),
+        )
+        .child(
+            Button::new("basis-allocated")
+                .outline()
+                .label("On-disk")
+                .toggled(basis == Basis::Allocated)
+                .disabled(!available)
+                .on_click(move |_, _, cx| {
+                    allocated_handle.update(cx, |shell, cx| shell.set_basis(Basis::Allocated, cx));
+                }),
+        )
+        .child(div().text_xs().text_color(p.muted_foreground).child(note))
 }
 
 /// Path to the focused folder, with an Up button that moves to its parent.

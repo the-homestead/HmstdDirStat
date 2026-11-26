@@ -16,7 +16,11 @@ use super::{
     views::{Item, breadcrumb, legend, slot_color},
     widgets::*,
 };
-use crate::{explore, layout, scan::format_bytes};
+use crate::{
+    explore::{self, Basis},
+    layout,
+    scan::format_bytes,
+};
 
 const SUNBURST_TOP: usize = 16;
 const SUNBURST_CHILDREN: usize = 24;
@@ -33,9 +37,10 @@ struct DrawnArc {
 }
 
 /// The arcs the sunburst draws for `focus`: one per visible item, ring by ring.
-pub fn sunburst_arcs(files: &FileTree, focus: NodeId) -> Vec<layout::Arc<NodeId>> {
-    let top = explore::sized_children(files, focus, SUNBURST_TOP);
-    let children_of = |node: &NodeId| explore::sized_children(files, *node, SUNBURST_CHILDREN);
+pub fn sunburst_arcs(files: &FileTree, focus: NodeId, basis: Basis) -> Vec<layout::Arc<NodeId>> {
+    let top = explore::sized_children(files, focus, SUNBURST_TOP, basis);
+    let children_of =
+        |node: &NodeId| explore::sized_children(files, *node, SUNBURST_CHILDREN, basis);
     layout::sunburst(&top, SUNBURST_RINGS, SUNBURST_MIN_SPAN, &children_of)
 }
 
@@ -75,10 +80,11 @@ pub fn sunburst_page(
     focus: NodeId,
     handle: Entity<Shell>,
     p: Palette,
+    basis: Basis,
     hover: Option<(NodeId, Point<Pixels>)>,
     bounds_cell: Rc<Cell<Option<Bounds<Pixels>>>>,
 ) -> Div {
-    let arcs = sunburst_arcs(files, focus);
+    let arcs = sunburst_arcs(files, focus, basis);
     let drawn: Vec<DrawnArc> = arcs
         .iter()
         .map(|arc| DrawnArc {
@@ -89,7 +95,7 @@ pub fn sunburst_page(
             color: p.chart[arc.slot % p.chart.len()].opacity(1.0 - 0.15 * (arc.depth - 1) as f32),
         })
         .collect();
-    let focus_total = files.node(focus).map_or(0, |node| node.totals().logical);
+    let focus_total = explore::bytes_of(files, focus, basis);
 
     let side = px(440.);
     let rings = canvas(
@@ -105,7 +111,7 @@ pub fn sunburst_page(
         .map(|node| {
             (
                 node.name().to_string_lossy().into_owned(),
-                node.totals().logical,
+                explore::bytes_of(files, focus, basis),
             )
         })
         .unwrap_or_default();
@@ -144,14 +150,28 @@ pub fn sunburst_page(
                     handle.update(cx, |shell, cx| shell.sunburst_leave(cx));
                 }
             }
+        })
+        .on_click({
+            let handle = handle.clone();
+            move |event: &ClickEvent, _, cx| {
+                let (at, count) = (event.position(), event.click_count());
+                handle.update(cx, |shell, cx| shell.sunburst_click(at, count, cx));
+            }
+        })
+        .on_mouse_down(MouseButton::Right, {
+            let handle = handle.clone();
+            move |event: &MouseDownEvent, _, cx| {
+                let at = event.position;
+                handle.update(cx, |shell, cx| shell.sunburst_menu(at, cx));
+            }
         });
     if let Some((node, at)) = hover
-        && let Some(tip) = sunburst_tip(files, node, focus_total, at, p)
+        && let Some(tip) = sunburst_tip(files, node, focus_total, basis, at, p)
     {
         disc = disc.child(tip);
     }
 
-    let items: Vec<Item> = explore::children(files, focus)
+    let items: Vec<Item> = explore::children(files, focus, basis)
         .into_iter()
         .filter(|child| child.bytes > 0)
         .take(SUNBURST_TOP)
@@ -184,16 +204,13 @@ fn sunburst_tip(
     files: &FileTree,
     node: NodeId,
     focus_total: u64,
+    basis: Basis,
     at: Point<Pixels>,
     p: Palette,
 ) -> Option<Div> {
     let entry = files.node(node)?;
     let is_dir = entry.kind() == EntryKind::Directory;
-    let bytes = if is_dir {
-        entry.totals().logical
-    } else {
-        entry.logical_size()
-    };
+    let bytes = explore::bytes_of(files, node, basis);
     let share = if focus_total > 0 {
         bytes as f64 * 100.0 / focus_total as f64
     } else {

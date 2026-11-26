@@ -5,7 +5,7 @@
 use hmstd_filesystem::{FileTree, NodeId};
 
 use crate::{
-    explore::{self, Child},
+    explore::{self, Basis, Child},
     layout::{self, Rect},
 };
 
@@ -25,6 +25,8 @@ pub struct Tile {
 /// How far the nesting goes and how much is drawn.
 #[derive(Debug, Clone, Copy)]
 pub struct Limits {
+    /// Which size sets each tile's area.
+    pub basis: Basis,
     /// Levels of folders drawn, the focused folder's children being level one.
     pub depth: u32,
     /// Children drawn per folder; the rest are left out.
@@ -46,7 +48,7 @@ fn place(
     depth_left: u32,
     parent_share: f64,
 ) -> Vec<Tile> {
-    let kids: Vec<Child> = explore::children(files, parent)
+    let kids: Vec<Child> = explore::children(files, parent, limits.basis)
         .into_iter()
         .filter(|child| child.bytes > 0)
         .take(limits.children)
@@ -138,6 +140,7 @@ mod tests {
         depth: 3,
         children: 100,
         min_share: 0.0,
+        basis: Basis::Logical,
     };
 
     #[test]

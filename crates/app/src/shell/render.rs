@@ -1,7 +1,6 @@
 //! Layout for the main window: sidebar, visualization tabs, phase content, status bar.
 
 use gpui_kit::component::{
-    alert::Alert,
     button::Button,
     label::Label,
     progress::Progress,
@@ -14,10 +13,12 @@ use gpui_kit::component::{
     *,
 };
 use gpui_kit::*;
-use hmstd_ntfs::{SummaryProgress, VolumeSummary};
+use hmstd_ntfs::SummaryProgress;
 
-use super::{Phase, Shell, View, rings, treemap, views, widgets::*};
-use crate::{scan::ScanSummary, theme::toggle_theme};
+use super::{
+    Phase, Shell, View, menu::menu_overlay, results::*, rings, treemap, views, widgets::*,
+};
+use crate::theme::toggle_theme;
 
 impl Render for Shell {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
@@ -43,10 +44,11 @@ impl Render for Shell {
                             .min_h_0()
                             .p_6()
                             .overflow_y_scrollbar()
-                            .child(content(self, p, handle)),
+                            .child(content(self, p, handle.clone())),
                     )
                     .child(status_bar(self, p)),
             )
+            .children(menu_overlay(self, p, handle))
     }
 }
 
@@ -189,7 +191,7 @@ fn content(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Div {
                     .gap_6()
                     .child(summary_content(&shell.phase, p, handle.clone()));
             if let (Phase::Walked(_) | Phase::FastDone(_), Some(files)) = (&shell.phase, files) {
-                page = page.child(views::pie_card(files, shell.focus, p, handle));
+                page = page.child(views::pie_card(files, shell.focus, p, handle, shell.basis));
             }
             page
         }
@@ -198,21 +200,54 @@ fn content(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Div {
             None => views::no_tree_message(p),
         },
         View::Treemap => match files {
-            Some(files) => treemap::treemap_page(files, shell.focus, handle, p),
+            Some(files) => with_basis(
+                shell,
+                p,
+                handle.clone(),
+                treemap::treemap_page(
+                    files,
+                    shell.focus,
+                    handle,
+                    p,
+                    shell.basis,
+                    shell.selected,
+                    shell.menu.is_none(),
+                ),
+            ),
             None => views::no_tree_message(p),
         },
         View::Sunburst => match files {
-            Some(files) => rings::sunburst_page(
-                files,
-                shell.focus,
-                handle,
+            Some(files) => with_basis(
+                shell,
                 p,
-                shell.sunburst_hover,
-                shell.sunburst_bounds.clone(),
+                handle.clone(),
+                rings::sunburst_page(
+                    files,
+                    shell.focus,
+                    handle,
+                    p,
+                    shell.basis,
+                    // No hover card while a menu is open: the two would sit on top of each other.
+                    shell.sunburst_hover.filter(|_| shell.menu.is_none()),
+                    shell.sunburst_bounds.clone(),
+                ),
             ),
             None => views::no_tree_message(p),
         },
     }
+}
+
+/// Puts the size toggle above a view that is drawn by size.
+fn with_basis(shell: &Shell, p: Palette, handle: Entity<Shell>, page: Div) -> Div {
+    let available = shell
+        .tree
+        .as_deref()
+        .is_some_and(crate::explore::allocated_known);
+    div()
+        .v_flex()
+        .gap_3()
+        .child(views::basis_toggle(shell.basis, available, handle, p))
+        .child(page)
 }
 
 fn summary_content(phase: &Phase, p: Palette, handle: Entity<Shell>) -> Div {
@@ -281,195 +316,8 @@ fn summary_content(phase: &Phase, p: Palette, handle: Entity<Shell>) -> Div {
     }
 }
 
-fn elevated_view(
-    drive: &std::path::Path,
-    granted: bool,
-    stage: Option<SummaryProgress>,
-    p: Palette,
-) -> Div {
-    let (title, detail) = match (granted, stage) {
-        (false, _) => (
-            format!("Waiting for administrator approval for {}", drive.display()),
-            "Windows is asking for permission to run HmstdDirStat as administrator. Approve it to start the read.",
-        ),
-        (true, Some(SummaryProgress::Building)) => (
-            format!("Building the folder tree for {}", drive.display()),
-            "All records are read. Totals and the tree appear when this finishes.",
-        ),
-        _ => (
-            format!("Reading the file table of {}", drive.display()),
-            "The bar below shows how far through the Master File Table the read is.",
-        ),
-    };
-
-    let mut page = div()
-        .v_flex()
-        .gap_4()
-        .child(
-            div()
-                .h_flex()
-                .gap_3()
-                .items_center()
-                .child(Spinner::new())
-                .child(
-                    div()
-                        .text_lg()
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .child(title),
-                ),
-        )
-        .child(div().text_sm().text_color(p.muted_foreground).child(detail));
-
-    page = match stage {
-        Some(SummaryProgress::Reading { done, total }) => {
-            let percent = if total == 0 {
-                0.0
-            } else {
-                (done as f64 * 100.0 / total as f64).min(100.0) as f32
-            };
-            page.child(Progress::new("fast-progress").value(percent))
-                .child(
-                    div()
-                        .text_sm()
-                        .text_color(p.muted_foreground)
-                        .child(format!(
-                            "{} of {} records ({percent:.0}%)",
-                            crate::scan::format_count(done),
-                            crate::scan::format_count(total)
-                        )),
-                )
-        }
-        Some(SummaryProgress::Building) => page.child(Progress::new("fast-build").loading(true)),
-        None => page,
-    };
-    page
-}
-
-fn walked_result(summary: &ScanSummary, p: Palette) -> Div {
-    let stats = [
-        Stat {
-            label: "Files",
-            value: crate::scan::format_count(summary.files),
-        },
-        Stat {
-            label: "Folders",
-            value: crate::scan::format_count(summary.directories),
-        },
-        Stat {
-            label: "Logical size",
-            value: crate::scan::format_bytes(summary.logical_bytes),
-        },
-        Stat {
-            label: "Physical size",
-            value: bytes_or_na(summary.physical_bytes),
-        },
-        Stat {
-            label: "Scan time",
-            value: format!("{:.2} s", summary.elapsed.as_secs_f64()),
-        },
-        Stat {
-            label: "Unreadable",
-            value: crate::scan::format_count(summary.issues),
-        },
-    ];
-    let mut page = result_page(
-        &summary.root.display().to_string(),
-        &format!("Walk · {}", summary.method),
-        summary.complete,
-        p,
-    )
-    .child(stat_grid(&stats, p));
-    if !summary.complete {
-        page = page.child(
-            Alert::warning(
-                "partial-result",
-                "Some folders could not be read, so these totals are incomplete. The list below names them.",
-            )
-            .title("Partial result"),
-        );
-    }
-    if !summary.issue_paths.is_empty() {
-        let mut list = div()
-            .v_flex()
-            .gap_1()
-            .child(section_heading("Unreadable folders", p));
-        for line in &summary.issue_paths {
-            list = list.child(div().text_sm().text_color(p.warning).child(line.clone()));
-        }
-        page = page.child(list);
-    }
-    page
-}
-
-fn fast_result(summary: &VolumeSummary, p: Palette) -> Div {
-    let stats = [
-        Stat {
-            label: "Files",
-            value: crate::scan::format_count(summary.files),
-        },
-        Stat {
-            label: "Folders",
-            value: crate::scan::format_count(summary.directories),
-        },
-        Stat {
-            label: "Logical size",
-            value: crate::scan::format_bytes(summary.logical),
-        },
-        Stat {
-            label: "Physical size",
-            value: crate::scan::format_bytes(summary.physical),
-        },
-        Stat {
-            label: "Read time",
-            value: format!("{:.2} s", summary.total_secs),
-        },
-        Stat {
-            label: "Orphans",
-            value: crate::scan::format_count(summary.orphans),
-        },
-    ];
-    result_page(
-        &drive_label(&summary.volume),
-        "Fast · NTFS file table",
-        summary.complete,
-        p,
-    )
-    .child(stat_grid(&stats, p))
-}
-
-/// Header line for a result: where it came from, how it was read, and whether it is complete.
-fn result_page(title: &str, method: &str, complete: bool, p: Palette) -> Div {
-    let completeness = if complete {
-        Tag::success().child("Complete")
-    } else {
-        Tag::warning().child("Partial")
-    };
-    div()
-        .v_flex()
-        .gap_4()
-        .child(
-            div()
-                .h_flex()
-                .gap_3()
-                .items_center()
-                .child(
-                    div()
-                        .text_lg()
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .child(title.to_string()),
-                )
-                .child(completeness),
-        )
-        .child(
-            div()
-                .text_sm()
-                .text_color(p.muted_foreground)
-                .child(method.to_string()),
-        )
-}
-
 /// `//./C:` from the helper becomes `C:\` for display.
-fn drive_label(volume: &str) -> String {
+pub(super) fn drive_label(volume: &str) -> String {
     format!("{}\\", volume.trim_start_matches("//./"))
 }
 

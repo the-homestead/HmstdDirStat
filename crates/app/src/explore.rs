@@ -12,22 +12,53 @@ pub struct Child {
     pub is_dir: bool,
 }
 
-/// Direct children of `parent`, largest first, ties broken by name.
-pub fn children(tree: &FileTree, parent: NodeId) -> Vec<Child> {
+/// Which size the views show: apparent (logical) or on-disk (allocated).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Basis {
+    #[default]
+    Logical,
+    Allocated,
+}
+
+/// The size of one node under `basis`. Allocated size is 0 where the scan did not record it.
+pub fn bytes_of(tree: &FileTree, node: NodeId, basis: Basis) -> u64 {
+    let Some(entry) = tree.node(node) else {
+        return 0;
+    };
+    let is_dir = entry.kind() == EntryKind::Directory;
+    match (basis, is_dir) {
+        (Basis::Logical, true) => entry.totals().logical,
+        (Basis::Logical, false) => entry.logical_size(),
+        (Basis::Allocated, true) => {
+            let totals = entry.totals();
+            if totals.physical_known {
+                totals.physical
+            } else {
+                0
+            }
+        }
+        (Basis::Allocated, false) => entry.physical_size().unwrap_or(0),
+    }
+}
+
+/// True when the scan recorded allocated sizes for the whole tree. A walk on Windows does
+/// not, so the allocated view is not offered for it.
+pub fn allocated_known(tree: &FileTree) -> bool {
+    tree.node(NodeId::ROOT)
+        .is_some_and(|root| root.totals().physical_known)
+}
+
+/// Direct children of `parent`, largest first under `basis`, ties broken by name.
+pub fn children(tree: &FileTree, parent: NodeId, basis: Basis) -> Vec<Child> {
     let mut out: Vec<Child> = tree
         .children(parent)
         .filter_map(|node_id| {
             let node = tree.node(node_id)?;
             let is_dir = node.kind() == EntryKind::Directory;
-            let bytes = if is_dir {
-                node.totals().logical
-            } else {
-                node.logical_size()
-            };
             Some(Child {
                 node: node_id,
                 name: node.name().to_string_lossy().into_owned(),
-                bytes,
+                bytes: bytes_of(tree, node_id, basis),
                 is_dir,
             })
         })
@@ -52,7 +83,7 @@ pub struct Row {
 
 /// Builds `depth` levels of rows under `parent`, showing at most `limit` children per folder.
 pub fn level(tree: &FileTree, parent: NodeId, depth: u32, limit: usize) -> Level {
-    let all = children(tree, parent);
+    let all = children(tree, parent, Basis::Logical);
     let hidden = all.len().saturating_sub(limit);
     let rows = all
         .into_iter()
@@ -77,8 +108,8 @@ pub struct Slice {
 
 /// The largest `max - 1` children as slices, with the rest combined into one "other" slice.
 /// Children of zero size are left out.
-pub fn slices(tree: &FileTree, parent: NodeId, max: usize) -> Vec<Slice> {
-    let mut all: Vec<Child> = children(tree, parent)
+pub fn slices(tree: &FileTree, parent: NodeId, max: usize, basis: Basis) -> Vec<Slice> {
+    let mut all: Vec<Child> = children(tree, parent, basis)
         .into_iter()
         .filter(|child| child.bytes > 0)
         .collect();
@@ -99,8 +130,13 @@ pub fn slices(tree: &FileTree, parent: NodeId, max: usize) -> Vec<Slice> {
 }
 
 /// Children as (node, size) pairs for the sunburst, largest first, at most `limit`.
-pub fn sized_children(tree: &FileTree, parent: NodeId, limit: usize) -> Vec<(NodeId, f64)> {
-    children(tree, parent)
+pub fn sized_children(
+    tree: &FileTree,
+    parent: NodeId,
+    limit: usize,
+    basis: Basis,
+) -> Vec<(NodeId, f64)> {
+    children(tree, parent, basis)
         .into_iter()
         .filter(|child| child.bytes > 0)
         .take(limit)
@@ -153,7 +189,7 @@ mod tests {
     #[test]
     fn children_are_sorted_by_size_with_folder_totals() {
         let (_dir, tree) = sample();
-        let names: Vec<(String, u64, bool)> = children(&tree, NodeId::ROOT)
+        let names: Vec<(String, u64, bool)> = children(&tree, NodeId::ROOT, Basis::Logical)
             .into_iter()
             .map(|child| (child.name, child.bytes, child.is_dir))
             .collect();
@@ -182,7 +218,7 @@ mod tests {
     #[test]
     fn slices_combine_the_rest_into_one_other_piece() {
         let (_dir, tree) = sample();
-        let pie = slices(&tree, NodeId::ROOT, 3);
+        let pie = slices(&tree, NodeId::ROOT, 3, Basis::Logical);
         assert_eq!(pie.len(), 3);
         assert_eq!(pie[0].name, "big");
         assert_eq!(pie[1].name, "mid.bin");
