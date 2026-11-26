@@ -80,7 +80,11 @@ impl Shell {
     }
 
     pub fn open_menu(&mut self, node: NodeId, at: Point<Pixels>, cx: &mut Context<Self>) {
-        self.menu = Some(ContextMenu { node, at });
+        self.menu = Some(ContextMenu {
+            node,
+            at,
+            popup: None,
+        });
         cx.notify();
     }
 

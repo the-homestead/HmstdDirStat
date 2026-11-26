@@ -89,10 +89,11 @@ pub enum Phase {
 }
 
 /// A right-click menu opened on a tile or arc: which node, and where the pointer was.
-#[derive(Debug, Clone, Copy)]
 pub struct ContextMenu {
     pub node: NodeId,
     pub at: Point<Pixels>,
+    /// The gpui-kit popup, built on the first render after opening (it needs the window).
+    pub popup: Option<Entity<gpui_kit::component::menu::PopupMenu>>,
 }
 
 pub struct Shell {

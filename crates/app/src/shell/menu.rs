@@ -1,106 +1,96 @@
-//! The right-click menu over a tile or arc. A click outside the card closes it.
+//! The right-click menu over a tile, arc or row. It is gpui-kit's `PopupMenu`: hover and
+//! keyboard highlight, Escape and click-outside dismissal come from the component. This file
+//! builds its items for the clicked node and places it where the pointer was.
 
-use gpui_kit::component::*;
+use gpui_kit::component::menu::{PopupMenu, PopupMenuItem};
 use gpui_kit::*;
 use hmstd_fileops::DeleteMode;
 use hmstd_filesystem::{EntryKind, NodeId};
 
 use super::{Shell, fileops_ui::TransferKindUi, widgets::*};
 
-/// The right-click menu for the node in `shell.menu`, drawn over the whole window. A click
-/// anywhere outside the menu closes it.
-pub(super) fn menu_overlay(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Option<Div> {
-    let menu = shell.menu?;
-    let files = shell.tree.as_deref()?;
-    let entry = files.node(menu.node)?;
+/// Builds the popup for a menu that was just opened. Runs in render, which has the window the
+/// popup needs. Does nothing when no menu is open or its popup already exists.
+pub(super) fn ensure_popup(shell: &mut Shell, window: &mut Window, cx: &mut Context<Shell>) {
+    let Some(menu) = shell.menu.as_ref() else {
+        return;
+    };
+    if menu.popup.is_some() {
+        return;
+    }
+    let node = menu.node;
+    let Some(entry) = shell.tree.as_deref().and_then(|files| files.node(node)) else {
+        return;
+    };
     let is_dir = entry.kind() == EntryKind::Directory;
     let name = entry.name().to_string_lossy().into_owned();
-    let node = menu.node;
-
-    let mut card = div()
-        .absolute()
-        .left(menu.at.x)
-        .top(menu.at.y)
-        .v_flex()
-        .min_w(px(200.))
-        .p_1()
-        .gap_1()
-        .rounded_md()
-        .border_1()
-        .border_color(p.border)
-        .bg(p.surface)
-        // Clicks on the card must not reach the overlay, or the menu would close first.
-        .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-        .on_mouse_down(MouseButton::Right, |_, _, cx| cx.stop_propagation())
-        .child(
-            div()
-                .px_2()
-                .py_1()
-                .text_sm()
-                .font_weight(FontWeight::SEMIBOLD)
-                .child(name),
-        );
     // A folder opens itself. A file opens the folder that holds it.
-    if let Some(target) = if is_dir { Some(node) } else { entry.parent() } {
-        let open = handle.clone();
-        card = card.child(menu_item("menu-open", "Open folder", p, move |cx| {
-            open.update(cx, |shell, cx| shell.focus_on(target, cx));
-        }));
-    }
-    let copy = handle.clone();
-    card = card.child(menu_item("menu-copy", "Copy path", p, move |cx| {
-        copy.update(cx, |shell, cx| shell.copy_path(node, cx));
-    }));
-    let explorer = handle.clone();
-    card = card.child(menu_item(
-        "menu-explorer",
-        "Show in Explorer",
-        p,
-        move |cx| {
-            explorer.update(cx, |shell, cx| shell.show_in_explorer(node, cx));
-        },
-    ));
-    if menu.node != NodeId::ROOT {
-        let copy_to = handle.clone();
-        card = card.child(menu_item("menu-copy-to", "Copy to…", p, move |cx| {
-            copy_to.update(cx, |shell, cx| {
-                shell.begin_transfer(node, TransferKindUi::Copy, cx)
-            });
-        }));
-        let move_to = handle.clone();
-        card = card.child(menu_item("menu-move-to", "Move to…", p, move |cx| {
-            move_to.update(cx, |shell, cx| {
-                shell.begin_transfer(node, TransferKindUi::Move, cx)
-            });
-        }));
-        let rename = handle.clone();
-        card = card.child(menu_item("menu-rename", "Rename…", p, move |cx| {
-            rename.update(cx, |shell, cx| shell.begin_rename(node, cx));
-        }));
-        let recycle = handle.clone();
-        card = card.child(menu_item(
-            "menu-delete-recycle",
-            "Delete (Recycle Bin)",
-            p,
-            move |cx| {
-                recycle.update(cx, |shell, cx| {
-                    shell.begin_delete(node, DeleteMode::RecycleBin, cx)
-                });
-            },
-        ));
-        let permanent = handle.clone();
-        card = card.child(menu_item(
-            "menu-delete-permanent",
-            "Delete permanently",
-            p,
-            move |cx| {
-                permanent.update(cx, |shell, cx| {
-                    shell.begin_delete(node, DeleteMode::Permanent, cx)
-                });
-            },
-        ));
-    }
+    let open_target = if is_dir { Some(node) } else { entry.parent() };
+    let shell_ref = cx.entity().downgrade();
 
+    let popup = PopupMenu::build(window, cx, move |mut popup, _, _| {
+        let act = |f: fn(&mut Shell, NodeId, &mut Context<Shell>)| {
+            let shell_ref = shell_ref.clone();
+            move |_: &ClickEvent, _: &mut Window, cx: &mut App| {
+                let _ = shell_ref.update(cx, |shell, cx| f(shell, node, cx));
+            }
+        };
+        popup = popup.min_w(px(220.)).label(name).separator();
+        if let Some(target) = open_target {
+            let shell_ref = shell_ref.clone();
+            popup = popup.item(PopupMenuItem::new("Open folder").on_click(move |_, _, cx| {
+                let _ = shell_ref.update(cx, |shell, cx| {
+                    shell.close_menu(cx);
+                    shell.focus_on(target, cx);
+                });
+            }));
+        }
+        popup = popup
+            .item(PopupMenuItem::new("Copy path").on_click(act(|s, n, cx| s.copy_path(n, cx))))
+            .item(
+                PopupMenuItem::new("Show in Explorer")
+                    .on_click(act(|s, n, cx| s.show_in_explorer(n, cx))),
+            );
+        if node != NodeId::ROOT {
+            popup = popup
+                .separator()
+                .item(PopupMenuItem::new("Copy to…").on_click(act(|s, n, cx| {
+                    s.begin_transfer(n, TransferKindUi::Copy, cx)
+                })))
+                .item(PopupMenuItem::new("Move to…").on_click(act(|s, n, cx| {
+                    s.begin_transfer(n, TransferKindUi::Move, cx)
+                })))
+                .item(PopupMenuItem::new("Rename…").on_click(act(|s, n, cx| s.begin_rename(n, cx))))
+                .separator()
+                .item(
+                    PopupMenuItem::new("Delete (Recycle Bin)").on_click(act(|s, n, cx| {
+                        s.begin_delete(n, DeleteMode::RecycleBin, cx)
+                    })),
+                )
+                .item(
+                    PopupMenuItem::new("Delete permanently")
+                        .on_click(act(|s, n, cx| s.begin_delete(n, DeleteMode::Permanent, cx))),
+                );
+        }
+        popup
+    });
+    // Escape, a click outside or a chosen item dismisses the popup; the menu closes with it.
+    cx.subscribe(&popup, |shell, _, _: &DismissEvent, cx| {
+        shell.close_menu(cx)
+    })
+    .detach();
+    // Focused, so the arrow keys move the highlight and Enter picks.
+    popup.focus_handle(cx).focus(window, cx);
+    if let Some(menu) = shell.menu.as_mut() {
+        menu.popup = Some(popup);
+    }
+}
+
+/// The open menu's popup, placed at the pointer, over a full-window layer that closes it on
+/// any click outside.
+pub(super) fn menu_overlay(shell: &Shell, _p: Palette, handle: Entity<Shell>) -> Option<Div> {
+    let menu = shell.menu.as_ref()?;
+    let popup = menu.popup.clone()?;
     let close = handle;
     Some(
         div()
@@ -115,24 +105,15 @@ pub(super) fn menu_overlay(shell: &Shell, p: Palette, handle: Entity<Shell>) -> 
             .on_mouse_down(MouseButton::Right, move |_, _, cx| {
                 close.update(cx, |shell, cx| shell.close_menu(cx))
             })
-            .child(card),
+            .child(
+                div()
+                    .absolute()
+                    .left(menu.at.x)
+                    .top(menu.at.y)
+                    // Clicks on the popup must not reach the layer, or it would close first.
+                    .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                    .on_mouse_down(MouseButton::Right, |_, _, cx| cx.stop_propagation())
+                    .child(popup),
+            ),
     )
-}
-
-fn menu_item(
-    id: &'static str,
-    label: &'static str,
-    p: Palette,
-    on_click: impl Fn(&mut App) + 'static,
-) -> Stateful<Div> {
-    div()
-        .id(id)
-        .px_2()
-        .py_1()
-        .rounded_sm()
-        .text_sm()
-        .cursor_pointer()
-        .hover(|style| style.bg(p.background))
-        .child(label)
-        .on_click(move |_, _, cx| on_click(cx))
 }
