@@ -6785,6 +6785,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "timberstat-scan-history"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "tempfile",
+ "thiserror 2.0.21",
+ "timberstat-filesystem",
+]
+
+[[package]]
 name = "timberstat-scanner"
 version = "0.1.0"
 dependencies = [

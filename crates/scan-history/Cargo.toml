@@ -1,0 +1,22 @@
+[package]
+name = "timberstat-scan-history"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+description = "Versioned, atomic persistence of filesystem scans for TimberStat. GPUI-independent."
+
+[lib]
+name = "timberstat_scan_history"
+
+[dependencies]
+timberstat-filesystem = { path = "../filesystem" }
+thiserror.workspace = true
+blake3.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true
