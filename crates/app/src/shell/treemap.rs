@@ -1,6 +1,6 @@
 //! Treemap in the WizTree style: each folder is a box holding its children, sized by the
 //! chosen basis. Click selects a tile, double-click enters a folder, right-click opens the
-//! tile menu, and hover shows name, size and share.
+//! tile menu, and hover shows name, size and share. A search dims everything but matches.
 
 use gpui_kit::component::{tooltip::Tooltip, *};
 use gpui_kit::*;
@@ -10,6 +10,7 @@ use super::{Shell, views::breadcrumb, widgets::*};
 use crate::{
     explore::Basis,
     scan::format_bytes,
+    search::Query,
     tiles::{self, Limits, Tile},
 };
 
@@ -20,6 +21,17 @@ const BOARD_HEIGHT: f32 = 480.;
 const HEADER_PX: f32 = 18.;
 /// Tiles at least this share of the focused folder get a visible label.
 const LABEL_SHARE: f64 = 0.01;
+/// Opacity of tiles and arcs that are not part of a search match.
+pub const DIMMED: f32 = 0.25;
+
+/// How the treemap and sunburst draw: the size basis, the search, the selection and whether
+/// hover tooltips show.
+pub struct Look<'a> {
+    pub basis: Basis,
+    pub query: &'a Query,
+    pub selected: Option<NodeId>,
+    pub tooltips: bool,
+}
 
 fn limits(basis: Basis) -> Limits {
     Limits {
@@ -30,16 +42,27 @@ fn limits(basis: Basis) -> Limits {
     }
 }
 
+/// How many tiles drawn for this view match the query. Counts what is on screen, so a match
+/// too small to draw is not counted.
+pub fn matches_in_view(files: &FileTree, focus: NodeId, basis: Basis, query: &Query) -> usize {
+    count_tiles(&tiles::nested(files, focus, ASPECT, limits(basis)), query)
+}
+
+fn count_tiles(tiles: &[Tile], query: &Query) -> usize {
+    tiles
+        .iter()
+        .map(|tile| usize::from(query.hits(&tile.name)) + count_tiles(&tile.children, query))
+        .sum()
+}
+
 pub fn treemap_page(
     files: &FileTree,
     focus: NodeId,
     handle: Entity<Shell>,
     p: Palette,
-    basis: Basis,
-    selected: Option<NodeId>,
-    tooltips: bool,
+    look: Look<'_>,
 ) -> Div {
-    let tiles = tiles::nested(files, focus, ASPECT, limits(basis));
+    let tiles = tiles::nested(files, focus, ASPECT, limits(look.basis));
     let board = div()
         .relative()
         .w_full()
@@ -49,7 +72,7 @@ pub fn treemap_page(
         .border_1()
         .border_color(p.border)
         .bg(p.surface)
-        .children(tile_views(&tiles, None, &handle, p, selected, tooltips));
+        .children(tile_views(&tiles, None, &handle, p, &look));
     div()
         .v_flex()
         .gap_3()
@@ -64,8 +87,7 @@ fn tile_views(
     group: Option<Hsla>,
     handle: &Entity<Shell>,
     p: Palette,
-    selected: Option<NodeId>,
-    tooltips: bool,
+    look: &Look<'_>,
 ) -> Vec<Stateful<Div>> {
     tiles
         .iter()
@@ -79,7 +101,16 @@ fn tile_views(
                 format_bytes(tile.bytes),
                 tile.share * 100.0
             );
-            let is_selected = selected == Some(tile.node);
+            let is_selected = look.selected == Some(tile.node);
+            let is_hit = look.query.hits(&tile.name);
+            let dimmed = look.query.is_active() && !look.query.tile_hits(tile);
+            let border = if is_selected {
+                p.foreground
+            } else if is_hit {
+                p.warning
+            } else {
+                p.background
+            };
 
             let mut view = div()
                 .id(("tile", tile.node.index()))
@@ -90,14 +121,13 @@ fn tile_views(
                 .h(relative(tile.rect.h as f32))
                 .overflow_hidden()
                 .border_1()
-                .border_color(if is_selected {
-                    p.foreground
-                } else {
-                    p.background
-                })
+                .border_color(border)
                 .cursor_pointer();
-            if tooltips {
+            if look.tooltips {
                 view = view.tooltip(move |window, cx| Tooltip::new(tip.clone()).build(window, cx));
+            }
+            if dimmed {
+                view = view.opacity(DIMMED);
             }
 
             // Each tile handles its own clicks and stops them reaching the folder around it,
@@ -152,14 +182,7 @@ fn tile_views(
                             .left(px(0.))
                             .right(px(0.))
                             .bottom(px(0.))
-                            .children(tile_views(
-                                &tile.children,
-                                Some(color),
-                                handle,
-                                p,
-                                selected,
-                                tooltips,
-                            )),
+                            .children(tile_views(&tile.children, Some(color), handle, p, look)),
                     );
             }
             view

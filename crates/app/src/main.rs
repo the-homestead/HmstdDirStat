@@ -6,6 +6,7 @@ mod fast;
 mod layout;
 mod open;
 mod scan;
+mod search;
 mod shell;
 mod theme;
 mod tiles;

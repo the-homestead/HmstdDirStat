@@ -1,6 +1,7 @@
 //! The Files, pie, Treemap and Sunburst views over a finished walk. Each takes the
 //! scanned tree and the folder the user has focused on, and reads only from them.
 
+use gpui_kit::component::input::{Input, InputState};
 use gpui_kit::component::{
     Disableable, IconName,
     button::Button,
@@ -210,6 +211,26 @@ pub(super) fn slot_color(index: usize, is_other: bool, p: Palette) -> Hsla {
     } else {
         p.chart[index % p.chart.len()]
     }
+}
+
+/// The search box, with how many shown items match. Shared by the treemap and sunburst.
+pub fn search_bar(input: Option<&Entity<InputState>>, count: Option<usize>, p: Palette) -> Div {
+    let note = match count {
+        Some(0) => "No shown item matches".to_string(),
+        Some(1) => "1 shown item matches".to_string(),
+        Some(n) => format!("{n} shown items match"),
+        None => String::new(),
+    };
+    let mut row = div().h_flex().gap_3().items_center().child(
+        div()
+            .text_sm()
+            .text_color(p.muted_foreground)
+            .child("Search"),
+    );
+    if let Some(input) = input {
+        row = row.child(div().w(px(280.)).child(Input::new(input)));
+    }
+    row.child(div().text_xs().text_color(p.muted_foreground).child(note))
 }
 
 /// Chooses between logical and on-disk sizes. On-disk is disabled when the scan did not

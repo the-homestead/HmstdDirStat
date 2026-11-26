@@ -21,7 +21,8 @@ use super::{
 use crate::theme::toggle_theme;
 
 impl Render for Shell {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.ensure_search(window, cx);
         let p = Palette::from_app(cx);
         let handle = cx.entity();
 
@@ -200,45 +201,57 @@ fn content(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Div {
             None => views::no_tree_message(p),
         },
         View::Treemap => match files {
-            Some(files) => with_basis(
-                shell,
-                p,
-                handle.clone(),
-                treemap::treemap_page(
-                    files,
-                    shell.focus,
-                    handle,
+            Some(files) => {
+                let count = shell.query.is_active().then(|| {
+                    treemap::matches_in_view(files, shell.focus, shell.basis, &shell.query)
+                });
+                viz_chrome(
+                    shell,
                     p,
-                    shell.basis,
-                    shell.selected,
-                    shell.menu.is_none(),
-                ),
-            ),
+                    handle.clone(),
+                    count,
+                    treemap::treemap_page(files, shell.focus, handle, p, look(shell)),
+                )
+            }
             None => views::no_tree_message(p),
         },
         View::Sunburst => match files {
-            Some(files) => with_basis(
-                shell,
-                p,
-                handle.clone(),
-                rings::sunburst_page(
-                    files,
-                    shell.focus,
-                    handle,
+            Some(files) => {
+                let count = shell
+                    .query
+                    .is_active()
+                    .then(|| rings::matches_in_view(files, shell.focus, shell.basis, &shell.query));
+                viz_chrome(
+                    shell,
                     p,
-                    shell.basis,
-                    // No hover card while a menu is open: the two would sit on top of each other.
-                    shell.sunburst_hover.filter(|_| shell.menu.is_none()),
-                    shell.sunburst_bounds.clone(),
-                ),
-            ),
+                    handle.clone(),
+                    count,
+                    rings::sunburst_page(
+                        files,
+                        shell.focus,
+                        handle,
+                        p,
+                        look(shell),
+                        // No hover card while a menu is open: the two would sit on top of each other.
+                        shell.sunburst_hover.filter(|_| shell.menu.is_none()),
+                        shell.sunburst_bounds.clone(),
+                    ),
+                )
+            }
             None => views::no_tree_message(p),
         },
     }
 }
 
-/// Puts the size toggle above a view that is drawn by size.
-fn with_basis(shell: &Shell, p: Palette, handle: Entity<Shell>, page: Div) -> Div {
+/// The size toggle and search box above a view drawn by size or name. `count` is how many
+/// shown items match, or `None` when search is off.
+fn viz_chrome(
+    shell: &Shell,
+    p: Palette,
+    handle: Entity<Shell>,
+    count: Option<usize>,
+    page: Div,
+) -> Div {
     let available = shell
         .tree
         .as_deref()
@@ -247,7 +260,18 @@ fn with_basis(shell: &Shell, p: Palette, handle: Entity<Shell>, page: Div) -> Di
         .v_flex()
         .gap_3()
         .child(views::basis_toggle(shell.basis, available, handle, p))
+        .child(views::search_bar(shell.search_input.as_ref(), count, p))
         .child(page)
+}
+
+/// How the treemap and sunburst draw right now.
+fn look(shell: &Shell) -> treemap::Look<'_> {
+    treemap::Look {
+        basis: shell.basis,
+        query: &shell.query,
+        selected: shell.selected,
+        tooltips: shell.menu.is_none(),
+    }
 }
 
 fn summary_content(phase: &Phase, p: Palette, handle: Entity<Shell>) -> Div {

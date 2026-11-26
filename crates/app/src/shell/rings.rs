@@ -20,6 +20,7 @@ use crate::{
     explore::{self, Basis},
     layout,
     scan::format_bytes,
+    search::Query,
 };
 
 const SUNBURST_TOP: usize = 16;
@@ -34,6 +35,18 @@ struct DrawnArc {
     end: f32,
     depth: u32,
     color: Hsla,
+}
+
+/// How many arcs drawn for this view match the query.
+pub fn matches_in_view(files: &FileTree, focus: NodeId, basis: Basis, query: &Query) -> usize {
+    sunburst_arcs(files, focus, basis)
+        .iter()
+        .filter(|arc| {
+            files
+                .node(arc.item)
+                .is_some_and(|entry| query.hits(&entry.name().to_string_lossy()))
+        })
+        .count()
 }
 
 /// The arcs the sunburst draws for `focus`: one per visible item, ring by ring.
@@ -80,19 +93,34 @@ pub fn sunburst_page(
     focus: NodeId,
     handle: Entity<Shell>,
     p: Palette,
-    basis: Basis,
+    look: super::treemap::Look<'_>,
     hover: Option<(NodeId, Point<Pixels>)>,
     bounds_cell: Rc<Cell<Option<Bounds<Pixels>>>>,
 ) -> Div {
+    let basis = look.basis;
     let arcs = sunburst_arcs(files, focus, basis);
     let drawn: Vec<DrawnArc> = arcs
         .iter()
-        .map(|arc| DrawnArc {
-            start: arc.start as f32,
-            end: arc.end as f32,
-            depth: arc.depth,
+        .map(|arc| {
+            let name = files
+                .node(arc.item)
+                .map(|entry| entry.name().to_string_lossy().into_owned())
+                .unwrap_or_default();
             // Deeper rings fade so the top level reads first.
-            color: p.chart[arc.slot % p.chart.len()].opacity(1.0 - 0.15 * (arc.depth - 1) as f32),
+            let base =
+                p.chart[arc.slot % p.chart.len()].opacity(1.0 - 0.15 * (arc.depth - 1) as f32);
+            // With a search active, arcs that do not match are faded back.
+            let dim = look.query.is_active() && !look.query.hits(&name);
+            DrawnArc {
+                start: arc.start as f32,
+                end: arc.end as f32,
+                depth: arc.depth,
+                color: if dim {
+                    base.opacity(super::treemap::DIMMED)
+                } else {
+                    base
+                },
+            }
         })
         .collect();
     let focus_total = explore::bytes_of(files, focus, basis);
