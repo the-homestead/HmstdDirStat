@@ -1,6 +1,8 @@
 //! Evaluates an [`Expr`] over a [`FileTree`]. Folder sizes use the subtree totals,
 //! so the tree must be rolled up before it is searched.
 
+use std::collections::HashSet;
+
 use hmstd_filesystem::{EntryKind, FileTree, Node, NodeId};
 
 use crate::ast::{Attr, Expr, Pred};
@@ -17,6 +19,8 @@ pub struct Evaluation {
     pub modified_known: bool,
     /// Some entry recorded platform attribute bits (Windows or Unix mode).
     pub attributes_known: bool,
+    /// A duplicate search result was supplied. Without one, `dup:` matches nothing.
+    pub duplicates_known: bool,
 }
 
 /// Which optional data a query reads, so the caller can warn about missing data.
@@ -25,13 +29,29 @@ pub struct Features {
     pub allocated: bool,
     pub modified: bool,
     pub attributes: bool,
+    pub duplicates: bool,
 }
 
 /// Every node that matches `expr`, in tree order. `now` is Unix seconds, used for age terms.
 ///
 /// The tree must be rolled up first: folder sizes come from the subtree totals.
+/// Duplicate terms match nothing; use [`run_with_duplicates`] to supply a result.
 pub fn run(tree: &FileTree, expr: &Expr, now: i64) -> Evaluation {
-    let mut known = Evaluation::default();
+    run_with_duplicates(tree, expr, now, None)
+}
+
+/// Like [`run`], with the node ids of the last duplicate search's groups. `None` means no
+/// search has run, so `dup:` terms match nothing and `duplicates_known` is false.
+pub fn run_with_duplicates(
+    tree: &FileTree,
+    expr: &Expr,
+    now: i64,
+    dups: Option<&HashSet<NodeId>>,
+) -> Evaluation {
+    let mut known = Evaluation {
+        duplicates_known: dups.is_some(),
+        ..Evaluation::default()
+    };
     for index in 0..tree.len() {
         let Some(node) = NodeId::from_index(index).and_then(|id| tree.node(id)) else {
             continue;
@@ -46,7 +66,7 @@ pub fn run(tree: &FileTree, expr: &Expr, now: i64) -> Evaluation {
         .filter_map(NodeId::from_index)
         .filter(|&id| {
             tree.node(id)
-                .is_some_and(|node| matches(tree, now, expr, id, node))
+                .is_some_and(|node| matches(tree, now, dups, expr, id, node))
         })
         .collect();
     known
@@ -71,21 +91,40 @@ fn collect_features(expr: &Expr, found: &mut Features) {
             Pred::Allocated(_) => found.allocated = true,
             Pred::Age(_) | Pred::At(_) => found.modified = true,
             Pred::Attr(_) => found.attributes = true,
+            Pred::Dup(_) => found.duplicates = true,
             _ => {}
         },
     }
 }
 
-fn matches(tree: &FileTree, now: i64, expr: &Expr, id: NodeId, node: &Node) -> bool {
+fn matches(
+    tree: &FileTree,
+    now: i64,
+    dups: Option<&HashSet<NodeId>>,
+    expr: &Expr,
+    id: NodeId,
+    node: &Node,
+) -> bool {
     match expr {
-        Expr::And(parts) => parts.iter().all(|part| matches(tree, now, part, id, node)),
-        Expr::Or(parts) => parts.iter().any(|part| matches(tree, now, part, id, node)),
-        Expr::Not(inner) => !matches(tree, now, inner, id, node),
-        Expr::Pred(pred) => pred_matches(tree, now, pred, id, node),
+        Expr::And(parts) => parts
+            .iter()
+            .all(|part| matches(tree, now, dups, part, id, node)),
+        Expr::Or(parts) => parts
+            .iter()
+            .any(|part| matches(tree, now, dups, part, id, node)),
+        Expr::Not(inner) => !matches(tree, now, dups, inner, id, node),
+        Expr::Pred(pred) => pred_matches(tree, now, dups, pred, id, node),
     }
 }
 
-fn pred_matches(tree: &FileTree, now: i64, pred: &Pred, id: NodeId, node: &Node) -> bool {
+fn pred_matches(
+    tree: &FileTree,
+    now: i64,
+    dups: Option<&HashSet<NodeId>>,
+    pred: &Pred,
+    id: NodeId,
+    node: &Node,
+) -> bool {
     let name = || node.name().to_string_lossy().to_lowercase();
     match pred {
         Pred::Name(text) => name().contains(text.as_str()),
@@ -115,6 +154,7 @@ fn pred_matches(tree: &FileTree, now: i64, pred: &Pred, id: NodeId, node: &Node)
             Attr::ReadOnly => node.metadata().readonly,
             Attr::Reparse => node.metadata().is_reparse_point(),
         },
+        Pred::Dup(want) => dups.is_some_and(|set| set.contains(&id) == *want),
     }
 }
 

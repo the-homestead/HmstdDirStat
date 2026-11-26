@@ -219,7 +219,7 @@ impl Shell {
             |shell: &mut Shell, input, event: &InputEvent, _window, cx| {
                 if matches!(event, InputEvent::Change) {
                     let text = input.read(cx).value();
-                    shell.query = Query::new(&text, shell.tree.as_deref());
+                    shell.query = shell.requery(&text);
                     shell.refresh_tree_state(cx);
                     cx.notify();
                 }

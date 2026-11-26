@@ -212,6 +212,11 @@ fn field_pred(field: &str, value: &str, quoted: bool, at: usize) -> Result<Pred,
                 "unknown attr '{value}': use hidden, readonly or reparse"
             ))),
         },
+        "dup" => match value.to_ascii_lowercase().as_str() {
+            "yes" | "true" => Ok(Pred::Dup(true)),
+            "no" | "false" => Ok(Pred::Dup(false)),
+            _ => Err(bad(format!("unknown dup '{value}': use yes or no"))),
+        },
         _ => Err(bad(format!(
             "unknown field '{field}:'. Quote the term to search for it literally"
         ))),

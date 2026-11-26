@@ -4,15 +4,16 @@
 //! and sunburst dim everything but the matches. A query that does not parse filters nothing,
 //! and its error is shown under the search box.
 
+use std::collections::HashSet;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use hmstd_filesystem::{FileTree, NodeId};
-use hmstd_search::{Expr, ParseError, compile, features, run};
+use hmstd_search::{Expr, ParseError, compile, features, run_with_duplicates};
 
 use crate::tiles::Tile;
 
 /// A search, compiled and evaluated. Rebuild it with [`Query::new`] whenever the text or the
-/// tree changes.
+/// tree changes, or with [`Query::with_duplicates`] when the duplicate result changes.
 #[derive(Debug, Clone, Default)]
 pub struct Query {
     text: String,
@@ -28,14 +29,25 @@ pub struct Query {
 
 impl Query {
     /// Parses `text`. When there is a tree, also evaluates it. The tree must be rolled up.
+    /// `dup:` terms match nothing here; use [`Query::with_duplicates`] once a search has run.
     pub fn new(text: &str, files: Option<&FileTree>) -> Self {
+        Self::with_duplicates(text, files, None)
+    }
+
+    /// Like [`Query::new`], with the node ids of the last duplicate search's groups for `dup:`
+    /// terms. `None` means no search has run.
+    pub fn with_duplicates(
+        text: &str,
+        files: Option<&FileTree>,
+        dups: Option<&HashSet<NodeId>>,
+    ) -> Self {
         let text = text.trim().to_string();
         let (expr, error) = match compile(&text) {
             Ok(expr) => (expr, None),
             Err(error) => (None, Some(error)),
         };
         let evaluated = match (expr.as_ref(), files) {
-            (Some(expr), Some(files)) => Some(evaluate(expr, files)),
+            (Some(expr), Some(files)) => Some(evaluate(expr, files, dups)),
             _ => None,
         };
         let (hits, warnings, active) = match evaluated {
@@ -84,8 +96,12 @@ impl Query {
 }
 
 /// Runs the query over the tree. Returns the match flags and the warnings.
-fn evaluate(expr: &Expr, files: &FileTree) -> (Vec<bool>, Vec<String>) {
-    let result = run(files, expr, now_secs());
+fn evaluate(
+    expr: &Expr,
+    files: &FileTree,
+    dups: Option<&HashSet<NodeId>>,
+) -> (Vec<bool>, Vec<String>) {
+    let result = run_with_duplicates(files, expr, now_secs(), dups);
     let mut hits = vec![false; files.len()];
     for id in &result.ids {
         if let Some(slot) = hits.get_mut(id.index()) {
@@ -107,6 +123,12 @@ fn evaluate(expr: &Expr, files: &FileTree) -> (Vec<bool>, Vec<String>) {
     }
     if used.attributes && !result.attributes_known {
         warnings.push("attr: this scan recorded no attributes, so it matches nothing.".to_string());
+    }
+    if used.duplicates && !result.duplicates_known {
+        warnings.push(
+            "dup: no duplicate search has run, so it matches nothing. Run Find duplicates first."
+                .to_string(),
+        );
     }
     (hits, warnings)
 }

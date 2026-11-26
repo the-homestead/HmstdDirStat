@@ -21,6 +21,7 @@
 //! | `modified:2024-01-01..2024-06-30` | modified in that UTC date range |
 //! | `type:file`, `type:dir`, `type:symlink`, `type:other` | entry kind |
 //! | `attr:hidden`, `attr:readonly`, `attr:reparse` | Windows or Unix attributes |
+//! | `dup:yes`, `dup:no` | Member of the last duplicate search's groups (needs a search run) |
 //!
 //! Units for sizes are binary (1 kb = 1024 bytes). Age units: `d` days, `w` weeks,
 //! `m` 30-day months, `y` 365-day years.
@@ -32,5 +33,5 @@ mod parse;
 mod value;
 
 pub use ast::{Attr, Cmp, Expr, Pred};
-pub use eval::{Evaluation, Features, features, run};
+pub use eval::{Evaluation, Features, features, run, run_with_duplicates};
 pub use parse::{ParseError, compile};

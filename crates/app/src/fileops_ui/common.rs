@@ -11,7 +11,6 @@ use gpui_kit::*;
 use hmstd_fileops::{Collision, SkipReason, Skipped};
 use hmstd_filesystem::NodeId;
 
-use crate::search::Query;
 use crate::shell::{Shell, widgets::Palette};
 
 /// Every collision policy, in the order the buttons show them.
@@ -132,7 +131,7 @@ impl Shell {
         }) {
             self.selected = None;
         }
-        self.query = Query::new(self.query.text(), self.tree.as_deref());
+        self.query = self.requery(self.query.text());
         self.refresh_tree_state(cx);
         self.refresh_extensions();
         self.sunburst_hover = None;

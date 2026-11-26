@@ -51,7 +51,6 @@ use hmstd_fileops::{
 use hmstd_filesystem::NodeId;
 
 use super::{PROGRESS_REFRESH, Phase, Shell, widgets::Palette};
-use crate::search::Query;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum DeleteStage {
@@ -310,7 +309,7 @@ impl Shell {
         }) {
             self.selected = None;
         }
-        self.query = Query::new(self.query.text(), self.tree.as_deref());
+        self.query = self.requery(self.query.text());
         self.refresh_tree_state(cx);
         self.refresh_extensions();
         self.sunburst_hover = None;

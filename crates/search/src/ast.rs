@@ -32,6 +32,9 @@ pub enum Pred {
     At(Cmp<i64>),
     Kind(EntryKind),
     Attr(Attr),
+    /// Member of a duplicate group found by the last duplicate search (`dup:yes`), or not
+    /// (`dup:no`). Matches nothing when no search result is supplied; see `duplicates_known`.
+    Dup(bool),
 }
 
 /// A comparison against one value or a closed range.
