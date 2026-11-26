@@ -194,11 +194,10 @@ fn folder_alloc_is_unknown_when_any_child_has_no_on_disk_size() {
 #[test]
 fn modified_age_within_days() {
     let tree = sample_tree(true);
-    check(
-        &tree,
-        "modified:<7d",
-        &["W", "Games", "Docs", "readme.txt", ".secret"],
-    );
+    let within_a_week = &["W", "Games", "Docs", "readme.txt", ".secret"];
+    check(&tree, "modified:<7d", within_a_week);
+    // A bare age has the same "within the last N" meaning.
+    check(&tree, "modified:7d", within_a_week);
     // Exactly one day old: "less than or equal" includes it, "less than" does not.
     check(&tree, "modified:<=1d type:dir", &["W", "Games"]);
     check(&tree, "modified:<1d", &[]);

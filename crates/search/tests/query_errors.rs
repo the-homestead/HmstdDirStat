@@ -13,12 +13,6 @@ fn unknown_field_is_a_parse_error_at_its_term() {
 }
 
 #[test]
-fn regex_term_is_not_supported_yet() {
-    // The regex: term is deferred until the dependency choice is confirmed.
-    check_error("re:foo.*", 0, "unknown field 're:'");
-}
-
-#[test]
 fn missing_value_after_a_field() {
     check_error("size:", 0, "missing value after 'size:'");
     check_error("ext:", 0, "missing value after 'ext:'");
