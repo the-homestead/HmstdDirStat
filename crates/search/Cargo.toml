@@ -1,0 +1,18 @@
+[package]
+name = "hmstd-search"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+description = "Query language for HmstdDirStat: parser and evaluator over the filesystem model. GPUI-independent."
+
+[lib]
+name = "hmstd_search"
+
+[dependencies]
+hmstd-filesystem = { path = "../filesystem" }
+thiserror.workspace = true
+
+[lints]
+workspace = true
