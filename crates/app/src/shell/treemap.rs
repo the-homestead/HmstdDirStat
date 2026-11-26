@@ -89,7 +89,7 @@ fn tile_views(
                 tile.share * 100.0
             );
             let is_selected = look.selected == Some(tile.node);
-            let is_hit = look.query.hits(&tile.name);
+            let is_hit = look.query.hits(tile.node);
             let dimmed = look.query.is_active() && !look.query.tile_hits(tile);
             let border = if is_selected {
                 p.foreground

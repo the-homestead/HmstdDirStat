@@ -15,6 +15,8 @@ pub struct Palette {
     pub muted_foreground: Hsla,
     pub border: Hsla,
     pub warning: Hsla,
+    /// Error text, such as a search that does not parse.
+    pub danger: Hsla,
     /// Theme chart colours, in order, for pie slices, treemap tiles and sunburst rings.
     pub chart: [Hsla; 5],
 }
@@ -29,6 +31,7 @@ impl Palette {
             muted_foreground: colors.muted_foreground,
             border: colors.border,
             warning: colors.warning,
+            danger: colors.danger,
             chart: [
                 colors.chart_1,
                 colors.chart_2,

@@ -3106,6 +3106,7 @@ dependencies = [
  "hmstd-filesystem",
  "hmstd-ntfs",
  "hmstd-scanner",
+ "hmstd-search",
  "tempfile",
  "tracing",
 ]

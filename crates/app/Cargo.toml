@@ -16,6 +16,7 @@ hmstd-core = { path = "../core" }
 hmstd-filesystem = { path = "../filesystem" }
 hmstd-scanner = { path = "../scanner" }
 hmstd-ntfs = { path = "../ntfs" }
+hmstd-search = { path = "../search" }
 gpui-kit.workspace = true
 anyhow.workspace = true
 tracing.workspace = true

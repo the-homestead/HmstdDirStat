@@ -4,6 +4,7 @@
 
 mod actions;
 mod extensions_view;
+mod files_tree;
 mod menu;
 mod render;
 mod results;
@@ -162,7 +163,7 @@ impl Shell {
     /// Rebuilds the folder tree with the current search, so matching rows are marked.
     pub fn refresh_tree_state(&mut self, cx: &mut Context<Self>) {
         if let Some(files) = self.tree.clone() {
-            self.tree_state = Some(views::build_tree_state(&files, &self.query, cx));
+            self.tree_state = Some(files_tree::build_tree_state(&files, &self.query, cx));
         }
     }
 
@@ -178,7 +179,7 @@ impl Shell {
             |shell: &mut Shell, input, event: &InputEvent, _window, cx| {
                 if matches!(event, InputEvent::Change) {
                     let text = input.read(cx).value();
-                    shell.query = Query::new(&text);
+                    shell.query = Query::new(&text, shell.tree.as_deref());
                     shell.refresh_tree_state(cx);
                     cx.notify();
                 }
@@ -190,6 +191,7 @@ impl Shell {
 
     fn clear_tree(&mut self) {
         self.tree = None;
+        self.query = Query::new(self.query.text(), None);
         self.tree_state = None;
         self.focus = NodeId::ROOT;
         self.sunburst_hover = None;
@@ -197,7 +199,8 @@ impl Shell {
 
     /// Keeps a finished walk's tree for the views and builds the Files tab from it.
     fn install_tree(&mut self, files: FileTree, cx: &mut Context<Self>) {
-        self.tree_state = Some(views::build_tree_state(&files, &self.query, cx));
+        self.query = Query::new(self.query.text(), Some(&files));
+        self.tree_state = Some(files_tree::build_tree_state(&files, &self.query, cx));
         self.tree = Some(Arc::new(files));
         self.focus = NodeId::ROOT;
     }

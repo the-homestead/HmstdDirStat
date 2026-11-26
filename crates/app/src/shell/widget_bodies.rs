@@ -6,7 +6,8 @@ use gpui_kit::*;
 use hmstd_core::workspace::WidgetKind;
 
 use super::{
-    Phase, Shell, extensions_view, render::summary_content, rings, treemap, views, widgets::*,
+    Phase, Shell, extensions_view, files_tree, render::summary_content, rings, treemap, views,
+    widgets::*,
 };
 use crate::{explore, scan::format_count};
 
@@ -42,7 +43,7 @@ fn tree(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Div {
     let count = shell
         .query
         .is_active()
-        .then(|| views::tree_matches(&files, &shell.query));
+        .then(|| files_tree::tree_matches(&files, &shell.query));
     div()
         .size_full()
         .v_flex()
@@ -52,7 +53,7 @@ fn tree(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Div {
             div()
                 .flex_1()
                 .min_h_0()
-                .child(views::files_view(&state, files, p, handle)),
+                .child(files_tree::files_view(&state, files, p, handle)),
         )
 }
 

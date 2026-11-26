@@ -91,7 +91,11 @@ fn toolbar(shell: &Shell, p: Palette, handle: Entity<Shell>, cx: &App) -> Div {
         .child(volumes)
         .child(mode)
         .child(div().flex_1())
-        .child(views::search_field(shell.search_input.as_ref()))
+        .child(views::search_field(
+            shell.search_input.as_ref(),
+            &shell.query,
+            p,
+        ))
         .child(views::basis_buttons(shell.basis, available, handle.clone()))
         .child(
             Button::new("open-logs")

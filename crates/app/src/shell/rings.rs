@@ -89,15 +89,11 @@ pub fn sunburst_page(
     let drawn: Vec<DrawnArc> = arcs
         .iter()
         .map(|arc| {
-            let name = files
-                .node(arc.item)
-                .map(|entry| entry.name().to_string_lossy().into_owned())
-                .unwrap_or_default();
             // Deeper rings fade so the top level reads first.
             let base =
                 p.chart[arc.slot % p.chart.len()].opacity(1.0 - 0.15 * (arc.depth - 1) as f32);
             // With a search active, arcs that do not match are faded back.
-            let dim = look.query.is_active() && !look.query.hits(&name);
+            let dim = look.query.is_active() && !look.query.hits(arc.item);
             DrawnArc {
                 start: arc.start as f32,
                 end: arc.end as f32,
