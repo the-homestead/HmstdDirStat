@@ -3,8 +3,8 @@
 mod common;
 
 use common::*;
-use hmstd_filesystem::{FileTree, NodeId};
-use hmstd_search::{compile, features};
+use timberstat_filesystem::{FileTree, NodeId};
+use timberstat_search::{compile, features};
 
 #[test]
 fn whitespace_is_and() {

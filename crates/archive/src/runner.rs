@@ -6,7 +6,7 @@ use std::process::{Child, Command, Stdio};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
-use hmstd_fileops::Control;
+use timberstat_fileops::Control;
 
 /// Captured result of one handler invocation.
 #[derive(Debug, Clone, Default)]

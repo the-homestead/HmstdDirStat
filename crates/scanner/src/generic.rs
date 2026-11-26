@@ -8,7 +8,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use hmstd_filesystem::{EntryKind, FileIdentity, FileTree, Metadata, NewEntry, NodeId};
+use timberstat_filesystem::{EntryKind, FileIdentity, FileTree, Metadata, NewEntry, NodeId};
 
 use crate::{
     FileSystemScanner,

@@ -8,7 +8,7 @@ use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use hmstd_filesystem::{EntryKind, NodeId};
+use timberstat_filesystem::{EntryKind, NodeId};
 
 use crate::copy::{CopyTally, copy_entry, remove_tree_on_disk};
 use crate::disk::{free_name, is_dir_entry, is_link_like, same_location};

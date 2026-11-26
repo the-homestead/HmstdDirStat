@@ -15,8 +15,8 @@ mod tiles;
 
 use anyhow::{Context as _, Result};
 use gpui_kit::*;
-use hmstd_core::config::{self, AppConfig};
-use hmstd_scanner::{SystemVolumes, VolumeEnumerator};
+use timberstat_core::config::{self, AppConfig};
+use timberstat_scanner::{SystemVolumes, VolumeEnumerator};
 
 use shell::Shell;
 use theme::apply_theme;
@@ -29,9 +29,9 @@ fn main() -> Result<()> {
     }
 
     // The window has no console, so the log file is the record of what happened.
-    let log_dir = hmstd_core::logging::log_dir()
+    let log_dir = timberstat_core::logging::log_dir()
         .unwrap_or_else(|| std::env::temp_dir().join("TimberStat-logs"));
-    let log_file = hmstd_core::logging::init(&log_dir)
+    let log_file = timberstat_core::logging::init(&log_dir)
         .map_err(|error| anyhow::anyhow!("starting the log file: {error}"))?;
     tracing::info!(path = %log_file.display(), "log file");
 
@@ -79,7 +79,7 @@ fn main() -> Result<()> {
                         cx,
                     ))),
                     titlebar: Some(TitlebarOptions {
-                        title: Some(hmstd_core::config::APP_NAME.into()),
+                        title: Some(timberstat_core::config::APP_NAME.into()),
                         ..Default::default()
                     }),
                     ..Default::default()

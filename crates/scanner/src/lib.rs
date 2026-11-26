@@ -19,7 +19,7 @@ pub use volumes::{SystemVolumes, VolumeEnumerator};
 
 use std::path::Path;
 
-/// A way of producing a [`FileTree`](hmstd_filesystem::FileTree) from a directory.
+/// A way of producing a [`FileTree`](timberstat_filesystem::FileTree) from a directory.
 ///
 /// Phase 2 provides [`GenericScanner`]. The NTFS fast path (Phase 3) implements
 /// the same trait and reports its own [`ScanMethod`].

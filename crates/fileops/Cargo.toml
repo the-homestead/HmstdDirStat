@@ -1,5 +1,5 @@
 [package]
-name = "hmstd-fileops"
+name = "timberstat-fileops"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,10 +8,10 @@ license.workspace = true
 description = "File operations for TimberStat: delete (Recycle Bin or permanent), copy, move, rename with collision policies. GPUI-independent."
 
 [lib]
-name = "hmstd_fileops"
+name = "timberstat_fileops"
 
 [dependencies]
-hmstd-filesystem = { path = "../filesystem" }
+timberstat-filesystem = { path = "../filesystem" }
 thiserror.workspace = true
 trash.workspace = true
 

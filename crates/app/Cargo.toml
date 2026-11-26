@@ -1,5 +1,5 @@
 [package]
-name = "hmstd-app"
+name = "timberstat-app"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -12,13 +12,13 @@ name = "timberstat"
 path = "src/main.rs"
 
 [dependencies]
-hmstd-duplicates = { path = "../duplicates" }
-hmstd-core = { path = "../core" }
-hmstd-filesystem = { path = "../filesystem" }
-hmstd-fileops = { path = "../fileops" }
-hmstd-scanner = { path = "../scanner" }
-hmstd-ntfs = { path = "../ntfs" }
-hmstd-search = { path = "../search" }
+timberstat-duplicates = { path = "../duplicates" }
+timberstat-core = { path = "../core" }
+timberstat-filesystem = { path = "../filesystem" }
+timberstat-fileops = { path = "../fileops" }
+timberstat-scanner = { path = "../scanner" }
+timberstat-ntfs = { path = "../ntfs" }
+timberstat-search = { path = "../search" }
 gpui-kit.workspace = true
 anyhow.workspace = true
 tracing.workspace = true
@@ -42,7 +42,7 @@ description = "Disk usage analyser and file manager"
 homepage = "https://github.com/the-homestead/TimberStat"
 category = "Utility"
 license-file = "../../LICENSE"
-before-packaging-command = "cargo build --release -p hmstd-app"
+before-packaging-command = "cargo build --release -p timberstat-app"
 out-dir = "../../target/release"
 binaries = [{ path = "timberstat", main = true }]
 # The .ico is the Windows app icon (MSI, shortcuts); the PNGs are the Linux .deb/AppImage icons.

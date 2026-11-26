@@ -9,7 +9,7 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 
-use hmstd_filesystem::{EntryKind, NodeId};
+use timberstat_filesystem::{EntryKind, NodeId};
 
 use crate::delete_plan::{ConfirmedDelete, DeleteMode};
 use crate::disk::{is_dir_entry, is_link_to_dir};

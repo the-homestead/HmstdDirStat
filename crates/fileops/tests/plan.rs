@@ -1,8 +1,8 @@
 mod common;
 
 use common::{base, find_required, scan, write};
-use hmstd_fileops::{PlanError, apply_delete, build_delete_plan, build_delete_plan_capped};
-use hmstd_filesystem::{EntryKind, FileIdentity, FileTree, Metadata, NewEntry, NodeId};
+use timberstat_fileops::{PlanError, apply_delete, build_delete_plan, build_delete_plan_capped};
+use timberstat_filesystem::{EntryKind, FileIdentity, FileTree, Metadata, NewEntry, NodeId};
 
 #[test]
 fn preview_counts_files_folders_and_sizes() {
@@ -80,7 +80,7 @@ fn detached_selection_is_refused_after_a_delete() {
     let mut tree = scan(&root);
     let a = find_required(&tree, &root, "a.txt");
     // Applied with a hand-built report: the Recycle Bin is never called from tests.
-    let fake = hmstd_fileops::DeleteReport {
+    let fake = timberstat_fileops::DeleteReport {
         removed: vec![a],
         ..Default::default()
     };

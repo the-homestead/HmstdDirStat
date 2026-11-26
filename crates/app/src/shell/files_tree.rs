@@ -11,7 +11,7 @@ use gpui_kit::component::{
 use gpui_kit::*;
 use std::sync::Arc;
 
-use hmstd_filesystem::{EntryKind, FileTree, NodeId};
+use timberstat_filesystem::{EntryKind, FileTree, NodeId};
 
 use super::{Shell, widgets::*};
 use crate::search::Query;

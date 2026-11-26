@@ -6,7 +6,7 @@ use gpui_kit::component::{
     *,
 };
 use gpui_kit::*;
-use hmstd_core::config::{self, DEFAULT_UI_SCALE, UI_SCALE_MAX, UI_SCALE_MIN};
+use timberstat_core::config::{self, DEFAULT_UI_SCALE, UI_SCALE_MAX, UI_SCALE_MIN};
 
 use super::{Shell, widgets::*};
 

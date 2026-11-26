@@ -3,7 +3,7 @@
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
-use hmstd_filesystem::{FileTree, NodeId};
+use timberstat_filesystem::{FileTree, NodeId};
 
 use crate::model::{PlanError, Preview, WorkItem};
 use crate::preview::{DEFAULT_PREVIEW_CAP, collect_items, normalize_roots, summarize};

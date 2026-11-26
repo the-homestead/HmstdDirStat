@@ -3,8 +3,8 @@
 
 use std::{path::PathBuf, time::Duration};
 
-use hmstd_filesystem::NodeId;
-use hmstd_scanner::{ScanMethod, ScanOutput};
+use timberstat_filesystem::NodeId;
+use timberstat_scanner::{ScanMethod, ScanOutput};
 
 /// What the user sees after a scan completes.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -91,7 +91,7 @@ pub fn format_count(count: u64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hmstd_scanner::{CancelToken, FileSystemScanner, GenericScanner, ScanOptions};
+    use timberstat_scanner::{CancelToken, FileSystemScanner, GenericScanner, ScanOptions};
 
     #[test]
     fn bytes_use_binary_units() {

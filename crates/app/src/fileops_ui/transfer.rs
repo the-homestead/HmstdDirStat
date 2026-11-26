@@ -12,11 +12,11 @@ use std::sync::Arc;
 
 use gpui_kit::component::input::InputState;
 use gpui_kit::*;
-use hmstd_fileops::{
+use timberstat_fileops::{
     Collision, Control, TransferKind, TransferPlan, TransferReport, apply_moves, execute_transfer,
     plan_transfer, tree_base, validate_name,
 };
-use hmstd_filesystem::NodeId;
+use timberstat_filesystem::NodeId;
 
 use super::common::text_input;
 use crate::shell::{PROGRESS_REFRESH, Shell};

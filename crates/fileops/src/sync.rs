@@ -5,7 +5,7 @@
 
 use std::ffi::OsStr;
 
-use hmstd_filesystem::{FileTree, NodeId};
+use timberstat_filesystem::{FileTree, NodeId};
 
 use crate::delete::DeleteReport;
 use crate::transfer::TransferReport;

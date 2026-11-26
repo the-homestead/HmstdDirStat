@@ -3,10 +3,10 @@ mod common;
 use std::fs;
 
 use common::{find, find_required, scan, write};
-use hmstd_fileops::{
+use timberstat_fileops::{
     Collision, FailureReason, PlanError, RenameOutcome, apply_rename, rename_path, validate_name,
 };
-use hmstd_filesystem::NodeId;
+use timberstat_filesystem::NodeId;
 
 #[test]
 fn names_with_separators_or_reserved_characters_are_refused() {

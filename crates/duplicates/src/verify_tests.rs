@@ -5,7 +5,7 @@
 use std::fs;
 use std::path::Path;
 
-use hmstd_filesystem::NodeId;
+use timberstat_filesystem::NodeId;
 
 use crate::pipeline::{Class, verify_class};
 use crate::progress::Progress;

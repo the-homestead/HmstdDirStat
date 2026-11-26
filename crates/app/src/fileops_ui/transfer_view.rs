@@ -10,7 +10,7 @@ use gpui_kit::component::{
     *,
 };
 use gpui_kit::*;
-use hmstd_fileops::{Collision, Failure, Skipped, TransferReport};
+use timberstat_fileops::{Collision, Failure, Skipped, TransferReport};
 
 use super::common::{policy_group, skip_text};
 use super::transfer::{TransferKindUi, TransferStage};

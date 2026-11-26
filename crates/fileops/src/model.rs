@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
-use hmstd_filesystem::{EntryKind, NodeId};
+use timberstat_filesystem::{EntryKind, NodeId};
 
 /// One tree entry an operation will act on, copied out of the tree so the
 /// background worker never needs the tree itself.
@@ -19,7 +19,7 @@ pub struct WorkItem {
     pub logical: u64,
     pub physical: Option<u64>,
     /// Identity used to count hard links once. `None` when the platform gives none.
-    pub identity: Option<hmstd_filesystem::FileIdentity>,
+    pub identity: Option<timberstat_filesystem::FileIdentity>,
 }
 
 /// Shared progress and cancel flag. The UI keeps one `Arc<Control>` and hands

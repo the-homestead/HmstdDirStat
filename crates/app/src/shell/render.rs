@@ -7,7 +7,7 @@ use gpui_kit::component::{
     tag::Tag, *,
 };
 use gpui_kit::*;
-use hmstd_ntfs::SummaryProgress;
+use timberstat_ntfs::SummaryProgress;
 
 use super::{
     Phase, Shell, fileops_ui, menu::menu_overlay, results::*, settings, toolbar, view_menu,

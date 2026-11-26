@@ -1,10 +1,10 @@
-//! Saved-workspace state and Shell actions. The domain operations live in hmstd-core; this
+//! Saved-workspace state and Shell actions. The domain operations live in timberstat-core; this
 //! module applies successful operations to the visible layout and persists them off the UI thread.
 
 use std::path::PathBuf;
 
 use gpui_kit::{component::input::InputState, *};
-use hmstd_core::workspace::{
+use timberstat_core::workspace::{
     WorkspaceLayout,
     saved::{WorkspaceDocument, WorkspaceStoreError, default_workspaces_path, load_from, save_to},
 };

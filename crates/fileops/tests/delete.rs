@@ -4,7 +4,7 @@ use std::fs;
 use std::path::Path;
 
 use common::{base, find, find_required, scan, write};
-use hmstd_fileops::{
+use timberstat_fileops::{
     Control, DeleteMode, FailureReason, apply_delete, build_delete_plan, execute_delete_with,
 };
 

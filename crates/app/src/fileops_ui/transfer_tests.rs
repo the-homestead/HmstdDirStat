@@ -4,12 +4,12 @@
 use std::ffi::OsStr;
 use std::path::Path;
 
-use hmstd_fileops::{
+use timberstat_fileops::{
     Collision, Control, RenameOutcome, TransferKind, apply_moves, execute_transfer, plan_transfer,
     tree_base,
 };
-use hmstd_filesystem::{FileTree, NodeId};
-use hmstd_scanner::{CancelToken, FileSystemScanner, GenericScanner, ScanOptions};
+use timberstat_filesystem::{FileTree, NodeId};
+use timberstat_scanner::{CancelToken, FileSystemScanner, GenericScanner, ScanOptions};
 
 use super::rename::{RenameStep, rename_step};
 use super::transfer::target_taken;

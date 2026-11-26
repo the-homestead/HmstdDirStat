@@ -9,7 +9,7 @@ use gpui_kit::*;
 
 use super::{render::drive_label, widgets::*};
 use crate::scan::ScanSummary;
-use hmstd_ntfs::{SummaryProgress, VolumeSummary};
+use timberstat_ntfs::{SummaryProgress, VolumeSummary};
 
 pub(super) fn elevated_view(
     drive: &std::path::Path,

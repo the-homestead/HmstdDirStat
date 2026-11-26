@@ -10,8 +10,10 @@ use std::sync::Arc;
 
 use gpui_kit::component::input::InputState;
 use gpui_kit::*;
-use hmstd_fileops::{Collision, Failure, RenameOutcome, apply_rename, rename_path, validate_name};
-use hmstd_filesystem::NodeId;
+use timberstat_fileops::{
+    Collision, Failure, RenameOutcome, apply_rename, rename_path, validate_name,
+};
+use timberstat_filesystem::NodeId;
 
 use super::common::text_input;
 use crate::shell::Shell;

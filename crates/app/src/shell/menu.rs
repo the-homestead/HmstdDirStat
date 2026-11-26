@@ -4,8 +4,8 @@
 
 use gpui_kit::component::menu::{PopupMenu, PopupMenuItem};
 use gpui_kit::*;
-use hmstd_fileops::DeleteMode;
-use hmstd_filesystem::{EntryKind, NodeId};
+use timberstat_fileops::DeleteMode;
+use timberstat_filesystem::{EntryKind, NodeId};
 
 use super::{Shell, fileops_ui::TransferKindUi, widgets::*};
 

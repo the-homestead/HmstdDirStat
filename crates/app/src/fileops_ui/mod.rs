@@ -44,11 +44,11 @@ use gpui_kit::{
     },
     *,
 };
-use hmstd_fileops::{
+use timberstat_fileops::{
     Control, DeleteMode, DeletePlan, DeleteReport, apply_delete, build_delete_plan, execute_delete,
     tree_base,
 };
-use hmstd_filesystem::NodeId;
+use timberstat_filesystem::NodeId;
 
 use super::{PROGRESS_REFRESH, Phase, Shell, widgets::Palette};
 

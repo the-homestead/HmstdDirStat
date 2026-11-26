@@ -1,5 +1,5 @@
 [package]
-name = "hmstd-core"
+name = "timberstat-core"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,7 +8,7 @@ license.workspace = true
 description = "GPUI-independent domain primitives for TimberStat: errors, configuration, logging."
 
 [lib]
-name = "hmstd_core"
+name = "timberstat_core"
 
 [dependencies]
 serde.workspace = true

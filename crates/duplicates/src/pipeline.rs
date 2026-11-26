@@ -6,10 +6,10 @@ use std::collections::{BTreeMap, HashSet};
 use std::io;
 use std::num::NonZeroUsize;
 
-use hmstd_fileops::{Failure, WorkItem, classify_io};
-use hmstd_filesystem::EntryKind;
 use rayon::prelude::*;
 use same_file::Handle;
+use timberstat_fileops::{Failure, WorkItem, classify_io};
+use timberstat_filesystem::EntryKind;
 
 use crate::hash::{Compared, Digest, compare_bytes, full_digest};
 use crate::identity::file_key;
@@ -69,7 +69,7 @@ pub fn find_duplicates(
     let mut report = DuplicateReport::default();
     let pool = rayon::ThreadPoolBuilder::new()
         .num_threads(options.threads.max(1))
-        .thread_name(|index| format!("hmstd-dup-{index}"))
+        .thread_name(|index| format!("timberstat-dup-{index}"))
         .build();
     match pool {
         Ok(pool) => pool.install(|| run(items, options, progress, &mut report)),

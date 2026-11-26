@@ -2,7 +2,7 @@
 //! and every child is sized by its logical size. Pure geometry over the scanned tree, so
 //! it tests without a window.
 
-use hmstd_filesystem::{FileTree, NodeId};
+use timberstat_filesystem::{FileTree, NodeId};
 
 use crate::{
     explore::{self, Basis, Child},
@@ -110,8 +110,8 @@ fn place(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hmstd_scanner::{CancelToken, FileSystemScanner, GenericScanner, ScanOptions};
     use std::path::Path;
+    use timberstat_scanner::{CancelToken, FileSystemScanner, GenericScanner, ScanOptions};
 
     fn write(path: &Path, bytes: usize) {
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();

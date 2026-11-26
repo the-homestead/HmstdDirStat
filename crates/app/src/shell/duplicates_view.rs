@@ -9,11 +9,11 @@ use gpui_kit::component::{
     button::Button, empty::EmptyContent, progress::Progress as Bar, tag::Tag, *,
 };
 use gpui_kit::*;
-use hmstd_core::workspace::WidgetKind;
-use hmstd_duplicates::{
+use timberstat_core::workspace::WidgetKind;
+use timberstat_duplicates::{
     DuplicateGroup, DuplicateMember, DuplicateReport, Progress, RunStatus, Stage,
 };
-use hmstd_filesystem::{FileTree, NodeId};
+use timberstat_filesystem::{FileTree, NodeId};
 
 use super::{
     Shell, empty_state,

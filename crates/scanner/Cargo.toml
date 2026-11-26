@@ -1,5 +1,5 @@
 [package]
-name = "hmstd-scanner"
+name = "timberstat-scanner"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,10 +8,10 @@ license.workspace = true
 description = "Filesystem scanning for TimberStat: metadata-only traversal, cancellation, progress, volume discovery."
 
 [lib]
-name = "hmstd_scanner"
+name = "timberstat_scanner"
 
 [dependencies]
-hmstd-filesystem = { path = "../filesystem" }
+timberstat-filesystem = { path = "../filesystem" }
 thiserror.workspace = true
 
 [dev-dependencies]

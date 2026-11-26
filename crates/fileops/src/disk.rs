@@ -81,7 +81,7 @@ pub(crate) fn staging_path(target: &Path, name: &OsStr) -> PathBuf {
     let nonce = COUNTER.fetch_add(1, Ordering::Relaxed);
     let mut staged = OsString::from(".");
     staged.push(name);
-    staged.push(format!(".hmstd-{}-{nonce}.part", std::process::id()));
+    staged.push(format!(".timberstat-{}-{nonce}.part", std::process::id()));
     target
         .parent()
         .map_or_else(|| PathBuf::from(&staged), |dir| dir.join(&staged))

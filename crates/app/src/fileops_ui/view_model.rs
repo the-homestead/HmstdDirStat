@@ -1,7 +1,7 @@
 //! GUI-free text and gating for the delete dialog. Kept separate so the safety wording
 //! and permanent-delete gate can be tested without creating a window.
 
-use hmstd_fileops::{DeleteReport, Failure, Preview};
+use timberstat_fileops::{DeleteReport, Failure, Preview};
 
 use crate::scan::{format_bytes, format_count};
 
@@ -77,8 +77,8 @@ pub(super) fn failure_text(failure: &Failure) -> String {
 
 #[cfg(test)]
 mod tests {
-    use hmstd_fileops::{DeleteMode, FailureReason};
     use std::path::PathBuf;
+    use timberstat_fileops::{DeleteMode, FailureReason};
 
     use super::*;
 
@@ -128,7 +128,7 @@ mod tests {
         let report = DeleteReport {
             mode: Some(DeleteMode::Permanent),
             total_entries: 3,
-            removed: vec![hmstd_filesystem::NodeId::ROOT],
+            removed: vec![timberstat_filesystem::NodeId::ROOT],
             failures: vec![Failure::new(
                 PathBuf::from("locked.tmp"),
                 FailureReason::Locked,

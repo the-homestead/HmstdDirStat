@@ -7,7 +7,7 @@ use std::{
     io::{self, BufRead, BufWriter, Read, Write},
 };
 
-use hmstd_filesystem::{EntryKind, FileTree, Metadata, NewEntry, NodeId};
+use timberstat_filesystem::{EntryKind, FileTree, Metadata, NewEntry, NodeId};
 
 const MAGIC: &[u8; 8] = b"HMSTDT01";
 const NO_PARENT: u32 = u32::MAX;

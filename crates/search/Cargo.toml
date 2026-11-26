@@ -1,5 +1,5 @@
 [package]
-name = "hmstd-search"
+name = "timberstat-search"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,10 +8,10 @@ license.workspace = true
 description = "Query language for TimberStat: parser and evaluator over the filesystem model. GPUI-independent."
 
 [lib]
-name = "hmstd_search"
+name = "timberstat_search"
 
 [dependencies]
-hmstd-filesystem = { path = "../filesystem" }
+timberstat-filesystem = { path = "../filesystem" }
 thiserror.workspace = true
 
 [lints]

@@ -1,11 +1,11 @@
 //! The visualization workspace. Each visualization is a widget: a panel with a header to drag,
 //! edges and corners to resize, and a close control. The View menu adds closed widgets back.
-//! The layout itself (frames, stacking, validation) lives in `hmstd_core::workspace`; this file
+//! The layout itself (frames, stacking, validation) lives in `timberstat_core::workspace`; this file
 //! draws it, turns pointer drags into frame changes, and saves the result off the UI thread.
 
 use gpui_kit::component::*;
 use gpui_kit::*;
-use hmstd_core::workspace::{Edges, Frame, WidgetKind};
+use timberstat_core::workspace::{Edges, Frame, WidgetKind};
 
 use super::{Shell, empty_state, widget_bodies, widgets::*};
 
@@ -39,7 +39,7 @@ pub struct WidgetDrag {
 pub struct DragStart {
     pub pos: Point<Pixels>,
     /// The whole layout when the drag began. Each move is computed from it, not compounded.
-    pub layout: hmstd_core::workspace::WorkspaceLayout,
+    pub layout: timberstat_core::workspace::WorkspaceLayout,
 }
 
 /// The view GPUI shows under the pointer while a drag runs. The widget itself moves, so the
@@ -103,9 +103,9 @@ impl Shell {
                 // Swap with the widget under the pointer.
                 let x = f32::from(pos.x - bounds.origin.x) / width;
                 let y = f32::from(pos.y - bounds.origin.y) / height;
-                hmstd_core::layout_resize::move_widget(&start.layout, drag.kind, x, y)
+                timberstat_core::layout_resize::move_widget(&start.layout, drag.kind, x, y)
             }
-            Grip::Resize(edges) => hmstd_core::layout_resize::resize_widget(
+            Grip::Resize(edges) => timberstat_core::layout_resize::resize_widget(
                 &start.layout,
                 drag.kind,
                 edges,

@@ -1,5 +1,5 @@
 [package]
-name = "hmstd-archive"
+name = "timberstat-archive"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,10 +8,10 @@ license.workspace = true
 description = "Archive management for TimberStat: list, test, extract, create and add through installed archive handlers. GPUI-independent."
 
 [lib]
-name = "hmstd_archive"
+name = "timberstat_archive"
 
 [dependencies]
-hmstd-fileops = { path = "../fileops" }
+timberstat-fileops = { path = "../fileops" }
 thiserror.workspace = true
 
 [dev-dependencies]

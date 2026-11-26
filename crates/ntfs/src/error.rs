@@ -15,5 +15,5 @@ pub enum NtfsError {
     #[error("record fixup does not match the update sequence number")]
     FixupMismatch,
     #[error("internal tree error: {0}")]
-    Tree(#[from] hmstd_filesystem::TreeError),
+    Tree(#[from] timberstat_filesystem::TreeError),
 }

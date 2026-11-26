@@ -44,10 +44,10 @@ use gpui_kit::Subscription;
 use gpui_kit::component::input::{InputEvent, InputState};
 use gpui_kit::component::tree::TreeState;
 use gpui_kit::*;
-use hmstd_core::workspace::WorkspaceLayout;
-use hmstd_filesystem::{FileTree, NodeId};
-use hmstd_ntfs::{SummaryProgress, VolumeSummary};
-use hmstd_scanner::{
+use timberstat_core::workspace::WorkspaceLayout;
+use timberstat_filesystem::{FileTree, NodeId};
+use timberstat_ntfs::{SummaryProgress, VolumeSummary};
+use timberstat_scanner::{
     CancelToken, FileSystemScanner, GenericScanner, ScanError, ScanOptions, ScanProgress,
 };
 
@@ -130,7 +130,7 @@ pub struct Shell {
     workspace_bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
     /// Content size of each widget body (width, height) as measured on the last frame.
     /// Widgets size their graphs and lists from it.
-    widget_rooms: Rc<RefCell<HashMap<hmstd_core::workspace::WidgetKind, (f32, f32)>>>,
+    widget_rooms: Rc<RefCell<HashMap<timberstat_core::workspace::WidgetKind, (f32, f32)>>>,
     /// Whether the View menu is open.
     view_menu: bool,
     /// Whether the Settings panel is open.
@@ -181,7 +181,7 @@ impl Shell {
             sunburst_hover: None,
             basis: Basis::Logical,
             extension_totals: Arc::new(Vec::new()),
-            ui_scale: hmstd_core::config::clamp_ui_scale(ui_scale),
+            ui_scale: timberstat_core::config::clamp_ui_scale(ui_scale),
             layout,
             workspaces,
             drag_start: None,

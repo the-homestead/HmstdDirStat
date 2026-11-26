@@ -6,8 +6,8 @@ use std::{
     process::Command,
 };
 
-use hmstd_ntfs::{SummaryProgress, VolumeSummary};
 use std::time::{Duration, Instant};
+use timberstat_ntfs::{SummaryProgress, VolumeSummary};
 
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
@@ -24,7 +24,7 @@ const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 pub struct FastPaths {
     /// The helper writes its summary (or an `error=` line) here.
     pub output: PathBuf,
-    /// The helper writes the full folder tree here, in `hmstd_ntfs::write_tree` format.
+    /// The helper writes the full folder tree here, in `timberstat_ntfs::write_tree` format.
     pub tree: PathBuf,
     /// The helper creates this as soon as it starts, which means approval was given.
     pub started: PathBuf,
@@ -34,7 +34,7 @@ pub struct FastPaths {
 
 impl FastPaths {
     pub fn for_this_run() -> Self {
-        let base = std::env::temp_dir().join(format!("hmstd-fast-{}", std::process::id()));
+        let base = std::env::temp_dir().join(format!("timberstat-fast-{}", std::process::id()));
         Self {
             output: base.with_extension("txt"),
             tree: base.with_extension("tree"),
@@ -64,7 +64,7 @@ pub fn raw_volume_name(drive: &Path) -> Option<String> {
 pub fn run_elevated(
     volume: &str,
     paths: &FastPaths,
-) -> Result<(VolumeSummary, hmstd_filesystem::FileTree), String> {
+) -> Result<(VolumeSummary, timberstat_filesystem::FileTree), String> {
     paths.clear();
     let result = run_elevated_inner(volume, paths);
     paths.clear();
@@ -74,7 +74,7 @@ pub fn run_elevated(
 fn run_elevated_inner(
     volume: &str,
     paths: &FastPaths,
-) -> Result<(VolumeSummary, hmstd_filesystem::FileTree), String> {
+) -> Result<(VolumeSummary, timberstat_filesystem::FileTree), String> {
     let exe = std::env::current_exe().map_err(|error| error.to_string())?;
 
     // Start-Process with -Verb RunAs is the only way without unsafe FFI. PowerShell
@@ -118,7 +118,7 @@ fn run_elevated_inner(
         .ok_or_else(|| "the helper's result was incomplete".to_string())?;
     let file = std::fs::File::open(&paths.tree)
         .map_err(|error| format!("the helper's folder tree is missing: {error}"))?;
-    let tree = hmstd_ntfs::read_tree(std::io::BufReader::with_capacity(1 << 20, file))
+    let tree = timberstat_ntfs::read_tree(std::io::BufReader::with_capacity(1 << 20, file))
         .map_err(|error| format!("could not read the folder tree: {error}"))?;
     Ok((summary, tree))
 }
@@ -136,7 +136,7 @@ pub fn helper_main(args: &[String]) -> i32 {
     let _ = std::fs::write(output.with_extension("started"), "");
 
     let mut last_write: Option<Instant> = None;
-    let result = hmstd_ntfs::summarize_volume_with_progress(volume, |stage| {
+    let result = timberstat_ntfs::summarize_volume_with_progress(volume, |stage| {
         // Record reads come thousands of times a second; write the file at most every
         // PROGRESS_EVERY. Stage changes (such as building the tree) are always written.
         let reading = matches!(stage, SummaryProgress::Reading { .. });
@@ -150,7 +150,7 @@ pub fn helper_main(args: &[String]) -> i32 {
         Ok((summary, tree)) => {
             // The tree goes first: the window only looks at the summary file once it is complete.
             let written = std::fs::File::create(&tree_path)
-                .and_then(|file| hmstd_ntfs::write_tree(&tree, file).map(|_| ()));
+                .and_then(|file| timberstat_ntfs::write_tree(&tree, file).map(|_| ()));
             match written {
                 Ok(()) => summary.to_text(),
                 Err(error) => format!("error=could not save the folder tree: {error}\n"),

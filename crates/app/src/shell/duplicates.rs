@@ -1,5 +1,5 @@
 //! The duplicate search in the app: starting and cancelling a run, keeping its result, and
-//! the click behaviour of a duplicate row. The pipeline lives in `hmstd-duplicates`; this
+//! the click behaviour of a duplicate row. The pipeline lives in `timberstat-duplicates`; this
 //! module only drives it on the background executor. Nothing here deletes a file. Deleting goes
 //! through the context menu and the delete preview.
 
@@ -7,9 +7,9 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use gpui_kit::*;
-use hmstd_duplicates::{DuplicateReport, Options, Progress, file_items, find_duplicates};
-use hmstd_fileops::tree_base;
-use hmstd_filesystem::NodeId;
+use timberstat_duplicates::{DuplicateReport, Options, Progress, file_items, find_duplicates};
+use timberstat_fileops::tree_base;
+use timberstat_filesystem::NodeId;
 
 use super::{PROGRESS_REFRESH, Shell};
 use crate::search::Query;

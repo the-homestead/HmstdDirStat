@@ -1,11 +1,11 @@
-//! Headless scan of one directory: `cargo run -p hmstd-scanner --example scan -- <path>`.
+//! Headless scan of one directory: `cargo run -p timberstat-scanner --example scan -- <path>`.
 //!
 //! Development aid for Phase 2. The CLI (Phase 7) will supersede it.
 
 use std::{path::PathBuf, time::Instant};
 
-use hmstd_filesystem::NodeId;
-use hmstd_scanner::{CancelToken, FileSystemScanner, GenericScanner, ScanOptions};
+use timberstat_filesystem::NodeId;
+use timberstat_scanner::{CancelToken, FileSystemScanner, GenericScanner, ScanOptions};
 
 fn main() {
     let root: PathBuf = std::env::args_os()

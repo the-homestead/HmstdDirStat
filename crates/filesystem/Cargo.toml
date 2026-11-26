@@ -1,5 +1,5 @@
 [package]
-name = "hmstd-filesystem"
+name = "timberstat-filesystem"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,7 +8,7 @@ license.workspace = true
 description = "Authoritative, GPUI-independent in-memory filesystem model for TimberStat."
 
 [lib]
-name = "hmstd_filesystem"
+name = "timberstat_filesystem"
 
 [dependencies]
 thiserror.workspace = true

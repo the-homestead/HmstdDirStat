@@ -3116,99 +3116,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hmstd-app"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "embed-resource",
- "gpui-kit",
- "hmstd-core",
- "hmstd-duplicates",
- "hmstd-fileops",
- "hmstd-filesystem",
- "hmstd-ntfs",
- "hmstd-scanner",
- "hmstd-search",
- "tempfile",
- "tracing",
-]
-
-[[package]]
-name = "hmstd-archive"
-version = "0.1.0"
-dependencies = [
- "hmstd-fileops",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "hmstd-core"
-version = "0.1.0"
-dependencies = [
- "config",
- "directories",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.21",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "hmstd-duplicates"
-version = "0.1.0"
-dependencies = [
- "blake3",
- "hmstd-fileops",
- "hmstd-filesystem",
- "rayon",
- "same-file",
- "tempfile",
-]
-
-[[package]]
-name = "hmstd-fileops"
-version = "0.1.0"
-dependencies = [
- "hmstd-filesystem",
- "tempfile",
- "thiserror 2.0.21",
- "trash",
-]
-
-[[package]]
-name = "hmstd-filesystem"
-version = "0.1.0"
-dependencies = [
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "hmstd-ntfs"
-version = "0.1.0"
-dependencies = [
- "hmstd-filesystem",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "hmstd-scanner"
-version = "0.1.0"
-dependencies = [
- "hmstd-filesystem",
- "tempfile",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "hmstd-search"
-version = "0.1.0"
-dependencies = [
- "hmstd-filesystem",
- "thiserror 2.0.21",
-]
-
-[[package]]
 name = "html5ever"
 version = "0.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6790,6 +6697,99 @@ dependencies = [
  "quick-error",
  "weezl",
  "zune-jpeg 0.5.15",
+]
+
+[[package]]
+name = "timberstat-app"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "embed-resource",
+ "gpui-kit",
+ "tempfile",
+ "timberstat-core",
+ "timberstat-duplicates",
+ "timberstat-fileops",
+ "timberstat-filesystem",
+ "timberstat-ntfs",
+ "timberstat-scanner",
+ "timberstat-search",
+ "tracing",
+]
+
+[[package]]
+name = "timberstat-archive"
+version = "0.1.0"
+dependencies = [
+ "thiserror 2.0.21",
+ "timberstat-fileops",
+]
+
+[[package]]
+name = "timberstat-core"
+version = "0.1.0"
+dependencies = [
+ "config",
+ "directories",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "timberstat-duplicates"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "rayon",
+ "same-file",
+ "tempfile",
+ "timberstat-fileops",
+ "timberstat-filesystem",
+]
+
+[[package]]
+name = "timberstat-fileops"
+version = "0.1.0"
+dependencies = [
+ "tempfile",
+ "thiserror 2.0.21",
+ "timberstat-filesystem",
+ "trash",
+]
+
+[[package]]
+name = "timberstat-filesystem"
+version = "0.1.0"
+dependencies = [
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "timberstat-ntfs"
+version = "0.1.0"
+dependencies = [
+ "thiserror 2.0.21",
+ "timberstat-filesystem",
+]
+
+[[package]]
+name = "timberstat-scanner"
+version = "0.1.0"
+dependencies = [
+ "tempfile",
+ "thiserror 2.0.21",
+ "timberstat-filesystem",
+]
+
+[[package]]
+name = "timberstat-search"
+version = "0.1.0"
+dependencies = [
+ "thiserror 2.0.21",
+ "timberstat-filesystem",
 ]
 
 [[package]]

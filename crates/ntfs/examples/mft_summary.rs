@@ -3,8 +3,8 @@
 
 use std::{fs::File, io::Read, time::Instant};
 
-use hmstd_filesystem::NodeId;
-use hmstd_ntfs::{Catalog, parse_boot_sector, read_records};
+use timberstat_filesystem::NodeId;
+use timberstat_ntfs::{Catalog, parse_boot_sector, read_records};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();

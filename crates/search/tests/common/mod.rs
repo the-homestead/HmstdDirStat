@@ -4,8 +4,8 @@
 
 use std::ffi::OsString;
 
-use hmstd_filesystem::{EntryKind, FileTree, Metadata, NewEntry, NodeId};
-use hmstd_search::{Evaluation, Expr, ParseError, compile, run};
+use timberstat_filesystem::{EntryKind, FileTree, Metadata, NewEntry, NodeId};
+use timberstat_search::{Evaluation, Expr, ParseError, compile, run};
 
 /// Fixed "now" for age terms: 2027-01-15, a Friday.
 pub const NOW: i64 = 1_800_000_000;

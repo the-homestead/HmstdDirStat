@@ -9,7 +9,7 @@ use std::{
 
 use gpui_kit::component::*;
 use gpui_kit::*;
-use hmstd_filesystem::{EntryKind, FileTree, NodeId};
+use timberstat_filesystem::{EntryKind, FileTree, NodeId};
 
 use super::{
     Shell,

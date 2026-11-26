@@ -3,7 +3,7 @@
 
 use std::{collections::HashMap, path::Path};
 
-use hmstd_filesystem::{EntryKind, FileTree, NodeId};
+use timberstat_filesystem::{EntryKind, FileTree, NodeId};
 
 use crate::explore::{Basis, bytes_of};
 
@@ -62,7 +62,7 @@ fn extension_of(name: &std::ffi::OsStr) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hmstd_scanner::{CancelToken, FileSystemScanner, GenericScanner, ScanOptions};
+    use timberstat_scanner::{CancelToken, FileSystemScanner, GenericScanner, ScanOptions};
 
     fn scan(root: &Path) -> FileTree {
         GenericScanner

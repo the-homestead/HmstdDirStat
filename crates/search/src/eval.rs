@@ -3,7 +3,7 @@
 
 use std::collections::HashSet;
 
-use hmstd_filesystem::{EntryKind, FileTree, Node, NodeId};
+use timberstat_filesystem::{EntryKind, FileTree, Node, NodeId};
 
 use crate::ast::{Attr, Expr, Pred};
 

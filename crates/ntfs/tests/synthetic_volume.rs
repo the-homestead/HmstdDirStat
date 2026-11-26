@@ -4,7 +4,7 @@
 
 use std::io::Cursor;
 
-use hmstd_ntfs::{Catalog, parse_boot_sector, read_records};
+use timberstat_ntfs::{Catalog, parse_boot_sector, read_records};
 
 const CLUSTER: usize = 4096;
 const RECORD: usize = 1024;
@@ -162,9 +162,9 @@ fn volume() -> Vec<u8> {
 }
 
 fn build_tree() -> (
-    hmstd_filesystem::FileTree,
-    hmstd_ntfs::BuildStats,
-    hmstd_ntfs::ReadStats,
+    timberstat_filesystem::FileTree,
+    timberstat_ntfs::BuildStats,
+    timberstat_ntfs::ReadStats,
 ) {
     let image = volume();
     let mut cursor = Cursor::new(image);
@@ -182,10 +182,10 @@ fn build_tree() -> (
 }
 
 fn child_named(
-    tree: &hmstd_filesystem::FileTree,
-    parent: hmstd_filesystem::NodeId,
+    tree: &timberstat_filesystem::FileTree,
+    parent: timberstat_filesystem::NodeId,
     name: &str,
-) -> Option<hmstd_filesystem::NodeId> {
+) -> Option<timberstat_filesystem::NodeId> {
     tree.children(parent).find(|id| {
         tree.node(*id)
             .is_some_and(|node| node.name() == std::ffi::OsStr::new(name))
@@ -200,7 +200,7 @@ fn synthetic_volume_builds_the_expected_tree() {
     assert_eq!(stats.bad_records, 0);
     assert_eq!(build.orphans, 1, "lost.txt has no parent");
 
-    let root = hmstd_filesystem::NodeId::ROOT;
+    let root = timberstat_filesystem::NodeId::ROOT;
     assert!(child_named(&tree, root, "a.txt").is_some());
     assert!(child_named(&tree, root, "docs").is_some());
     assert!(

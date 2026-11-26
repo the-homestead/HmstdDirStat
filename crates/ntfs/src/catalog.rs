@@ -4,7 +4,7 @@
 
 use std::{collections::HashMap, collections::VecDeque, ffi::OsString};
 
-use hmstd_filesystem::{EntryKind, FileTree, Metadata, NewEntry, NodeId};
+use timberstat_filesystem::{EntryKind, FileTree, Metadata, NewEntry, NodeId};
 
 use crate::{DataInfo, NtfsError, Record, reader::ROOT_RECORD};
 

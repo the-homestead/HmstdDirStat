@@ -4,7 +4,7 @@
 
 use gpui_kit::component::{tooltip::Tooltip, *};
 use gpui_kit::*;
-use hmstd_filesystem::{FileTree, NodeId};
+use timberstat_filesystem::{FileTree, NodeId};
 
 use super::{Shell, views::breadcrumb, widgets::*};
 use crate::{

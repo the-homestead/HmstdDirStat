@@ -4,7 +4,7 @@
 mod common;
 
 use common::*;
-use hmstd_filesystem::{FileTree, NodeId};
+use timberstat_filesystem::{FileTree, NodeId};
 
 // ---- name, wildcard, quoted and path terms ---------------------------------------------
 

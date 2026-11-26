@@ -1,5 +1,5 @@
 [package]
-name = "hmstd-duplicates"
+name = "timberstat-duplicates"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,11 +8,11 @@ license.workspace = true
 description = "Duplicate detection for TimberStat: size, sample, BLAKE3 and byte-verify stages. Reports only; never deletes. GPUI-independent."
 
 [lib]
-name = "hmstd_duplicates"
+name = "timberstat_duplicates"
 
 [dependencies]
-hmstd-filesystem = { path = "../filesystem" }
-hmstd-fileops = { path = "../fileops" }
+timberstat-filesystem = { path = "../filesystem" }
+timberstat-fileops = { path = "../fileops" }
 blake3.workspace = true
 rayon.workspace = true
 same-file.workspace = true

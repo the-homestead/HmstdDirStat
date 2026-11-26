@@ -2,8 +2,8 @@
 //! double-click, the right-click menu, and the clipboard and Explorer hand-offs.
 
 use gpui_kit::*;
-use hmstd_filesystem::{EntryKind, NodeId};
 use std::path::PathBuf;
+use timberstat_filesystem::{EntryKind, NodeId};
 
 use super::{ContextMenu, Shell, rings};
 use crate::explore::Basis;
@@ -118,6 +118,6 @@ impl Shell {
     pub fn path_of_node(&self, node: NodeId) -> Option<PathBuf> {
         let relative = self.tree.as_deref()?.path_of(node)?;
         let scan_root = self.scan_root.as_ref()?;
-        Some(hmstd_fileops::tree_base(scan_root).join(relative))
+        Some(timberstat_fileops::tree_base(scan_root).join(relative))
     }
 }

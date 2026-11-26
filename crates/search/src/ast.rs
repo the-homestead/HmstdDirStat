@@ -1,6 +1,6 @@
 //! The parsed query. Built by `parse`, read by `eval`.
 
-use hmstd_filesystem::EntryKind;
+use timberstat_filesystem::EntryKind;
 
 /// A boolean tree over predicates.
 #[derive(Debug, Clone, PartialEq)]

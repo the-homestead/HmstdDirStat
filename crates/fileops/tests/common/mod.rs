@@ -4,8 +4,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use hmstd_fileops::tree_base;
-use hmstd_filesystem::{EntryKind, FileTree, Metadata, NewEntry, NodeId};
+use timberstat_fileops::tree_base;
+use timberstat_filesystem::{EntryKind, FileTree, Metadata, NewEntry, NodeId};
 
 /// Writes a file, creating parent folders.
 pub fn write(path: impl AsRef<Path>, bytes: &[u8]) {

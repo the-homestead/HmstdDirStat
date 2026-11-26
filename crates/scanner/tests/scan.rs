@@ -10,8 +10,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use hmstd_filesystem::{EntryKind, FileTree, NodeId};
-use hmstd_scanner::{
+use timberstat_filesystem::{EntryKind, FileTree, NodeId};
+use timberstat_scanner::{
     CancelToken, FileSystemScanner, GenericScanner, ScanError, ScanOptions, ScanOutput,
     ScanProgress,
 };

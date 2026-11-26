@@ -4,7 +4,7 @@
 use gpui_kit::component::{Disableable, button::Button, chart::PieChart, *};
 use gpui_kit::*;
 
-use hmstd_filesystem::{FileTree, NodeId};
+use timberstat_filesystem::{FileTree, NodeId};
 
 use super::{Shell, widgets::*};
 use crate::{

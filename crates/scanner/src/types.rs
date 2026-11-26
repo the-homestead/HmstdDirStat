@@ -7,7 +7,7 @@ use std::{
     },
 };
 
-use hmstd_filesystem::FileTree;
+use timberstat_filesystem::FileTree;
 
 /// Maximum issues kept in a report. Further issues are counted, not stored,
 /// so a broken tree cannot exhaust memory.
@@ -147,7 +147,7 @@ pub enum ScanError {
     #[error("scan root {0} is not a directory")]
     RootNotDirectory(PathBuf),
     #[error("internal tree error: {0}")]
-    Tree(#[from] hmstd_filesystem::TreeError),
+    Tree(#[from] timberstat_filesystem::TreeError),
     /// The listing workers exited before the walk finished. The result is unusable.
     #[error("directory workers stopped before the walk finished")]
     WorkersStopped,

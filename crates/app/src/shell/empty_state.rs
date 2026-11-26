@@ -11,7 +11,7 @@ use gpui_kit::component::{
     *,
 };
 use gpui_kit::*;
-use hmstd_core::workspace::WidgetKind;
+use timberstat_core::workspace::WidgetKind;
 
 use super::{Phase, Shell};
 

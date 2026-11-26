@@ -3,7 +3,7 @@
 //! `expr := and ("OR" and)*`, `and := unary+` (whitespace is AND),
 //! `unary := ("NOT" | "!") unary | atom`, `atom := "(" expr ")" | term`.
 
-use hmstd_filesystem::EntryKind;
+use timberstat_filesystem::EntryKind;
 
 use crate::ast::{Attr, Expr, Pred};
 use crate::lexer::{Spanned, Tok, lex};

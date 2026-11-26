@@ -1,4 +1,4 @@
-//! Search across the visualisations. The text is compiled with the `hmstd-search` query
+//! Search across the visualisations. The text is compiled with the `timberstat-search` query
 //! language (`ext:iso size:>1gb NOT attr:hidden`) and evaluated once over the scanned tree.
 //! The Files tree lists only matching rows and the folders that lead to them; the treemap
 //! and sunburst dim everything but the matches. A query that does not parse filters nothing,
@@ -7,8 +7,8 @@
 use std::collections::HashSet;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use hmstd_filesystem::{FileTree, NodeId};
-use hmstd_search::{Expr, ParseError, compile, features, run_with_duplicates};
+use timberstat_filesystem::{FileTree, NodeId};
+use timberstat_search::{Expr, ParseError, compile, features, run_with_duplicates};
 
 use crate::tiles::Tile;
 
@@ -192,7 +192,7 @@ mod tests {
     use std::ffi::OsString;
 
     use super::*;
-    use hmstd_filesystem::{EntryKind, Metadata, NewEntry};
+    use timberstat_filesystem::{EntryKind, Metadata, NewEntry};
 
     fn file(name: &str) -> NewEntry {
         NewEntry {

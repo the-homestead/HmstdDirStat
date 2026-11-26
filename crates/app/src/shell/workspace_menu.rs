@@ -1,5 +1,5 @@
 //! Saved-workspace controls inside the View menu. Every listed preset is backed by widgets in
-//! this build; custom actions call the hmstd-core document operations through Shell.
+//! this build; custom actions call the timberstat-core document operations through Shell.
 
 use gpui_kit::component::{
     button::{Button, ButtonVariants},
@@ -7,7 +7,7 @@ use gpui_kit::component::{
     *,
 };
 use gpui_kit::*;
-use hmstd_core::workspace::saved::{WORKSPACE_PRESETS, WorkspacePreset};
+use timberstat_core::workspace::saved::{WORKSPACE_PRESETS, WorkspacePreset};
 
 use super::{Shell, widgets::*};
 

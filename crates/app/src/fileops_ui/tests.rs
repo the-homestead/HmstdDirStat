@@ -3,9 +3,11 @@
 
 use std::sync::Arc;
 
-use hmstd_fileops::{Control, apply_delete, build_delete_plan, execute_delete_with, tree_base};
-use hmstd_filesystem::NodeId;
-use hmstd_scanner::{CancelToken, FileSystemScanner, GenericScanner, ScanOptions};
+use timberstat_fileops::{
+    Control, apply_delete, build_delete_plan, execute_delete_with, tree_base,
+};
+use timberstat_filesystem::NodeId;
+use timberstat_scanner::{CancelToken, FileSystemScanner, GenericScanner, ScanOptions};
 
 use super::view_model;
 

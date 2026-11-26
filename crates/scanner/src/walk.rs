@@ -8,7 +8,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use hmstd_filesystem::NodeId;
+use timberstat_filesystem::NodeId;
 
 use crate::types::{CancelToken, ScanOptions};
 

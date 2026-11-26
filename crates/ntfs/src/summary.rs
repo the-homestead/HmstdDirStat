@@ -3,7 +3,7 @@
 
 use std::{fs::File, io::Read, time::Instant};
 
-use hmstd_filesystem::{FileTree, NodeId};
+use timberstat_filesystem::{FileTree, NodeId};
 
 use crate::{Catalog, NtfsError, parse_boot_sector, read_records_with_progress};
 

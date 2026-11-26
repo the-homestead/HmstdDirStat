@@ -1,5 +1,5 @@
 [package]
-name = "hmstd-ntfs"
+name = "timberstat-ntfs"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,7 +8,7 @@ license.workspace = true
 description = "Reads NTFS Master File Table records and builds a file tree (no unsafe code)."
 
 [dependencies]
-hmstd-filesystem = { path = "../filesystem" }
+timberstat-filesystem = { path = "../filesystem" }
 thiserror.workspace = true
 
 [lints]

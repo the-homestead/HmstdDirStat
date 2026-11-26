@@ -89,7 +89,7 @@ Needs Rust 1.95 or newer. On Linux, also the GPUI libraries:
 ```sh
 git clone https://github.com/the-homestead/TimberStat.git
 cd TimberStat
-cargo run --release -p hmstd-app
+cargo run --release -p timberstat-app
 ```
 
 Checks CI runs on every change:

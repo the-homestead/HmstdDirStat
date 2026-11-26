@@ -6,7 +6,7 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use hmstd_filesystem::{EntryKind, FileIdentity, FileTree, NodeId};
+use timberstat_filesystem::{EntryKind, FileIdentity, FileTree, NodeId};
 
 use crate::model::{PlanError, Preview, WorkItem};
 

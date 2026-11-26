@@ -1,7 +1,7 @@
 //! Folder data for the views: children sorted by size, the rows for the Files tab, and
 //! the slices for the pie chart and treemap. Pure data with no GPUI types.
 
-use hmstd_filesystem::{EntryKind, FileTree, NodeId};
+use timberstat_filesystem::{EntryKind, FileTree, NodeId};
 
 /// One child of a folder. `bytes` is its logical size, including everything below it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -186,8 +186,8 @@ fn into_slice(child: Child) -> Slice {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hmstd_scanner::{CancelToken, FileSystemScanner, GenericScanner, ScanOptions};
     use std::path::Path;
+    use timberstat_scanner::{CancelToken, FileSystemScanner, GenericScanner, ScanOptions};
 
     fn write(path: &Path, bytes: usize) {
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();

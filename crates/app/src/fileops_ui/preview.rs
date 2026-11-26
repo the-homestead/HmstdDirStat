@@ -6,7 +6,7 @@ use gpui_kit::component::{
     *,
 };
 use gpui_kit::*;
-use hmstd_fileops::DeleteMode;
+use timberstat_fileops::DeleteMode;
 
 use super::{Shell, view_model};
 use crate::shell::widgets::{Palette, Stat, stat_grid};

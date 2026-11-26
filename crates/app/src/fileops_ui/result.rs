@@ -3,7 +3,7 @@
 
 use gpui_kit::component::{button::Button, *};
 use gpui_kit::*;
-use hmstd_fileops::Failure;
+use timberstat_fileops::Failure;
 
 use super::{Shell, view_model};
 use crate::shell::widgets::{Palette, Stat, stat_grid};

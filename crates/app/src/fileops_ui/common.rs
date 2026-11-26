@@ -8,8 +8,8 @@ use gpui_kit::component::{
     *,
 };
 use gpui_kit::*;
-use hmstd_fileops::{Collision, SkipReason, Skipped};
-use hmstd_filesystem::NodeId;
+use timberstat_fileops::{Collision, SkipReason, Skipped};
+use timberstat_filesystem::NodeId;
 
 use crate::shell::{Shell, widgets::Palette};
 
@@ -142,7 +142,7 @@ impl Shell {
 #[cfg(test)]
 mod tests {
     use super::{POLICIES, policy_help, policy_label};
-    use hmstd_fileops::Collision;
+    use timberstat_fileops::Collision;
 
     #[test]
     fn every_policy_has_a_label_and_help_and_is_listed_once() {

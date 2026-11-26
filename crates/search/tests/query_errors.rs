@@ -3,7 +3,7 @@
 mod common;
 
 use common::{check_error, parse_error};
-use hmstd_search::compile;
+use timberstat_search::compile;
 
 #[test]
 fn unknown_field_is_a_parse_error_at_its_term() {

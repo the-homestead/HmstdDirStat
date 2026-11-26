@@ -8,7 +8,7 @@
 use std::ops::Range;
 use std::path::Path;
 
-use hmstd_filesystem::{FileTree, NodeId};
+use timberstat_filesystem::{FileTree, NodeId};
 
 use crate::model::{PlanError, Preview, WorkItem};
 use crate::preview::{DEFAULT_PREVIEW_CAP, collect_items, normalize_roots, summarize};

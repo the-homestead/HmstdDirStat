@@ -8,7 +8,7 @@ use gpui_kit::component::{
     *,
 };
 use gpui_kit::*;
-use hmstd_fileops::{Failure, RenameOutcome};
+use timberstat_fileops::{Failure, RenameOutcome};
 
 use super::common::policy_group;
 use super::rename::{RenameStage, RenameUi};

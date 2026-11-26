@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 use gpui_kit::component::{scroll::ScrollbarMode, *};
 use gpui_kit::*;
-use hmstd_core::config::{self, ThemePreference};
+use timberstat_core::config::{self, ThemePreference};
 
 /// Applies a stored preference to the live GPUI theme.
 pub fn apply_theme(preference: ThemePreference, cx: &mut App) {

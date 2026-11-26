@@ -4,8 +4,8 @@
 use std::cmp::Reverse;
 use std::path::PathBuf;
 
-use hmstd_fileops::Failure;
-use hmstd_filesystem::NodeId;
+use timberstat_fileops::Failure;
+use timberstat_filesystem::NodeId;
 
 use crate::hash::{Digest, digest_hex};
 

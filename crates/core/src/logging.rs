@@ -24,7 +24,7 @@ pub fn log_dir() -> Option<PathBuf> {
 
 /// Creates a new log file in `dir`, prunes older ones, and installs the global subscriber.
 ///
-/// The level comes from `HMSTD_LOG` (for example `info` or `hmstd_core=debug`) and
+/// The level comes from `HMSTD_LOG` (for example `info` or `timberstat_core=debug`) and
 /// defaults to `info`. Returns the path of the file written by this run.
 pub fn init(dir: &Path) -> Result<PathBuf, Box<dyn Error + Send + Sync>> {
     fs::create_dir_all(dir)?;
@@ -35,7 +35,7 @@ pub fn init(dir: &Path) -> Result<PathBuf, Box<dyn Error + Send + Sync>> {
         .duration_since(UNIX_EPOCH)
         .map(|elapsed| elapsed.as_secs())
         .unwrap_or(0);
-    let path = dir.join(format!("hmstd-{stamp:012}.log"));
+    let path = dir.join(format!("timberstat-{stamp:012}.log"));
     let file = OpenOptions::new().create(true).append(true).open(&path)?;
 
     let filter = EnvFilter::try_from_env("HMSTD_LOG").unwrap_or_else(|_| EnvFilter::new("info"));
@@ -73,7 +73,7 @@ mod tests {
     fn prune_keeps_the_newest_logs() {
         let dir = tempfile::tempdir().unwrap();
         for stamp in 1..=5 {
-            fs::write(dir.path().join(format!("hmstd-{stamp:012}.log")), "").unwrap();
+            fs::write(dir.path().join(format!("timberstat-{stamp:012}.log")), "").unwrap();
         }
         fs::write(dir.path().join("notes.txt"), "").unwrap();
 
@@ -84,12 +84,13 @@ mod tests {
             .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
             .collect();
         left.sort();
+        // Sorted by name, like `left`: "notes.txt" precedes the "timberstat-" logs.
         assert_eq!(
             left,
             vec![
-                "hmstd-000000000004.log".to_string(),
-                "hmstd-000000000005.log".to_string(),
                 "notes.txt".to_string(),
+                "timberstat-000000000004.log".to_string(),
+                "timberstat-000000000005.log".to_string(),
             ]
         );
     }

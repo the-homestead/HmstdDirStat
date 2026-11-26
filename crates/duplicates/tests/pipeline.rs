@@ -4,9 +4,9 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use hmstd_duplicates::{Options, Progress, RunStatus, Stage, find_duplicates};
-use hmstd_fileops::{FailureReason, WorkItem};
-use hmstd_filesystem::{EntryKind, NodeId};
+use timberstat_duplicates::{Options, Progress, RunStatus, Stage, find_duplicates};
+use timberstat_fileops::{FailureReason, WorkItem};
+use timberstat_filesystem::{EntryKind, NodeId};
 
 const KIB: usize = 1024;
 
@@ -41,14 +41,14 @@ fn options() -> Options {
     }
 }
 
-fn run(paths: &[PathBuf]) -> hmstd_duplicates::DuplicateReport {
+fn run(paths: &[PathBuf]) -> timberstat_duplicates::DuplicateReport {
     let progress = Progress::new();
     let report = find_duplicates(&items_for(paths), &options(), &progress);
     assert_eq!(progress.stage(), Stage::Done, "run must finish in Done");
     report
 }
 
-fn names(group: &hmstd_duplicates::DuplicateGroup) -> Vec<String> {
+fn names(group: &timberstat_duplicates::DuplicateGroup) -> Vec<String> {
     group
         .members
         .iter()

@@ -4,8 +4,8 @@
 use std::collections::HashSet;
 use std::ffi::OsString;
 
-use hmstd_filesystem::{EntryKind, FileTree, Metadata, NewEntry, NodeId};
-use hmstd_search::{compile, features, run, run_with_duplicates};
+use timberstat_filesystem::{EntryKind, FileTree, Metadata, NewEntry, NodeId};
+use timberstat_search::{compile, features, run, run_with_duplicates};
 
 fn file(name: &str) -> NewEntry {
     NewEntry {
@@ -31,7 +31,7 @@ fn sample() -> (FileTree, NodeId, NodeId, NodeId) {
     (tree, a, b, c)
 }
 
-fn expr(text: &str) -> hmstd_search::Expr {
+fn expr(text: &str) -> timberstat_search::Expr {
     compile(text).expect("parses").expect("non-empty")
 }
 

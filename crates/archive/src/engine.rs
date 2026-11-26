@@ -117,7 +117,7 @@ impl ArchiveManager {
             | ArchiveFormat::TarXz
             | ArchiveFormat::TarZst => {
                 // tar has no test mode; extract to a scratch directory and drop it.
-                let temp: PathBuf = std::env::temp_dir().join("hmstd-archive-test");
+                let temp: PathBuf = std::env::temp_dir().join("timberstat-archive-test");
                 let spec = build(
                     handler,
                     format,

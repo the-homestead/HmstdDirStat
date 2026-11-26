@@ -3,7 +3,7 @@
 
 use gpui_kit::component::{scroll::*, *};
 use gpui_kit::*;
-use hmstd_core::workspace::WidgetKind;
+use timberstat_core::workspace::WidgetKind;
 
 use super::{
     Phase, Shell, duplicates_view, empty_state, extensions_view, files_tree,

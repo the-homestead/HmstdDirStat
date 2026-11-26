@@ -9,7 +9,7 @@ Conventional Commits by git-cliff on each release; do not edit it by hand.
 
 - Add GPUI shell and versioned configuration (Phase 1) (aa20e9f)
 - Add filesystem model, scanner, and volume scanning in the app (6a24f1c)
-- Add NTFS MFT reader (hmstd-ntfs) and name unreadable paths (7d8af64)
+- Add NTFS MFT reader (timberstat-ntfs) and name unreadable paths (7d8af64)
 - Fast NTFS scan in the window, redesigned layout (665b444)
 - Walk progress and partial-result alert, using GPUI Kit components (0556406)
 - Fast scan progress bar, and open the window at normal size (510def6)

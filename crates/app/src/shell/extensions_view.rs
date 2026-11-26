@@ -10,7 +10,7 @@ use crate::{
     extensions::ExtensionTotal,
     scan::{format_bytes, format_count},
 };
-use hmstd_core::workspace::WidgetKind;
+use timberstat_core::workspace::WidgetKind;
 
 /// Rows drawn before the list stops. The rest are counted in one line below it.
 const MAX_ROWS: usize = 40;
