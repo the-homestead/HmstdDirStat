@@ -3,8 +3,8 @@
 //! fills the main area.
 
 use gpui_kit::component::{
-    TitleBar, button::Button, label::Label, progress::Progress, spinner::Spinner,
-    status_bar::StatusBar, tag::Tag, *,
+    button::Button, label::Label, progress::Progress, spinner::Spinner, status_bar::StatusBar,
+    tag::Tag, *,
 };
 use gpui_kit::*;
 use timberstat_ntfs::SummaryProgress;
@@ -25,20 +25,18 @@ impl Render for Shell {
         window.set_rem_size(px(16.0 * self.ui_scale));
         let p = Palette::from_app(cx);
         super::menu::ensure_popup(self, window, cx);
-        super::menubar::ensure_popup(self, window, cx);
         let handle = cx.entity();
 
-        div()
-            .size_full()
-            .on_action(cx.listener(
-                |shell: &mut Shell, _: &crate::OpenCommandPalette, window, cx| {
-                    shell.open_command_palette(window, cx);
-                },
-            ))
+        let root = div().size_full().on_action(cx.listener(
+            |shell: &mut Shell, _: &crate::OpenCommandPalette, window, cx| {
+                shell.open_command_palette(window, cx);
+            },
+        ));
+        menubar::bind(root, cx)
             .v_flex()
             .bg(p.background)
             .text_color(p.foreground)
-            .child(TitleBar::new().child(menubar::bar(self, p, handle.clone())))
+            .child(menubar::title_bar(self, cx))
             .child(toolbar::bar(self, p, handle.clone()))
             .child(
                 div()
