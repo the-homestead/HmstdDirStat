@@ -14,6 +14,7 @@ mod shell;
 mod theme;
 mod tiles;
 
+mod drive_kind;
 use anyhow::{Context as _, Result};
 use gpui_kit::component::TitleBar;
 use gpui_kit::*;
@@ -75,6 +76,7 @@ fn main() -> Result<()> {
             apply_theme(app_config.theme, cx);
             theme::log_mode_changes(cx);
             let ui_scale = app_config.ui_scale;
+            let drive_modes = app_config.drive_modes.clone();
 
             if let Err(error) = gpui_kit::open_window(
                 WindowOptions {
@@ -86,7 +88,17 @@ fn main() -> Result<()> {
                     ..TitleBar::window_options()
                 },
                 cx,
-                |_, cx| cx.new(|_| Shell::new(volumes, log_dir.clone(), layout.clone(), ui_scale)),
+                |_, cx| {
+                    cx.new(|_| {
+                        Shell::new(
+                            volumes,
+                            log_dir.clone(),
+                            layout.clone(),
+                            ui_scale,
+                            drive_modes.clone(),
+                        )
+                    })
+                },
             ) {
                 tracing::error!(%error, "could not open the main window");
                 cx.quit();

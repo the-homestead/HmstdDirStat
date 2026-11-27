@@ -4,6 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use crate::scan_mode::ScanModeChoice;
 use config::{Config, Environment, File, FileFormat};
 use serde::{Deserialize, Serialize};
 
@@ -65,6 +66,9 @@ pub struct AppConfig {
     /// The widget layout last saved. `None` until the user changes it.
     #[serde(default)]
     pub workspace: Option<WorkspaceLayout>,
+    /// Per-drive scan mode, keyed by drive letter (`C`). Drives without an entry use `Auto`.
+    #[serde(default)]
+    pub drive_modes: std::collections::BTreeMap<String, crate::scan_mode::ScanModeChoice>,
 }
 
 impl Default for AppConfig {
@@ -74,6 +78,7 @@ impl Default for AppConfig {
             theme: ThemePreference::default(),
             ui_scale: DEFAULT_UI_SCALE,
             workspace: None,
+            drive_modes: Default::default(),
         }
     }
 }
@@ -201,6 +206,19 @@ pub fn store_ui_scale(path: &Path, scale: f32) -> Result<(), ConfigError> {
     save_to(path, &config)
 }
 
+/// Saves one drive's scan mode. `drive` is its letter, such as `C`.
+pub fn store_drive_mode(
+    path: &Path,
+    drive: char,
+    choice: ScanModeChoice,
+) -> Result<(), ConfigError> {
+    let mut config = layered_load(path, None)?;
+    config
+        .drive_modes
+        .insert(drive.to_ascii_uppercase().to_string(), choice);
+    save_to(path, &config)
+}
+
 pub fn store_theme_preference(path: &Path, theme: ThemePreference) -> Result<(), ConfigError> {
     let mut config = layered_load(path, None)?;
     config.theme = theme;
@@ -279,6 +297,7 @@ mod tests {
                 theme,
                 ui_scale: DEFAULT_UI_SCALE,
                 workspace: None,
+                drive_modes: Default::default(),
             };
             save_to(&path, &config).unwrap();
             assert_eq!(layered_load(&path, no_env()).unwrap(), config);
@@ -308,6 +327,7 @@ mod tests {
             theme: ThemePreference::Dark,
             ui_scale: DEFAULT_UI_SCALE,
             workspace: None,
+            drive_modes: Default::default(),
         };
         save_to(&path, &dark).unwrap();
         assert_eq!(layered_load(&path, no_env()).unwrap(), dark);

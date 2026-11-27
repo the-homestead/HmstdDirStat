@@ -84,6 +84,10 @@ pub struct Shell {
     volumes: Vec<PathBuf>,
     phase: Phase,
     fast_mode: bool,
+    /// Each drive's chosen scan mode, by letter.
+    drive_modes: std::collections::BTreeMap<String, timberstat_core::scan_mode::ScanModeChoice>,
+    /// Whether each drive is a spinning disk, found once per session by the background probe.
+    hdd_cache: std::collections::HashMap<char, bool>,
     log_dir: PathBuf,
     /// The tree from the last walk, shared by the views.
     tree: Option<Arc<FileTree>>,
@@ -126,12 +130,15 @@ impl Shell {
         log_dir: PathBuf,
         layout: WorkspaceLayout,
         ui_scale: f32,
+        drive_modes: std::collections::BTreeMap<String, timberstat_core::scan_mode::ScanModeChoice>,
     ) -> Self {
         let (workspaces, layout) = workspace_manager::WorkspaceUi::restore(layout);
         Self {
             volumes,
             phase: Phase::Idle,
             fast_mode: false,
+            drive_modes,
+            hdd_cache: Default::default(),
             log_dir,
             tree: None,
             scan_root: None,

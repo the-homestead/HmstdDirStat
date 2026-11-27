@@ -14,8 +14,11 @@ use gpui_kit::component::{
 };
 use gpui_kit::*;
 
+use super::scanning::drive_letter;
 use super::{Shell, widgets::*};
 use crate::{explore, explore::Basis, platform, search::Query};
+use gpui_kit::component::menu::{ContextMenuExt, PopupMenuItem};
+use timberstat_core::scan_mode::ScanModeChoice;
 
 /// Height of the bar in pixels. The menu row sits above it; overlays open under both.
 pub(super) const BAR_PX: f32 = 44.0;
@@ -35,7 +38,6 @@ pub(super) fn bar(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Div {
         .child(brand(p))
         .child(drives(shell, handle.clone()))
         .child(divider(p))
-        .child(mode(shell, handle.clone()))
         .child(
             div()
                 .flex_1()
@@ -68,59 +70,64 @@ fn divider(p: Palette) -> Div {
 
 /// One segment per drive. The drive that holds the current scan is selected; clicking any
 /// drive scans it with the chosen mode.
-fn drives(shell: &Shell, handle: Entity<Shell>) -> ButtonGroup {
+/// One button per drive. Left-click scans it with the drive's mode. Right-click shows that mode
+/// and lets it be changed; the choice is saved for next time.
+fn drives(shell: &Shell, handle: Entity<Shell>) -> Div {
     let busy = shell.is_busy();
     let current = shell.scan_root.clone();
-    let volumes = shell.volumes.clone();
-    let mut group = ButtonGroup::new("drives").outline().small().compact();
-    for (index, drive) in volumes.iter().enumerate() {
+    let mut row = div().h_flex().gap_1();
+    for (index, drive) in shell.volumes.iter().enumerate() {
+        let letter = drive_letter(drive);
         let selected = current.as_ref().is_some_and(|root| root.starts_with(drive));
+        let choice = shell.drive_mode(letter);
         let label = drive.display().to_string();
-        group = group.child(
-            Button::new(("drive", index))
-                .label(label.trim_end_matches('\\').to_string())
-                .tooltip(format!("Scan {label}"))
-                .selected(selected)
-                .disabled(busy),
+        let pick = drive.clone();
+        let click_handle = handle.clone();
+        let menu_handle = handle.clone();
+        row = row.child(
+            div()
+                .id(("drive", index))
+                .context_menu(move |menu, _, _| {
+                    let mut menu = menu.label(format!("Scan mode for {letter}:"));
+                    if !platform::FAST_NTFS_AVAILABLE {
+                        menu = menu.label(platform::FAST_NTFS_UNAVAILABLE);
+                    }
+                    for (name, option) in [
+                        ("Auto (file table for hard disks)", ScanModeChoice::Auto),
+                        ("Fast NTFS (file table)", ScanModeChoice::Fast),
+                        ("Walk (folders)", ScanModeChoice::Walk),
+                    ] {
+                        let target = menu_handle.clone();
+                        menu =
+                            menu.item(PopupMenuItem::new(name).checked(choice == option).on_click(
+                                move |_, _, cx| {
+                                    target.update(cx, |shell, cx| {
+                                        shell.set_drive_mode(letter, option, cx)
+                                    });
+                                },
+                            ));
+                    }
+                    menu
+                })
+                .child(
+                    Button::new(("drive-button", index))
+                        .outline()
+                        .small()
+                        .compact()
+                        .label(label.trim_end_matches('\\').to_string())
+                        .tooltip(format!(
+                            "Scan {label}. Right-click to change its scan mode."
+                        ))
+                        .selected(selected)
+                        .disabled(busy)
+                        .on_click(move |_, _, cx| {
+                            click_handle
+                                .update(cx, |shell, cx| shell.choose_volume(pick.clone(), cx));
+                        }),
+                ),
         );
     }
-    group.on_click(move |clicked, _, cx| {
-        if let Some(drive) = clicked.first().and_then(|ix| volumes.get(*ix)).cloned() {
-            handle.update(cx, |shell, cx| shell.choose_volume(drive, cx));
-        }
-    })
-}
-
-/// Walk (no elevation) or Fast (reads the NTFS file table; Windows asks for permission when a
-/// drive is scanned, never when this is switched).
-fn mode(shell: &Shell, handle: Entity<Shell>) -> ButtonGroup {
-    let fast = shell.fast_mode;
-    ButtonGroup::new("scan-mode")
-        .outline()
-        .small()
-        .compact()
-        .disabled(shell.is_busy())
-        .child(
-            Button::new("mode-walk")
-                .label("Walk")
-                .tooltip("Walk folders. No administrator rights needed.")
-                .selected(!fast),
-        )
-        .child(
-            Button::new("mode-fast")
-                .label("Fast NTFS")
-                .tooltip(if platform::FAST_NTFS_AVAILABLE {
-                    "Read the NTFS file table. Windows asks for permission when you scan."
-                } else {
-                    platform::FAST_NTFS_UNAVAILABLE
-                })
-                .selected(fast)
-                .disabled(!platform::FAST_NTFS_AVAILABLE),
-        )
-        .on_click(move |clicked, _, cx| {
-            let fast = clicked.first() == Some(&1);
-            handle.update(cx, |shell, cx| shell.set_fast_mode(fast, cx));
-        })
+    row
 }
 
 /// The query field. Errors and warnings float under it instead of pushing the bar taller.

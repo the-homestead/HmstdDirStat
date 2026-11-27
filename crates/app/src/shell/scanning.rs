@@ -1,12 +1,17 @@
 //! Scan lifecycle actions, kept out of the main shell state module.
 
+use crate::drive_kind;
 use std::{
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{
         Arc,
         atomic::{AtomicU64, Ordering},
     },
     time::Instant,
+};
+use timberstat_core::{
+    config,
+    scan_mode::{ScanKind, ScanModeChoice, resolve},
 };
 
 use gpui_kit::*;
@@ -14,6 +19,15 @@ use timberstat_scanner::{FileSystemScanner, GenericScanner, ScanError, ScanOptio
 
 use super::{PROGRESS_REFRESH, Phase, Shell};
 use crate::{fast, platform, scan::summarize};
+
+/// The drive letter of a path such as `C:\`, uppercase. `?` when there is none.
+pub(super) fn drive_letter(drive: &Path) -> char {
+    drive
+        .to_string_lossy()
+        .chars()
+        .next()
+        .map_or('?', |c| c.to_ascii_uppercase())
+}
 
 impl Shell {
     pub fn is_busy(&self) -> bool {
@@ -23,21 +37,78 @@ impl Shell {
             || !self.rename.is_closed()
     }
 
-    pub fn set_fast_mode(&mut self, on: bool, cx: &mut Context<Self>) {
-        // Fast NTFS is Windows only; on other systems it can never be switched on.
-        let allowed = !on || platform::FAST_NTFS_AVAILABLE;
-        if !self.is_busy() && allowed {
-            self.fast_mode = on;
-            cx.notify();
+    /// Scans a drive. Its mode is the drive's override, or `Auto`: the file table for spinning
+    /// hard disks and a walk for everything else. The disk check runs once per drive per session,
+    /// off the UI thread.
+    pub fn choose_volume(&mut self, drive: PathBuf, cx: &mut Context<Self>) {
+        if self.is_busy() {
+            return;
+        }
+        let letter = drive_letter(&drive);
+        let choice = self.drive_mode(letter);
+        let available = platform::FAST_NTFS_AVAILABLE;
+        match self.hdd_cache.get(&letter).copied() {
+            Some(hdd) => self.begin_scan(drive, resolve(choice, hdd, available), cx),
+            None if choice != ScanModeChoice::Auto || !available => {
+                self.begin_scan(drive, resolve(choice, false, available), cx);
+            }
+            None => self.detect_then_scan(drive, letter, choice, cx),
         }
     }
 
-    /// Scans the chosen drive with the mode the user has selected.
-    pub fn choose_volume(&mut self, drive: PathBuf, cx: &mut Context<Self>) {
-        if self.fast_mode {
-            self.start_fast(drive, cx);
-        } else {
-            self.start_walk(drive, cx);
+    /// The mode a drive is set to. Drives without an override use `Auto`.
+    pub fn drive_mode(&self, letter: char) -> ScanModeChoice {
+        self.drive_modes
+            .get(&letter.to_ascii_uppercase().to_string())
+            .copied()
+            .unwrap_or_default()
+    }
+
+    /// Sets a drive's mode and saves it to config.json. The change applies to the next scan.
+    pub fn set_drive_mode(&mut self, letter: char, choice: ScanModeChoice, cx: &mut Context<Self>) {
+        self.drive_modes
+            .insert(letter.to_ascii_uppercase().to_string(), choice);
+        match config::default_config_path() {
+            Ok(path) => {
+                if let Err(error) = config::store_drive_mode(&path, letter, choice) {
+                    tracing::error!(%error, "drive mode changed but could not be saved");
+                }
+            }
+            Err(error) => {
+                tracing::error!(%error, "drive mode changed but no config path is available");
+            }
+        }
+        cx.notify();
+    }
+
+    /// Probes the disk in the background, remembers the answer for the session, then scans.
+    fn detect_then_scan(
+        &mut self,
+        drive: PathBuf,
+        letter: char,
+        choice: ScanModeChoice,
+        cx: &mut Context<Self>,
+    ) {
+        let probe = drive.clone();
+        let detect = cx
+            .background_executor()
+            .spawn(async move { drive_kind::is_spinning_hdd(&probe) });
+        cx.spawn(async move |this, cx| {
+            let hdd = detect.await;
+            let _ = this.update(cx, |shell, cx| {
+                shell.hdd_cache.insert(letter, hdd);
+                let kind = resolve(choice, hdd, platform::FAST_NTFS_AVAILABLE);
+                shell.begin_scan(drive, kind, cx);
+            });
+        })
+        .detach();
+    }
+
+    fn begin_scan(&mut self, drive: PathBuf, kind: ScanKind, cx: &mut Context<Self>) {
+        self.fast_mode = kind == ScanKind::Fast;
+        match kind {
+            ScanKind::Fast => self.start_fast(drive, cx),
+            ScanKind::Walk => self.start_walk(drive, cx),
         }
     }
 
