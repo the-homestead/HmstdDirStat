@@ -166,7 +166,6 @@ impl SearchPaths {
     }
 }
 
-
 #[derive(Debug, Clone, Default)]
 pub struct HandlerCatalog {
     handlers: Vec<HandlerSpec>,

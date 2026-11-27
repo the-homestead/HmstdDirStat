@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use super::{HandlerFamily, HandlerKind, SearchPaths};
+use crate::handler::{HandlerFamily, HandlerKind, SearchPaths};
 use crate::runner;
 
 pub(crate) struct Candidate {
