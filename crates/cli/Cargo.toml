@@ -12,6 +12,7 @@ name = "timberstat-cli"
 path = "src/main.rs"
 
 [dependencies]
+timberstat-core = { path = "../core" }
 timberstat-scanner = { path = "../scanner" }
 timberstat-filesystem = { path = "../filesystem" }
 timberstat-fileops = { path = "../fileops" }

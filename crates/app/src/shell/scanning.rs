@@ -70,6 +70,7 @@ impl Shell {
         self.task = Some(cx.spawn(async move |this, cx| {
             let outcome = job.await;
             let elapsed = started.elapsed();
+            tracing::info!("{}", timberstat_core::timing::line("scan", elapsed));
             let _ = this.update(cx, |shell, cx| {
                 shell.phase = match outcome {
                     Ok(output) => {

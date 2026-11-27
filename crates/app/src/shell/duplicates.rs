@@ -87,8 +87,14 @@ impl Shell {
         self.dup.members = None;
 
         let job = cx.background_executor().spawn(async move {
+            let started = std::time::Instant::now();
             let items = file_items(&files, &tree_base(&scan_root));
-            find_duplicates(&items, &Options::default(), &progress)
+            let report = find_duplicates(&items, &Options::default(), &progress);
+            tracing::info!(
+                "{}",
+                timberstat_core::timing::line("duplicates", started.elapsed())
+            );
+            report
         });
         self.dup.task = Some(cx.spawn(async move |this, cx| {
             let report = job.await;

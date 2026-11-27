@@ -35,3 +35,5 @@ pub trait FileSystemScanner {
         progress: &mut dyn FnMut(ScanProgress),
     ) -> Result<ScanOutput, ScanError>;
 }
+
+pub use walk::is_skipped_name;

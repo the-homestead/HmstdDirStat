@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::time::Instant;
 
 use timberstat_duplicates::{DuplicateReport, Options, RunStatus, file_items, find_duplicates};
 use timberstat_export::{duplicates_to_csv, duplicates_to_json};
@@ -13,8 +14,18 @@ use crate::{
 };
 
 pub fn run(root: &Path, export: &ExportOptions, cancel: &Cancellation) -> CliResult<u8> {
+    let started = Instant::now();
     let scanned = engine::scan(root, cancel)?;
+    eprintln!(
+        "{}",
+        timberstat_core::timing::line("scan", started.elapsed())
+    );
+    let started = Instant::now();
     let report = analyze(&scanned, cancel)?;
+    eprintln!(
+        "{}",
+        timberstat_core::timing::line("duplicates", started.elapsed())
+    );
     let mut status = scanned.exit_code();
     if !report.failures.is_empty() {
         status = EXIT_PARTIAL;

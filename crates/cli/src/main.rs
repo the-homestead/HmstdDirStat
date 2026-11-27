@@ -11,6 +11,7 @@ mod profile;
 mod scan_command;
 
 use std::process::ExitCode;
+use std::time::Instant;
 
 use args::Command;
 use cancel::Cancellation;
@@ -44,7 +45,9 @@ fn run() -> CliResult<u8> {
     }
 
     let cancellation = Cancellation::install()?;
-    match command {
+    // Whole-command timer: starts before the work and is reported after it, success or failure.
+    let started = Instant::now();
+    let result = match command {
         Command::Scan { root, export } => scan_command::run(&root, &export, &cancellation),
         Command::Large { root, top } => large::run(&root, top, &cancellation),
         Command::Hash { file } => hash_command::run(&file, &cancellation),
@@ -52,5 +55,10 @@ fn run() -> CliResult<u8> {
         Command::Compare { before, after } => compare_command::run(&before, &after, &cancellation),
         Command::Profile { name, root } => profile::run(&name, &root, &cancellation),
         Command::Help | Command::Version => unreachable!("handled before signal setup"),
-    }
+    };
+    eprintln!(
+        "{}",
+        timberstat_core::timing::line("total", started.elapsed())
+    );
+    result
 }

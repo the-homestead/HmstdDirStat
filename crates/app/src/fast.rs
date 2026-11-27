@@ -118,9 +118,29 @@ fn run_elevated_inner(
         .ok_or_else(|| "the helper's result was incomplete".to_string())?;
     let file = std::fs::File::open(&paths.tree)
         .map_err(|error| format!("the helper's folder tree is missing: {error}"))?;
-    let tree = timberstat_ntfs::read_tree(std::io::BufReader::with_capacity(1 << 20, file))
+    let mut tree = timberstat_ntfs::read_tree(std::io::BufReader::with_capacity(1 << 20, file))
         .map_err(|error| format!("could not read the folder tree: {error}"))?;
+    prune_skipped(&mut tree);
     Ok((summary, tree))
+}
+
+/// Removes the folders the normal scan skips, so the Fast result matches a walk. Totals are
+/// rolled up again after the removal.
+fn prune_skipped(tree: &mut timberstat_filesystem::FileTree) {
+    let skip = timberstat_scanner::ScanOptions::default().skip_names;
+    let doomed: Vec<timberstat_filesystem::NodeId> = tree
+        .attached_ids()
+        .filter(|id| {
+            tree.node(*id)
+                .is_some_and(|node| timberstat_scanner::is_skipped_name(node.name(), &skip))
+        })
+        .collect();
+    for id in &doomed {
+        let _ = tree.detach(*id);
+    }
+    if !doomed.is_empty() {
+        tree.roll_up();
+    }
 }
 
 /// Entry point for the elevated helper. `args` are the arguments after `--fast-helper`.

@@ -7,6 +7,7 @@ use std::{
     },
 };
 
+use std::ffi::OsString;
 use timberstat_filesystem::FileTree;
 
 /// Maximum issues kept in a report. Further issues are counted, not stored,
@@ -14,15 +15,31 @@ use timberstat_filesystem::FileTree;
 pub const MAX_RECORDED_ISSUES: usize = 10_000;
 
 /// What the scan does and what it was asked to skip.
-#[derive(Debug, Clone, Default)]
+/// Windows system folder the scan never enters. It holds volume metadata, not user files.
+pub const SKIPPED_SYSTEM_FOLDER: &str = "System Volume Information";
+
+#[derive(Debug, Clone)]
 pub struct ScanOptions {
     /// Paths to skip entirely, including everything beneath them.
     /// Matching is by whole path components and is case-sensitive.
     pub exclude: Vec<PathBuf>,
+    /// Folder names skipped wherever they appear, ignoring ASCII case as NTFS does.
+    pub skip_names: Vec<OsString>,
     /// Unix only: descend into directories on other filesystems. Off by default.
     pub cross_mount_points: bool,
     /// Directory-listing threads. `0` picks a default from the CPU count.
     pub threads: usize,
+}
+
+impl Default for ScanOptions {
+    fn default() -> Self {
+        Self {
+            exclude: Vec::new(),
+            skip_names: vec![OsString::from(SKIPPED_SYSTEM_FOLDER)],
+            cross_mount_points: false,
+            threads: 0,
+        }
+    }
 }
 
 impl ScanOptions {

@@ -2,6 +2,7 @@
 //! data; the coordinator in `generic.rs` owns the tree, the hard-link set and the
 //! report, so nothing here needs locks.
 
+use std::ffi::OsStr;
 use std::{
     ffi::OsString,
     fs, io,
@@ -88,6 +89,10 @@ pub fn list_directory(job: Job, options: &ScanOptions, cancel: &CancelToken) -> 
             skipped += 1;
             continue;
         }
+        if is_skipped_name(&entry.file_name(), &options.skip_names) {
+            skipped += 1;
+            continue;
+        }
         match entry.metadata() {
             Ok(md) => {
                 let child_path = if md.is_dir() {
@@ -115,6 +120,39 @@ pub fn list_directory(job: Job, options: &ScanOptions, cancel: &CancelToken) -> 
     }
 }
 
+/// True when `name` is one of the skipped folder names. NTFS names ignore ASCII case.
+pub fn is_skipped_name(name: &OsStr, skip: &[OsString]) -> bool {
+    let name = name.to_string_lossy();
+    skip.iter()
+        .any(|skipped| skipped.to_string_lossy().eq_ignore_ascii_case(&name))
+}
+
 fn is_excluded(path: &Path, exclude: &[PathBuf]) -> bool {
     exclude.iter().any(|prefix| path.starts_with(prefix))
+}
+
+#[cfg(test)]
+mod skip_tests {
+    use std::ffi::OsString;
+
+    use super::*;
+    use crate::types::{SKIPPED_SYSTEM_FOLDER, ScanOptions};
+
+    #[test]
+    fn system_volume_information_is_skipped_by_default_ignoring_case() {
+        let skip = ScanOptions::default().skip_names;
+        assert!(is_skipped_name(OsStr::new(SKIPPED_SYSTEM_FOLDER), &skip));
+        assert!(is_skipped_name(
+            OsStr::new("system volume information"),
+            &skip
+        ));
+        assert!(!is_skipped_name(OsStr::new("Documents"), &skip));
+        assert!(!is_skipped_name(OsStr::new("System"), &skip));
+    }
+
+    #[test]
+    fn empty_skip_list_skips_nothing() {
+        let none: Vec<OsString> = Vec::new();
+        assert!(!is_skipped_name(OsStr::new(SKIPPED_SYSTEM_FOLDER), &none));
+    }
 }
