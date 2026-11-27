@@ -4,6 +4,8 @@
 //! reads it. Nothing here depends on GPUI, on a platform API, or on the scanner.
 
 mod node;
+#[cfg(test)]
+mod scale_tests;
 mod tree;
 
 pub use node::{EntryKind, FileIdentity, Metadata, Node, NodeId, Totals};

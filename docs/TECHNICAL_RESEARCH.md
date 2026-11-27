@@ -18,7 +18,7 @@ not confirmed against a primary source by the author and must be checked before 
 | Theme: `Theme::update`, `Theme::change(ThemeMode::Dark/Light)`, `Theme::sync_system_appearance`, `cx.theme()` | Verified (`gpui-component` `theme/mod.rs`) | crate source |
 | crates.io `gpui` 0.2.2 is a separate, older line; not the Kit-compatible choice | Verified by `cargo info` | crates.io |
 | Upstream CI tests on `x86_64-windows-msvc`, `x86_64-linux-gnu`, `aarch64-apple-darwin` | Verified | https://github.com/longbridge/gpui-kit/blob/main/.github/workflows/ci.yml |
-| GPUI does not use Tokio; it has its own foreground (main thread) and background executors | Reported by research; consistent with the crate's use of `cx.spawn` | **UNVERIFIED in detail** |
+| GPUI does not use Tokio; it has its own foreground (main thread) and background executors | `cargo tree -p timberstat-app -e normal` (host target, Windows) lists no `tokio`; `cargo tree -i tokio` prints nothing. `gpui-pre` exposes `BackgroundExecutor` (`background_executor()`), which the app uses in `crates/app/src/shell/scanning.rs` and `fileops_ui`. `tokio` appears in `Cargo.lock` only through `gpui-pre-reqwest`, a wasm-only dependency of `gpui-kit-assets` | **Verified** for the native build. The `tokio runtime` comment in `gpui-pre/src/app.rs` was not traced to runtime behaviour |
 | Declared `rust-version` for gpui-pre/gpui-kit is absent; effective floor reported as 1.95 via a transitive dependency (`oo7`) | **UNVERIFIED** | must be checked by a clean build on Rust 1.95 |
 
 **Decision:** use the `gpui-kit` umbrella (0.11.0) so the app depends on one crate and the

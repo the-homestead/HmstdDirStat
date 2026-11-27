@@ -65,3 +65,28 @@ These become testable only after Phase 2–3 measurements exist. Until then they
 
 Phase 1 is a shell. The only timing recorded is the build and test duration in CI. No throughput,
 RAM or responsiveness claim is made.
+
+## 8. Measured scale checks (2026-11-27, Windows x86_64, release)
+
+Measured by the ignored tests `timberstat-filesystem::scale_tests` and
+`timberstat-scan-comparison/tests/scale.rs`. Run them with `--release -- --ignored --nocapture`.
+Not a benchmark suite: one run each, no repetition, no baseline.
+
+| Measurement | Value |
+| --- | --- |
+| `size_of::<Node>()` | 184 bytes |
+| `size_of::<Option<NodeId>>()` | 8 bytes |
+| `size_of::<Option<FileIdentity>>()` | 24 bytes |
+| `FileTree` build, 1,001,001 entries (1,000 dirs × 1,000 files) | 639 ms |
+| `FileTree::roll_up` on the same tree | 83 ms |
+| Node arena for that tree (`184 × entries`, names excluded) | 175 MiB |
+| `scan_comparison::compare`, two 1,001,001-entry scans, one file changed | 10.7 s |
+
+The compare figure is the largest outlier and is not yet explained. `scan-comparison/src/index.rs`
+builds a `HashMap<PathBuf, _>` per scan, and `compare` performs a lookup per entry in each
+direction. Each `PathBuf` is a fresh allocation. Profile before changing it.
+
+## 9. Measured vs. budget
+
+Section 5 lists design budgets. The measured Node size has no agreed budget to compare against. Decide one
+before tightening the layout.

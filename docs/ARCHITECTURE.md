@@ -149,6 +149,13 @@ Hardlink and accounting contract:
   Complete | Partial | Incomplete, started/finished, error summary) travel with the
   tree so the UI can always show *how* and *how completely* the data was gathered.
 
+  **Status (2026-11-27): not implemented.** `FileTree` has no provenance and no
+  `scan_version`. Provenance is split across two types: `scanner::ScanReport` (method,
+  issues, fallback reason; exists only during a run) and `scan_history::ScanProvenance`
+  (method, timestamp, root; attached to the persisted `Scan`, not the tree). `ScanMethod`
+  is also defined twice, in `crates/scanner/src/types.rs` and
+  `crates/scan-history/src/provenance.rs`. Merging them is open work.
+
 Aggregation is incremental: directory totals are computed as nodes arrive and finalized
 when a directory closes, so a scan never needs a second full pass for sizes.
 
