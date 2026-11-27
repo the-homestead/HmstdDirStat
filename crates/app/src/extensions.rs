@@ -52,7 +52,7 @@ pub fn totals(tree: &FileTree, focus: NodeId, basis: Basis) -> Vec<ExtensionTota
 }
 
 /// The lower-cased extension of a file name, or the empty string when it has none.
-fn extension_of(name: &std::ffi::OsStr) -> String {
+pub(crate) fn extension_of(name: &std::ffi::OsStr) -> String {
     Path::new(name)
         .extension()
         .map(|ext| ext.to_string_lossy().to_ascii_lowercase())

@@ -12,6 +12,7 @@ mod search;
 mod shell;
 mod theme;
 mod tiles;
+mod tree_model;
 
 use anyhow::{Context as _, Result};
 use gpui_kit::component::TitleBar;

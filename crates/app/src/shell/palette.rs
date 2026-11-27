@@ -209,9 +209,7 @@ impl Shell {
             }
             CommandId::StopScan => self.cancel_walk(cx),
             CommandId::RefreshScan => {
-                if let Some(target) = self.scan_root.clone() {
-                    self.choose_volume(target, cx);
-                }
+                self.refresh_scan(cx);
             }
             CommandId::ChangeVisualization
             | CommandId::SwitchWorkspace

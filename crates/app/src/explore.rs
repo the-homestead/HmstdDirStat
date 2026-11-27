@@ -3,6 +3,8 @@
 
 use timberstat_filesystem::{EntryKind, FileTree, NodeId};
 
+use crate::tree_model::{self, Sort};
+
 /// One child of a folder. `bytes` is its logical size, including everything below it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Child {
@@ -48,10 +50,16 @@ pub fn allocated_known(tree: &FileTree) -> bool {
         .is_some_and(|root| root.totals().physical_known)
 }
 
-/// Direct children of `parent`, largest first under `basis`, ties broken by name.
-pub fn children(tree: &FileTree, parent: NodeId, basis: Basis) -> Vec<Child> {
-    let mut out: Vec<Child> = tree
-        .children(parent)
+/// True when the scan recorded modification times. The root's time is set on every walk, and
+/// the NTFS table read records none.
+pub fn modified_known(tree: &FileTree) -> bool {
+    tree.node(NodeId::ROOT)
+        .is_some_and(|root| root.metadata().modified_unix_secs.is_some())
+}
+
+/// Direct children of `parent`, every one, unsorted.
+fn unsorted_children(tree: &FileTree, parent: NodeId, basis: Basis) -> Vec<Child> {
+    tree.children(parent)
         .filter_map(|node_id| {
             let node = tree.node(node_id)?;
             let is_dir = node.kind() == EntryKind::Directory;
@@ -62,8 +70,20 @@ pub fn children(tree: &FileTree, parent: NodeId, basis: Basis) -> Vec<Child> {
                 is_dir,
             })
         })
-        .collect();
+        .collect()
+}
+
+/// Direct children of `parent`, largest first under `basis`, ties broken by name.
+pub fn children(tree: &FileTree, parent: NodeId, basis: Basis) -> Vec<Child> {
+    let mut out = unsorted_children(tree, parent, basis);
     out.sort_by(|a, b| b.bytes.cmp(&a.bytes).then_with(|| a.name.cmp(&b.name)));
+    out
+}
+
+/// Direct children of `parent` in the Files tab's `sort` order, logical sizes in the rows.
+pub fn sorted_children(tree: &FileTree, parent: NodeId, sort: Sort) -> Vec<Child> {
+    let mut out = unsorted_children(tree, parent, Basis::Logical);
+    out.sort_by(|a, b| tree_model::compare(tree, a, b, sort));
     out
 }
 
@@ -74,41 +94,28 @@ pub struct Level {
     pub hidden: usize,
 }
 
-/// A child in the Files tab. `below` holds its own children when they are shown.
+/// A child in the Files tab. `below` holds its own children only when that folder is open.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Row {
     pub child: Child,
     pub below: Option<Level>,
 }
 
-/// Builds `depth` levels of rows under `parent`, showing at most `limit` children per folder.
-pub fn level(tree: &FileTree, parent: NodeId, depth: u32, limit: usize) -> Level {
-    let all = children(tree, parent, Basis::Logical);
-    let hidden = all.len().saturating_sub(limit);
-    let rows = all
-        .into_iter()
-        .take(limit)
-        .map(|child| {
-            let below =
-                (depth > 1 && child.is_dir).then(|| level(tree, child.node, depth - 1, limit));
-            Row { child, below }
-        })
-        .collect();
-    Level { rows, hidden }
-}
-
-/// Rows under `parent` that `keep` accepts, at most `limit` per folder, opening every folder
-/// `descend` accepts, at any depth. `budget` caps the rows across the whole result: once it
-/// runs out, folders list nothing and count their kept rows as hidden.
+/// Rows under `parent` that `keep` accepts, sorted by `sort`, at most `limit` per folder. A
+/// folder that `descend` accepts gets its own rows, at any depth; any other folder is listed
+/// with no rows below it, so nothing is built until it is opened. `budget` caps the rows
+/// across the whole result: once it runs out, folders list nothing and count their kept rows
+/// as hidden.
 pub fn filtered_level(
     tree: &FileTree,
     parent: NodeId,
     limit: usize,
+    sort: Sort,
     keep: &dyn Fn(NodeId) -> bool,
     descend: &dyn Fn(NodeId) -> bool,
     budget: &mut usize,
 ) -> Level {
-    let kept: Vec<Child> = children(tree, parent, Basis::Logical)
+    let kept: Vec<Child> = sorted_children(tree, parent, sort)
         .into_iter()
         .filter(|child| keep(child.node))
         .collect();
@@ -120,7 +127,7 @@ pub fn filtered_level(
         .take(shown)
         .map(|child| {
             let below = (child.is_dir && descend(child.node))
-                .then(|| filtered_level(tree, child.node, limit, keep, descend, budget));
+                .then(|| filtered_level(tree, child.node, limit, sort, keep, descend, budget));
             Row { child, below }
         })
         .collect();
@@ -237,12 +244,59 @@ mod tests {
     #[test]
     fn level_limits_rows_and_counts_the_hidden_ones() {
         let (_dir, tree) = sample();
-        let shown = level(&tree, NodeId::ROOT, 2, 2);
+        let mut budget = usize::MAX;
+        let shown = filtered_level(
+            &tree,
+            NodeId::ROOT,
+            2,
+            Sort::default(),
+            &|_| true,
+            &|_| true,
+            &mut budget,
+        );
         assert_eq!(shown.rows.len(), 2);
         assert_eq!(shown.hidden, 2);
         let below_big = shown.rows[0].below.as_ref().expect("folder is expanded");
         assert_eq!(below_big.rows[0].child.name, "inner");
         assert!(shown.rows[1].below.is_none(), "files have no children");
+    }
+
+    #[test]
+    fn folders_build_rows_only_when_they_are_open() {
+        let (_dir, tree) = sample();
+        let big = tree
+            .children(NodeId::ROOT)
+            .find(|&id| tree.node(id).unwrap().name() == "big")
+            .unwrap();
+        let mut budget = usize::MAX;
+        let closed = filtered_level(
+            &tree,
+            NodeId::ROOT,
+            40,
+            Sort::default(),
+            &|_| true,
+            &|_| false,
+            &mut budget,
+        );
+        assert!(closed.rows.iter().all(|row| row.below.is_none()));
+        let opened = filtered_level(
+            &tree,
+            NodeId::ROOT,
+            40,
+            Sort::default(),
+            &|_| true,
+            &|node| node == big,
+            &mut budget,
+        );
+        let below = opened.rows[0].below.as_ref().expect("big is open");
+        assert_eq!(below.rows[0].child.name, "inner");
+        assert!(below.rows[0].below.is_none(), "inner is not open");
+    }
+
+    #[test]
+    fn modified_known_follows_the_root_time() {
+        let (_dir, tree) = sample();
+        assert!(modified_known(&tree), "a walk records times");
     }
 
     #[test]

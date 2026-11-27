@@ -1,7 +1,7 @@
 //! What each widget shows inside its body: the folder tree with its status line, the scan
 //! summary, and the treemap, sunburst and pie for the focused folder.
 
-use gpui_kit::component::{scroll::*, *};
+use gpui_kit::component::{button::Button, scroll::*, *};
 use gpui_kit::*;
 use timberstat_core::workspace::WidgetKind;
 
@@ -131,7 +131,7 @@ fn tree(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Div {
                 .left_0()
                 .right_0()
                 .h(px(STATUS_PX))
-                .child(tree_status(shell, p, count)),
+                .child(tree_status(shell, p, count, handle.clone())),
         )
         .child(
             div()
@@ -147,15 +147,20 @@ fn tree(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Div {
                     handle,
                     (room(shell, WidgetKind::Tree).h - STATUS_PX - 4.0).max(0.0),
                     shell.menu.is_none() && shell.delete.is_closed(),
+                    shell.tree_sort,
                 )),
         )
 }
 
-fn tree_status(shell: &Shell, p: Palette, count: Option<usize>) -> Div {
+fn tree_status(shell: &Shell, p: Palette, count: Option<usize>, handle: Entity<Shell>) -> Div {
     let (mut status, partial) = scan_status(shell);
     let available = shell.tree.as_deref().is_some_and(explore::allocated_known);
     if !available && !status.is_empty() {
         status.push_str(" · on-disk sizes need a Fast scan");
+    }
+    let dated = shell.tree.as_deref().is_some_and(explore::modified_known);
+    if !dated && !status.is_empty() {
+        status.push_str(" · modified dates need a Walk scan");
     }
     // One line. The scan text gives way first and ends in an ellipsis; the partial flag and
     // the match count keep their width.
@@ -190,7 +195,41 @@ fn tree_status(shell: &Shell, p: Palette, count: Option<usize>) -> Div {
                 .child(match_text(count)),
         );
     }
+    row = row.child(tree_actions(shell, handle));
     row
+}
+
+/// The Hidden toggle and the in-tree Refresh, at the end of the tree's status line.
+fn tree_actions(shell: &Shell, handle: Entity<Shell>) -> Div {
+    let hidden_handle = handle.clone();
+    let refresh_handle = handle;
+    let hidden_label = if shell.tree_show_hidden {
+        "Hide hidden"
+    } else {
+        "Show hidden"
+    };
+    div()
+        .h_flex()
+        .flex_shrink_0()
+        .gap_2()
+        .child(
+            Button::new("tree-hidden")
+                .small()
+                .outline()
+                .label(hidden_label)
+                .on_click(move |_, _, cx| {
+                    hidden_handle.update(cx, |shell, cx| shell.toggle_tree_hidden(cx));
+                }),
+        )
+        .child(
+            Button::new("tree-refresh")
+                .small()
+                .outline()
+                .label("Refresh")
+                .on_click(move |_, _, cx| {
+                    refresh_handle.update(cx, |shell, cx| shell.refresh_scan(cx));
+                }),
+        )
 }
 
 /// What the last scan finished, and whether its totals are partial.

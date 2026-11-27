@@ -17,6 +17,7 @@ mod rings;
 mod scanning;
 mod settings;
 mod toolbar;
+mod tree_control;
 mod treemap;
 mod views;
 mod widget_bodies;
@@ -98,6 +99,16 @@ pub struct Shell {
     /// Absolute root used to turn tree-relative paths into file-operation paths.
     scan_root: Option<PathBuf>,
     tree_state: Option<Entity<TreeState>>,
+    /// Folders open in the Files tree. Only open folders get their children built.
+    tree_expanded: std::collections::HashSet<timberstat_filesystem::NodeId>,
+    tree_sort: crate::tree_model::Sort,
+    tree_show_hidden: bool,
+    /// Keeps the subscription that turns tree open and close events into rebuilds.
+    tree_sub: Option<Subscription>,
+    /// The row to select in the next tree build, set when a rescan keeps the view.
+    tree_restore_select: Option<timberstat_filesystem::NodeId>,
+    /// The Files view to keep through a rescan of the same folder.
+    pending_view: Option<tree_control::PendingView>,
     focus: NodeId,
     sunburst_bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
     sunburst_hover: Option<(NodeId, Point<Pixels>)>,
@@ -147,6 +158,12 @@ impl Shell {
             tree: None,
             scan_root: None,
             tree_state: None,
+            tree_expanded: std::collections::HashSet::new(),
+            tree_sort: crate::tree_model::Sort::default(),
+            tree_show_hidden: true,
+            tree_sub: None,
+            tree_restore_select: None,
+            pending_view: None,
             focus: NodeId::ROOT,
             sunburst_bounds: Rc::new(Cell::new(None)),
             sunburst_hover: None,
@@ -177,9 +194,7 @@ impl Shell {
     }
 
     pub fn refresh_tree_state(&mut self, cx: &mut Context<Self>) {
-        if let Some(files) = self.tree.clone() {
-            self.tree_state = Some(files_tree::build_tree_state(&files, &self.query, cx));
-        }
+        self.rebuild_tree(cx);
     }
 
     /// Creates the search box once, and keeps `query` in step with what the user types.
@@ -213,6 +228,9 @@ impl Shell {
         self.scan_root = None;
         self.query = Query::new(self.query.text(), None);
         self.tree_state = None;
+        self.tree_sub = None;
+        self.tree_expanded.clear();
+        self.tree_restore_select = None;
         self.focus = NodeId::ROOT;
         self.refresh_extensions();
         self.sunburst_hover = None;
@@ -220,10 +238,19 @@ impl Shell {
 
     fn install_tree(&mut self, files: FileTree, scan_root: PathBuf, cx: &mut Context<Self>) {
         self.query = Query::new(self.query.text(), Some(&files));
-        self.tree_state = Some(files_tree::build_tree_state(&files, &self.query, cx));
+        self.tree_expanded = crate::tree_model::initial_expanded(
+            &files,
+            files_tree::TREE_ROWS_PER_FOLDER,
+            files_tree::TREE_OPEN_LEVELS,
+        );
+        self.tree_restore_select = None;
+        self.focus = NodeId::ROOT;
+        self.apply_pending_view(&files, &scan_root);
+        self.tree_state = None;
+        self.tree_sub = None;
         self.tree = Some(Arc::new(files));
         self.scan_root = Some(scan_root);
-        self.focus = NodeId::ROOT;
+        self.rebuild_tree(cx);
         self.refresh_extensions();
     }
 

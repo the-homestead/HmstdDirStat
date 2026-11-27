@@ -12,7 +12,13 @@ gpui_kit::assets::icon_assets!(
         HardDrive,
         Layers,
         LayoutDashboard,
-        LayoutGrid
+        LayoutGrid,
+        FileArchive,
+        FileCode,
+        FileImage,
+        FileMusic,
+        FilePlay,
+        FileSpreadsheet
     ]
 );
 
