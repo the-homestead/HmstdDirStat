@@ -187,6 +187,7 @@ fn into_slice(child: Child) -> Slice {
 mod tests {
     use super::*;
     use std::path::Path;
+    use timberstat_filesystem::{Metadata, NewEntry};
     use timberstat_scanner::{CancelToken, FileSystemScanner, GenericScanner, ScanOptions};
 
     fn write(path: &Path, bytes: usize) {
@@ -255,5 +256,48 @@ mod tests {
         assert_eq!(pie[2].node, None);
         assert_eq!(pie[2].name, "2 other items");
         assert_eq!(pie[2].bytes, 150);
+    }
+
+    /// Worst case for the Files tab preview: every folder down to the depth limit holds at
+    /// least `limit` child folders. The preview then materialises `limit + limit^2 + limit^3`
+    /// rows, all of them TreeItems in the model. The render side is virtual (gpui-base
+    /// `Tree` draws only the visible range through `uniform_list`), so this bound is what
+    /// the preview costs in memory.
+    #[test]
+    fn level_worst_case_row_count_is_the_depth_limit_product() {
+        const LIMIT: usize = 40;
+        let mut tree = FileTree::with_root(NewEntry::directory(
+            std::ffi::OsString::from("root"),
+            Metadata::default(),
+        ));
+        let mut frontier = vec![NodeId::ROOT];
+        for depth in 0..3 {
+            let mut next = Vec::new();
+            for parent in frontier {
+                for i in 0..LIMIT {
+                    let name = std::ffi::OsString::from(format!("d{depth}-{i}"));
+                    let id = tree
+                        .add_child(parent, NewEntry::directory(name, Metadata::default()))
+                        .unwrap();
+                    next.push(id);
+                }
+            }
+            frontier = next;
+        }
+
+        fn count_rows(level: &Level) -> usize {
+            level
+                .rows
+                .iter()
+                .map(|row| 1 + row.below.as_ref().map_or(0, count_rows))
+                .sum()
+        }
+
+        let preview = level(&tree, NodeId::ROOT, 3, LIMIT);
+        assert_eq!(preview.hidden, 0);
+        assert_eq!(
+            count_rows(&preview),
+            LIMIT + LIMIT * LIMIT + LIMIT * LIMIT * LIMIT
+        );
     }
 }
