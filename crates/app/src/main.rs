@@ -21,6 +21,8 @@ use timberstat_scanner::{SystemVolumes, VolumeEnumerator};
 use shell::Shell;
 use theme::apply_theme;
 
+actions!(timberstat, [OpenCommandPalette]);
+
 fn main() -> Result<()> {
     // Elevated Fast-scan helper: read the file table, write the result, exit. No window.
     let args: Vec<String> = std::env::args().collect();
@@ -67,6 +69,7 @@ fn main() -> Result<()> {
         .run(move |cx| {
             // Must run before any GPUI Kit component is used.
             gpui_kit::init(cx);
+            cx.bind_keys([KeyBinding::new("ctrl-shift-p", OpenCommandPalette, None)]);
             apply_theme(app_config.theme, cx);
             theme::log_mode_changes(cx);
             let ui_scale = app_config.ui_scale;

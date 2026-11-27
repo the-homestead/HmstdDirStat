@@ -10,8 +10,8 @@ use gpui_kit::*;
 use timberstat_ntfs::SummaryProgress;
 
 use super::{
-    Phase, Shell, fileops_ui, menu::menu_overlay, results::*, settings, toolbar, view_menu,
-    widgets::*, workspace,
+    Phase, Shell, fileops_ui, menu::menu_overlay, palette, results::*, settings, toolbar,
+    view_menu, widgets::*, workspace,
 };
 
 impl Render for Shell {
@@ -19,6 +19,7 @@ impl Render for Shell {
         self.ensure_search(window, cx);
         fileops_ui::ensure_inputs(self, window, cx);
         super::workspace_manager::ensure_input(self, window, cx);
+        palette::refresh(self);
         // GPUI's rem is 16px. Scaling it scales every rem-based size: text and most spacing.
         window.set_rem_size(px(16.0 * self.ui_scale));
         let p = Palette::from_app(cx);
@@ -27,6 +28,11 @@ impl Render for Shell {
 
         div()
             .size_full()
+            .on_action(cx.listener(
+                |shell: &mut Shell, _: &crate::OpenCommandPalette, window, cx| {
+                    shell.open_command_palette(window, cx);
+                },
+            ))
             .v_flex()
             .bg(p.background)
             .text_color(p.foreground)
@@ -42,7 +48,8 @@ impl Render for Shell {
             .children(menu_overlay(self, p, handle.clone()))
             .children(settings::overlay(self, p, handle.clone()))
             .children(view_menu::overlay(self, p, handle.clone()))
-            .children(fileops_ui::overlays(self, p, handle))
+            .children(fileops_ui::overlays(self, p, handle.clone()))
+            .children(palette::overlay(self, p, handle))
     }
 }
 
