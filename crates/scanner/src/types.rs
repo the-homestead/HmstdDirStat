@@ -9,6 +9,7 @@ use std::{
 
 use std::ffi::OsString;
 use timberstat_filesystem::FileTree;
+pub use timberstat_filesystem::{ScanMethod, ScanProvenance};
 
 /// Maximum issues kept in a report. Further issues are counted, not stored,
 /// so a broken tree cannot exhaust memory.
@@ -85,15 +86,6 @@ pub struct ScanProgress {
     pub directories_read: u64,
 }
 
-/// Which technique produced a tree. Stored with the result so views can say how it was made.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ScanMethod {
-    /// Portable `std::fs` traversal.
-    GenericTraversal,
-    /// Read from the NTFS master file table (elevated, Windows).
-    NtfsMft,
-}
-
 /// One problem the scan worked around without stopping.
 #[derive(Debug)]
 pub struct ScanIssue {
@@ -101,10 +93,9 @@ pub struct ScanIssue {
     pub message: String,
 }
 
-/// Everything a scan reports besides the tree itself.
-#[derive(Debug)]
+/// Run-time diagnostics from a scan. Provenance travels with the tree instead.
+#[derive(Debug, Default)]
 pub struct ScanReport {
-    pub method: ScanMethod,
     pub entries_visited: u64,
     pub issues: Vec<ScanIssue>,
     /// Issues beyond [`MAX_RECORDED_ISSUES`], counted but not stored.
@@ -116,15 +107,8 @@ pub struct ScanReport {
 }
 
 impl ScanReport {
-    pub fn new(method: ScanMethod) -> Self {
-        Self {
-            method,
-            entries_visited: 0,
-            issues: Vec::new(),
-            dropped_issues: 0,
-            hardlink_duplicates: 0,
-            mount_points_skipped: 0,
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub(crate) fn push_issue(&mut self, path: &Path, source: io::Error) {
@@ -187,7 +171,7 @@ mod tests {
 
     #[test]
     fn issues_past_the_cap_are_counted_not_stored() {
-        let mut report = ScanReport::new(ScanMethod::GenericTraversal);
+        let mut report = ScanReport::new();
         for _ in 0..(MAX_RECORDED_ISSUES + 5) {
             report.push_issue(Path::new("x"), io::Error::other("boom"));
         }

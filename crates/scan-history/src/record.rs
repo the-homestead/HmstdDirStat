@@ -3,10 +3,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use timberstat_filesystem::{EntryKind, FileIdentity, FileTree, Totals};
-
-use crate::provenance::ScanProvenance;
 use crate::schema::CURRENT_SCHEMA;
+use timberstat_filesystem::{EntryKind, FileIdentity, FileTree, ScanProvenance, Totals};
 
 /// One filesystem entry, metadata only. File contents are never stored.
 #[derive(Debug, Clone, PartialEq, Eq)]

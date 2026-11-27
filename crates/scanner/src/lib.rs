@@ -13,7 +13,7 @@ mod walk;
 pub use generic::GenericScanner;
 pub use types::{
     CancelToken, ScanError, ScanIssue, ScanMethod, ScanOptions, ScanOutput, ScanProgress,
-    ScanReport,
+    ScanProvenance, ScanReport,
 };
 pub use volumes::{SystemVolumes, VolumeEnumerator};
 

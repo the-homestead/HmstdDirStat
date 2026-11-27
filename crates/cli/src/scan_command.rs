@@ -14,7 +14,7 @@ pub fn run(root: &Path, export: &ExportOptions, cancel: &Cancellation) -> CliRes
     let scanned = engine::scan(root, cancel)?;
     cancel.check()?;
     let contents = match export.format {
-        Format::Json => scan_to_json(&scanned.tree, &scanned.provenance),
+        Format::Json => scan_to_json(&scanned.tree, scanned.provenance()),
         Format::Csv => scan_to_csv(&scanned.tree),
     }
     .map_err(|error| CliError::failure(error.to_string()))?;

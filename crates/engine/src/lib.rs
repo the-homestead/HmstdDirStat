@@ -12,9 +12,9 @@ use timberstat_core::scan_mode::resolve;
 pub use timberstat_core::scan_mode::{ScanKind, ScanModeChoice};
 use timberstat_duplicates::{DuplicateReport, Options, Progress, file_items, find_duplicates};
 use timberstat_fileops::tree_base;
-use timberstat_filesystem::FileTree;
+use timberstat_filesystem::{FileTree, ScanMethod, ScanProvenance};
 use timberstat_scanner::{
-    CancelToken, FileSystemScanner, GenericScanner, ScanError, ScanMethod, ScanOptions, ScanOutput,
+    CancelToken, FileSystemScanner, GenericScanner, ScanError, ScanOptions, ScanOutput,
     ScanProgress, ScanReport,
 };
 
@@ -107,8 +107,9 @@ pub fn scan_walk(
 pub fn scan_mft(root: &Path, paths: &fast::FastPaths) -> Result<ScanOutput, EngineError> {
     let volume = fast::raw_volume_name(root)
         .ok_or_else(|| EngineError::Failed("the file table needs a drive letter".to_string()))?;
-    let (_summary, tree) = fast::run_elevated(&volume, paths).map_err(EngineError::Failed)?;
-    let mut report = ScanReport::new(ScanMethod::NtfsMft);
+    let (_summary, mut tree) = fast::run_elevated(&volume, paths).map_err(EngineError::Failed)?;
+    tree.set_provenance(ScanProvenance::now(ScanMethod::NtfsMft, root));
+    let mut report = ScanReport::new();
     report.entries_visited = u64::try_from(tree.attached_ids().count()).unwrap_or(u64::MAX);
     Ok(ScanOutput { tree, report })
 }

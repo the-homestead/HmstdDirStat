@@ -31,9 +31,9 @@ pub fn migrate(version: u32, scan: &mut Scan) -> Result<(), Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::provenance::{ScanMethod, ScanProvenance};
     use crate::record::ScanEntry;
     use std::path::PathBuf;
+    use timberstat_filesystem::{ScanMethod, ScanProvenance};
 
     fn v1_scan() -> Scan {
         Scan {

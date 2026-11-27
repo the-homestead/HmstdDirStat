@@ -120,7 +120,7 @@ FileTree {
     roots: Vec<NodeId>,        // one per scanned volume/root
     by_parent: …               // child index (first_child / next_sibling)
     hardlink_index: HashMap<FileId, NodeId>,   // first occurrence wins for physical
-    scan: ScanProvenance,
+    provenance: Option<ScanProvenance>, // populated by scanners; optional for synthetic trees
 }
 Node {
     id: NodeId,                // u32, stable for the life of the tree
@@ -149,12 +149,13 @@ Hardlink and accounting contract:
   Complete | Partial | Incomplete, started/finished, error summary) travel with the
   tree so the UI can always show *how* and *how completely* the data was gathered.
 
-  **Status (2026-11-27): not implemented.** `FileTree` has no provenance and no
-  `scan_version`. Provenance is split across two types: `scanner::ScanReport` (method,
-  issues, fallback reason; exists only during a run) and `scan_history::ScanProvenance`
-  (method, timestamp, root; attached to the persisted `Scan`, not the tree). `ScanMethod`
-  is also defined twice, in `crates/scanner/src/types.rs` and
-  `crates/scan-history/src/provenance.rs`. Merging them is open work.
+  **Status (2026-11-27): provenance unified; per-node scan versions remain open.**
+  `filesystem` owns the single `ScanMethod` and `ScanProvenance` types, re-exported by
+  `scanner` and `scan-history`. Scanner-produced trees carry method, completion timestamp,
+  and root; synthetic trees may have no provenance. `ScanReport` contains only run-time
+  counters and issues, and persisted scans use the same provenance type. The on-disk method
+  codes remain 1 (generic traversal) and 2 (NTFS MFT). `scan_version` and the fuller
+  completeness/started/finished provenance described above are not implemented.
 
 Aggregation is incremental: directory totals are computed as nodes arrive and finalized
 when a directory closes, so a scan never needs a second full pass for sizes.

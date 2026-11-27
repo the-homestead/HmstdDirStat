@@ -4,9 +4,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use timberstat_filesystem::ScanProvenance;
+
 use crate::codec;
 use crate::error::Error;
-use crate::provenance::ScanProvenance;
 use crate::record::Scan;
 
 pub const SCAN_FILE_EXTENSION: &str = ".tscan";
@@ -174,7 +175,7 @@ fn read_summary(path: &Path, id: &str) -> ScanSummary {
 
 fn default_provenance() -> ScanProvenance {
     ScanProvenance {
-        method: crate::provenance::ScanMethod::GenericTraversal,
+        method: timberstat_filesystem::ScanMethod::GenericTraversal,
         timestamp_unix_secs: 0,
         root: std::path::PathBuf::new(),
     }
@@ -184,12 +185,12 @@ fn default_provenance() -> ScanProvenance {
 mod tests {
     use super::*;
     use crate::codec::RawScan;
-    use crate::provenance::{ScanMethod, ScanProvenance};
     use crate::record::{Scan, ScanEntry};
     use crate::schema::CURRENT_SCHEMA;
     use std::ffi::OsString;
     use std::path::PathBuf;
     use timberstat_filesystem::EntryKind;
+    use timberstat_filesystem::{ScanMethod, ScanProvenance};
 
     fn scan_with(root: &str, timestamp: i64, entries: Vec<ScanEntry>) -> Scan {
         Scan::new(

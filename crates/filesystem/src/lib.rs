@@ -4,9 +4,11 @@
 //! reads it. Nothing here depends on GPUI, on a platform API, or on the scanner.
 
 mod node;
+mod provenance;
 #[cfg(test)]
 mod scale_tests;
 mod tree;
 
 pub use node::{EntryKind, FileIdentity, Metadata, Node, NodeId, Totals};
+pub use provenance::{ScanMethod, ScanProvenance};
 pub use tree::{Children, FileTree, NewEntry, TreeError};

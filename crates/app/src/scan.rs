@@ -54,7 +54,12 @@ pub fn summarize(root: PathBuf, output: &ScanOutput, elapsed: Duration) -> ScanS
         hardlink_duplicates: output.report.hardlink_duplicates,
         entries: output.report.entries_visited,
         elapsed,
-        method: match output.report.method {
+        method: match output
+            .tree
+            .provenance()
+            .expect("scanner outputs include provenance")
+            .method
+        {
             ScanMethod::GenericTraversal => "generic traversal",
             ScanMethod::NtfsMft => "file table (MFT)",
         },

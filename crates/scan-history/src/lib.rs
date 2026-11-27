@@ -17,14 +17,13 @@
 
 mod codec;
 mod error;
-mod provenance;
 mod record;
 mod schema;
 mod store;
 
-pub use crate::provenance::{ScanMethod, ScanProvenance};
 pub use crate::record::{Scan, ScanEntry};
 pub use crate::schema::migrate;
 pub use crate::store::{Fault, ScanStore, ScanSummary};
+pub use timberstat_filesystem::{ScanMethod, ScanProvenance};
 
 pub use crate::schema::CURRENT_SCHEMA;

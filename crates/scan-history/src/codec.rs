@@ -15,10 +15,9 @@ use std::{
 };
 
 use blake3::Hasher;
-use timberstat_filesystem::EntryKind;
+use timberstat_filesystem::{EntryKind, ScanMethod, ScanProvenance};
 
 use crate::error::Error;
-use crate::provenance::{ScanMethod, ScanProvenance};
 use crate::record::{Scan, ScanEntry};
 use crate::schema::CURRENT_SCHEMA;
 
@@ -98,16 +97,9 @@ fn kind_code(kind: &EntryKind) -> u8 {
     }
 }
 
-fn method_code(method: ScanMethod) -> u8 {
-    match method {
-        ScanMethod::GenericTraversal => 1,
-        ScanMethod::NtfsMft => 2,
-    }
-}
-
 fn encode_provenance(provenance: &ScanProvenance) -> Vec<u8> {
     let mut out = Vec::new();
-    out.push(method_code(provenance.method));
+    out.push(provenance.method.code());
     put_zigzag(provenance.timestamp_unix_secs, &mut out);
     let encoded = provenance.root.as_os_str().as_encoded_bytes();
     put_uvarint(encoded.len() as u64, &mut out);
@@ -118,11 +110,8 @@ fn encode_provenance(provenance: &ScanProvenance) -> Vec<u8> {
 fn decode_provenance(bytes: &[u8]) -> Result<ScanProvenance, Error> {
     let mut pos = 0usize;
     let method_code = get_uvarint(bytes, &mut pos)? as u8;
-    let method = match method_code {
-        1 => ScanMethod::GenericTraversal,
-        2 => ScanMethod::NtfsMft,
-        _ => return Err(corrupt(bytes, "unknown scan method")),
-    };
+    let method =
+        ScanMethod::from_code(method_code).ok_or_else(|| corrupt(bytes, "unknown scan method"))?;
     let timestamp = zigzag_decode(get_uvarint(bytes, &mut pos)?);
     let root_len = get_uvarint(bytes, &mut pos)? as usize;
     if pos + root_len > bytes.len() {
@@ -314,4 +303,23 @@ pub fn to_scan(raw: RawScan) -> Result<Scan, Error> {
         crate::schema::migrate(scan.schema_version, &mut scan)?;
     }
     Ok(scan)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn provenance_method_codes_match_the_persistent_format() {
+        for (method, code) in [(ScanMethod::GenericTraversal, 1), (ScanMethod::NtfsMft, 2)] {
+            let provenance = ScanProvenance {
+                method,
+                timestamp_unix_secs: 0,
+                root: PathBuf::new(),
+            };
+            let encoded = encode_provenance(&provenance);
+            assert_eq!(encoded.first(), Some(&code));
+            assert_eq!(decode_provenance(&encoded).unwrap(), provenance);
+        }
+    }
 }

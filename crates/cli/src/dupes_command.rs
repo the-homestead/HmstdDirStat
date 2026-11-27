@@ -31,7 +31,7 @@ pub fn run(root: &Path, export: &ExportOptions, cancel: &Cancellation) -> CliRes
     }
     cancel.check()?;
     let contents = match export.format {
-        Format::Json => duplicates_to_json(&scanned.tree, &report, &scanned.provenance),
+        Format::Json => duplicates_to_json(&scanned.tree, &report, scanned.provenance()),
         Format::Csv => duplicates_to_csv(&scanned.tree, &report),
     }
     .map_err(|error| CliError::failure(error.to_string()))?;

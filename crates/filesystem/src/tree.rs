@@ -1,6 +1,9 @@
 use std::{ffi::OsString, path::PathBuf};
 
-use crate::node::{EntryKind, FileIdentity, Metadata, Node, NodeId, Totals};
+use crate::{
+    node::{EntryKind, FileIdentity, Metadata, Node, NodeId, Totals},
+    provenance::ScanProvenance,
+};
 
 /// Errors from structural tree edits.
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -52,16 +55,30 @@ impl NewEntry {
 pub struct FileTree {
     nodes: Vec<Node>,
     rolled_up: bool,
+    provenance: Option<ScanProvenance>,
 }
 
 impl FileTree {
     /// Creates a tree whose root is the given directory.
+    ///
+    /// Synthetic trees start without provenance. Scanners attach it before returning a result.
     pub fn with_root(root: NewEntry) -> Self {
         let node = make_node(None, root);
         Self {
             nodes: vec![node],
             rolled_up: false,
+            provenance: None,
         }
+    }
+
+    /// How this tree was produced, or `None` for a synthetic tree.
+    pub fn provenance(&self) -> Option<&ScanProvenance> {
+        self.provenance.as_ref()
+    }
+
+    /// Records how this tree was produced.
+    pub fn set_provenance(&mut self, provenance: ScanProvenance) {
+        self.provenance = Some(provenance);
     }
 
     pub const fn root(&self) -> NodeId {

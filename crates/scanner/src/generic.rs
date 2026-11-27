@@ -8,7 +8,9 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use timberstat_filesystem::{EntryKind, FileIdentity, FileTree, Metadata, NewEntry, NodeId};
+use timberstat_filesystem::{
+    EntryKind, FileIdentity, FileTree, Metadata, NewEntry, NodeId, ScanProvenance,
+};
 
 use crate::{
     FileSystemScanner,
@@ -76,7 +78,7 @@ fn scan_generic(
     });
     let mut coordinator = Coordinator {
         tree,
-        report: ScanReport::new(ScanMethod::GenericTraversal),
+        report: ScanReport::new(),
         seen_identities: HashSet::new(),
         directories_read: 0,
         root_device: device_of(&root_meta),
@@ -127,6 +129,9 @@ fn scan_generic(
 
     let mut coordinator = walked?;
     coordinator.tree.roll_up();
+    coordinator
+        .tree
+        .set_provenance(ScanProvenance::now(ScanMethod::GenericTraversal, root));
     Ok(ScanOutput {
         tree: coordinator.tree,
         report: coordinator.report,

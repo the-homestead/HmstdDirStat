@@ -69,7 +69,7 @@ pub fn render(scanned: &Scanned, top: usize, cancel: &Cancellation) -> CliResult
     cancel.check()?;
     output::json(&LargeDocument {
         schema_version: 1,
-        root: output::unicode_path(&scanned.provenance.root)?,
+        root: output::unicode_path(&scanned.provenance().root)?,
         complete: !scanned.is_partial(),
         issues: scanned.report.issue_count(),
         top,

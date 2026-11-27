@@ -29,7 +29,10 @@ fn main() {
 
     let totals = out.tree.node(NodeId::ROOT).expect("root exists").totals();
     println!("root:        {}", root.display());
-    println!("method:      {:?}", out.report.method);
+    println!(
+        "method:      {:?}",
+        out.tree.provenance().expect("scan provenance").method
+    );
     println!("entries:     {}", out.report.entries_visited);
     println!("files:       {}", totals.files);
     println!("directories: {}", totals.directories);

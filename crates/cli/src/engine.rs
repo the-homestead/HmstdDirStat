@@ -1,13 +1,9 @@
-use std::{
-    path::{Path, PathBuf},
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::path::{Path, PathBuf};
 
 use timberstat_core::config;
 use timberstat_engine::{self as shared, EngineError, ScanKind, ScanModeChoice, fast::FastPaths};
-use timberstat_filesystem::FileTree;
-use timberstat_scan_history::{ScanMethod as HistoryMethod, ScanProvenance};
-use timberstat_scanner::{ScanMethod, ScanReport};
+use timberstat_filesystem::{FileTree, ScanProvenance};
+use timberstat_scanner::ScanReport;
 
 use crate::{
     cancel::Cancellation,
@@ -17,11 +13,16 @@ use crate::{
 pub struct Scanned {
     pub tree: FileTree,
     pub report: ScanReport,
-    pub provenance: ScanProvenance,
     pub root: PathBuf,
 }
 
 impl Scanned {
+    pub fn provenance(&self) -> &ScanProvenance {
+        self.tree
+            .provenance()
+            .expect("engine::scan validates scan provenance")
+    }
+
     pub fn is_partial(&self) -> bool {
         self.report.issue_count() > 0
             || self
@@ -59,18 +60,12 @@ pub fn scan(root: &Path, cancel: &Cancellation) -> CliResult<Scanned> {
         EngineError::Failed(message) => CliError::failure(message),
     })?;
     cancel.check()?;
-    let method = match output.report.method {
-        ScanMethod::GenericTraversal => HistoryMethod::GenericTraversal,
-        ScanMethod::NtfsMft => HistoryMethod::NtfsMft,
-    };
+    if output.tree.provenance().is_none() {
+        return Err(CliError::failure("scan completed without provenance"));
+    }
     let scanned = Scanned {
         tree: output.tree,
         report: output.report,
-        provenance: ScanProvenance {
-            method,
-            timestamp_unix_secs: unix_timestamp(),
-            root: root.to_path_buf(),
-        },
         root: root.to_path_buf(),
     };
     eprintln!(
@@ -104,12 +99,4 @@ fn report_issues(scanned: &Scanned) {
     for issue in scanned.report.issues.iter().take(5) {
         eprintln!("scan: issue {}: {}", issue.path.display(), issue.message);
     }
-}
-
-fn unix_timestamp() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .ok()
-        .and_then(|duration| i64::try_from(duration.as_secs()).ok())
-        .unwrap_or(0)
 }
