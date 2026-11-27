@@ -5,6 +5,7 @@
 //! The helper accepts only drive volumes (`//./X:`), and writes only inside its own folder.
 
 use std::{
+    io::{BufRead, BufReader, Write},
     path::{Path, PathBuf},
     sync::{
         Mutex, OnceLock,
@@ -28,6 +29,9 @@ const HELPER_IDLE_LIMIT: Duration = Duration::from_secs(30);
 /// How often the helper checks its folder for a request, and the window checks for an answer.
 const POLL: Duration = Duration::from_millis(100);
 
+/// Separates the summary from the folder tree inside the one result file.
+const TREE_MARKER: &str = "--tree--\n";
+
 /// The folder shared with the helper, unique to this app run.
 static SESSION_DIR: OnceLock<PathBuf> = OnceLock::new();
 /// Gives each scan its own result file names.
@@ -44,10 +48,9 @@ struct Helper {
 /// Files shared between the window and the elevated helper for one scan.
 #[derive(Debug, Clone)]
 pub struct FastPaths {
-    /// The helper writes its summary (or an `error=` line) here.
+    /// The helper writes one file: the summary, a `--tree--` line, then the folder tree.
+    /// On failure it writes a single `error=` line instead.
     pub output: PathBuf,
-    /// The helper writes the full folder tree here, in `timberstat_ntfs::write_tree` format.
-    pub tree: PathBuf,
     /// The helper creates this as soon as it starts the scan.
     pub started: PathBuf,
     /// The helper rewrites this with its current stage, for the progress bar.
@@ -60,7 +63,6 @@ impl FastPaths {
         let base = session_dir().join(format!("result-{seq}"));
         Self {
             output: base.with_extension("txt"),
-            tree: base.with_extension("tree"),
             started: base.with_extension("started"),
             progress: base.with_extension("progress"),
         }
@@ -68,7 +70,6 @@ impl FastPaths {
 
     pub fn clear(&self) {
         let _ = std::fs::remove_file(&self.output);
-        let _ = std::fs::remove_file(&self.tree);
         let _ = std::fs::remove_file(&self.started);
         let _ = std::fs::remove_file(&self.progress);
     }
@@ -193,16 +194,30 @@ fn wait_for_output(paths: &FastPaths) -> Result<(), String> {
 }
 
 fn read_result(paths: &FastPaths) -> Result<(VolumeSummary, FileTree), String> {
-    let text = std::fs::read_to_string(&paths.output)
+    let file = std::fs::File::open(&paths.output)
         .map_err(|error| format!("could not read the helper answer: {error}"))?;
-    if let Some(message) = text.lines().find_map(|line| line.strip_prefix("error=")) {
-        return Err(message.to_string());
+    let mut reader = BufReader::with_capacity(1 << 20, file);
+    let mut head = String::new();
+    loop {
+        let mut line = String::new();
+        let read = reader
+            .read_line(&mut line)
+            .map_err(|error| format!("could not read the helper answer: {error}"))?;
+        if read == 0 {
+            return Err(head
+                .lines()
+                .find_map(|line| line.strip_prefix("error="))
+                .unwrap_or("the helper result was incomplete")
+                .to_string());
+        }
+        if line == TREE_MARKER {
+            break;
+        }
+        head.push_str(&line);
     }
-    let summary = VolumeSummary::from_text(&text)
-        .ok_or_else(|| "the helper result was incomplete".to_string())?;
-    let file = std::fs::File::open(&paths.tree)
-        .map_err(|error| format!("the helper folder tree is missing: {error}"))?;
-    let mut tree = timberstat_ntfs::read_tree(std::io::BufReader::with_capacity(1 << 20, file))
+    let summary = VolumeSummary::from_text(&head)
+        .ok_or_else(|| "the helper summary was incomplete".to_string())?;
+    let mut tree = timberstat_ntfs::read_tree(reader)
         .map_err(|error| format!("could not read the folder tree: {error}"))?;
     prune_skipped(&mut tree);
     Ok((summary, tree))
@@ -291,7 +306,6 @@ pub fn helper_main(args: &[String]) -> i32 {
     };
     let output = PathBuf::from(output);
     let progress_path = output.with_extension("progress");
-    let tree_path = output.with_extension("tree");
     let _ = std::fs::write(output.with_extension("started"), "");
 
     let mut last_write: Option<Instant> = None;
@@ -305,22 +319,29 @@ pub fn helper_main(args: &[String]) -> i32 {
         last_write = Some(Instant::now());
         let _ = std::fs::write(&progress_path, stage_line(stage));
     });
-    let text = match result {
-        Ok((summary, tree)) => {
-            let written = std::fs::File::create(&tree_path)
-                .and_then(|file| timberstat_ntfs::write_tree(&tree, file).map(|_| ()));
-            match written {
-                Ok(()) => summary.to_text(),
-                Err(error) => format!("error=could not save the folder tree: {error}\n"),
-            }
-        }
-        Err(error) => format!("error={}\n", error.to_string().replace('\n', " ")),
-    };
     let temp = output.with_extension("writing");
-    match std::fs::write(&temp, text).and_then(|()| std::fs::rename(&temp, &output)) {
+    let saved = match result {
+        Ok((summary, tree)) => save_result(&temp, &summary, &tree).or_else(|error| {
+            std::fs::write(&temp, format!("error=could not save the result: {error}\n"))
+        }),
+        Err(error) => std::fs::write(
+            &temp,
+            format!("error={}\n", error.to_string().replace('\n', " ")),
+        ),
+    };
+    match saved.and_then(|()| std::fs::rename(&temp, &output)) {
         Ok(()) => 0,
         Err(_) => 3,
     }
+}
+
+/// Writes the summary, the tree marker and the tree into one file, in that order.
+fn save_result(path: &Path, summary: &VolumeSummary, tree: &FileTree) -> std::io::Result<()> {
+    let mut file = std::io::BufWriter::with_capacity(1 << 20, std::fs::File::create(path)?);
+    file.write_all(summary.to_text().as_bytes())?;
+    file.write_all(TREE_MARKER.as_bytes())?;
+    timberstat_ntfs::write_tree(tree, &mut file)?;
+    file.flush()
 }
 
 /// One line for the progress file: `done total`, or `build`.
