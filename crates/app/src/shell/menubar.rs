@@ -142,8 +142,10 @@ impl Shell {
         if self.menu_signature != sig {
             self.menu_signature = sig;
             GlobalState::global_mut(cx).set_app_menus(menus(self, dark));
+            // Reload after this frame. Reloading during render replaces the menu entities while
+            // the bar is being painted, and the open popup's state is lost.
             if let Some(bar) = self.menu_bar.clone() {
-                bar.update(cx, |bar, cx| bar.reload(cx));
+                cx.defer(move |cx| bar.update(cx, |bar, cx| bar.reload(cx)));
             }
         }
         match self.menu_bar.clone() {
