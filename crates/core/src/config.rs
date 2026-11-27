@@ -55,6 +55,13 @@ pub enum ThemePreference {
 ///
 /// Unknown fields are ignored so that a newer file written by a future build
 /// within the same schema version does not break an older one.
+//
+//@ ADR: archive-preferred-handler-config
+// Decision: introduce `archive.preferred_handler` under `config.json`
+// (section `archive`) with value = handler family id string ("sevenzip",
+// "tar", ...). Scope is per-user (each user gets their own config file).
+// UI calls `ArchiveManager::with_preferred(config.archive.preferred_handler)`.
+// Missing preferred handler → hard error (`PreferredHandlerMissing`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AppConfig {
     pub schema_version: u32,
@@ -66,6 +73,16 @@ pub struct AppConfig {
     /// The widget layout last saved. `None` until the user changes it.
     #[serde(default)]
     pub workspace: Option<WorkspaceLayout>,
+    /// Preference stored in `config.json` under `archive.preferred_handler`.
+    ///
+    /// Values are `HandlerFamily::id()` strings ("sevenzip", "tar", "unzip", ...).
+    /// `None` means automatic handler selection (7-Zip, then tar, then unzip, ...).
+    ///
+    /// Scope is per-user (the config file is per-user); there is no per-profile layer.
+    /// UI code calls `ArchiveManager::with_preferred(config.archive.preferred_handler)`
+    /// to apply it; a missing preferred handler is a hard error (`PreferredHandlerMissing`).
+    #[serde(default)]
+    pub preferred_handler: Option<String>,
     /// Per-drive scan mode, keyed by drive letter (`C`). Drives without an entry use `Auto`.
     #[serde(default)]
     pub drive_modes: std::collections::BTreeMap<String, crate::scan_mode::ScanModeChoice>,
@@ -78,6 +95,7 @@ impl Default for AppConfig {
             theme: ThemePreference::default(),
             ui_scale: DEFAULT_UI_SCALE,
             workspace: None,
+            preferred_handler: None,
             drive_modes: Default::default(),
         }
     }
@@ -297,6 +315,7 @@ mod tests {
                 theme,
                 ui_scale: DEFAULT_UI_SCALE,
                 workspace: None,
+                preferred_handler: None,
                 drive_modes: Default::default(),
             };
             save_to(&path, &config).unwrap();
@@ -327,6 +346,7 @@ mod tests {
             theme: ThemePreference::Dark,
             ui_scale: DEFAULT_UI_SCALE,
             workspace: None,
+            preferred_handler: None,
             drive_modes: Default::default(),
         };
         save_to(&path, &dark).unwrap();
