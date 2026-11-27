@@ -98,6 +98,9 @@ impl Shell {
             let hdd = detect.await;
             let _ = this.update(cx, |shell, cx| {
                 shell.hdd_cache.insert(letter, hdd);
+                // The check is over. Clear its phase first: the scan start refuses to run while
+                // the app is busy, and a `Checking` phase counts as busy.
+                shell.phase = Phase::Idle;
                 let kind = timberstat_engine::plan(&drive, choice, Some(hdd));
                 shell.begin_scan(drive, kind, cx);
             });
