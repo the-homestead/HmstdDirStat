@@ -8,6 +8,7 @@ license.workspace = true
 description = "Shared scan planning, walk and MFT reads, and duplicate search for the CLI and the GUI."
 
 [dependencies]
+timberstat-diskprobe = { path = "../diskprobe" }
 timberstat-core = { path = "../core" }
 timberstat-scanner = { path = "../scanner" }
 timberstat-filesystem = { path = "../filesystem" }
