@@ -90,6 +90,8 @@ pub struct ScanProgress {
 pub enum ScanMethod {
     /// Portable `std::fs` traversal.
     GenericTraversal,
+    /// Read from the NTFS master file table (elevated, Windows).
+    NtfsMft,
 }
 
 /// One problem the scan worked around without stopping.
@@ -114,7 +116,7 @@ pub struct ScanReport {
 }
 
 impl ScanReport {
-    pub(crate) fn new(method: ScanMethod) -> Self {
+    pub fn new(method: ScanMethod) -> Self {
         Self {
             method,
             entries_visited: 0,

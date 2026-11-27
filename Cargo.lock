@@ -6809,6 +6809,7 @@ dependencies = [
  "tempfile",
  "timberstat-core",
  "timberstat-duplicates",
+ "timberstat-engine",
  "timberstat-fileops",
  "timberstat-filesystem",
  "timberstat-ntfs",
@@ -6835,6 +6836,7 @@ dependencies = [
  "tempfile",
  "timberstat-core",
  "timberstat-duplicates",
+ "timberstat-engine",
  "timberstat-export",
  "timberstat-fileops",
  "timberstat-filesystem",
@@ -6875,6 +6877,19 @@ dependencies = [
  "tempfile",
  "timberstat-fileops",
  "timberstat-filesystem",
+]
+
+[[package]]
+name = "timberstat-engine"
+version = "0.1.0"
+dependencies = [
+ "timberstat-core",
+ "timberstat-duplicates",
+ "timberstat-fileops",
+ "timberstat-filesystem",
+ "timberstat-ntfs",
+ "timberstat-scanner",
+ "tracing",
 ]
 
 [[package]]

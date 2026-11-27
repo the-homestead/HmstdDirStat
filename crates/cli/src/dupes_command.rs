@@ -1,9 +1,8 @@
 use std::path::Path;
 use std::time::Instant;
 
-use timberstat_duplicates::{DuplicateReport, Options, RunStatus, file_items, find_duplicates};
+use timberstat_duplicates::{DuplicateReport, RunStatus};
 use timberstat_export::{duplicates_to_csv, duplicates_to_json};
-use timberstat_fileops::tree_base;
 
 use crate::{
     args::{ExportOptions, Format},
@@ -43,8 +42,11 @@ pub fn run(root: &Path, export: &ExportOptions, cancel: &Cancellation) -> CliRes
 pub fn analyze(scanned: &Scanned, cancel: &Cancellation) -> CliResult<DuplicateReport> {
     cancel.check()?;
     eprintln!("duplicates: finding byte-verified duplicate files");
-    let items = file_items(&scanned.tree, &tree_base(&scanned.root));
-    let report = find_duplicates(&items, &Options::default(), cancel.duplicate_progress());
+    let report = timberstat_engine::find_duplicates_in(
+        &scanned.tree,
+        &scanned.root,
+        cancel.duplicate_progress(),
+    );
     match &report.status {
         RunStatus::Complete => {}
         RunStatus::Cancelled => return Err(CliError::cancelled()),

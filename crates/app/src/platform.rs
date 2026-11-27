@@ -6,7 +6,7 @@
 
 /// Whether Fast NTFS (reading the NTFS master file table) exists on this platform. It needs an
 /// NTFS volume, Windows administrator approval and the Windows helper, so it is Windows only.
-pub const FAST_NTFS_AVAILABLE: bool = cfg!(windows);
+pub use timberstat_engine::FAST_NTFS_AVAILABLE;
 
 /// Tooltip for the Fast NTFS control when it is not available.
 pub const FAST_NTFS_UNAVAILABLE: &str = "Fast NTFS reads the Windows NTFS file table. It is not available on this system. Walk works everywhere.";

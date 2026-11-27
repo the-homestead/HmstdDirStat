@@ -7,8 +7,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use gpui_kit::*;
-use timberstat_duplicates::{DuplicateReport, Options, Progress, file_items, find_duplicates};
-use timberstat_fileops::tree_base;
+use timberstat_duplicates::{DuplicateReport, Progress};
 use timberstat_filesystem::NodeId;
 
 use super::{PROGRESS_REFRESH, Shell};
@@ -88,8 +87,7 @@ impl Shell {
 
         let job = cx.background_executor().spawn(async move {
             let started = std::time::Instant::now();
-            let items = file_items(&files, &tree_base(&scan_root));
-            let report = find_duplicates(&items, &Options::default(), &progress);
+            let report = timberstat_engine::find_duplicates_in(&files, &scan_root, &progress);
             tracing::info!(
                 "{}",
                 timberstat_core::timing::line("duplicates", started.elapsed())

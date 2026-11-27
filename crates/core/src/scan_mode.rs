@@ -21,6 +21,16 @@ pub enum ScanKind {
     Walk,
 }
 
+impl ScanKind {
+    /// The name shown to the user and written to logs.
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Fast => "file table (MFT)",
+            Self::Walk => "folder walk",
+        }
+    }
+}
+
 /// Resolves a choice for one drive. `spinning_hdd` is whether the drive is a spinning disk, and
 /// `fast_available` is whether the platform can read the file table at all. Fast is never chosen
 /// when it is unavailable, whatever the choice says.

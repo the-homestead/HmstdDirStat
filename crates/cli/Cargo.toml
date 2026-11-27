@@ -14,6 +14,7 @@ path = "src/main.rs"
 [dependencies]
 timberstat-core = { path = "../core" }
 timberstat-scanner = { path = "../scanner" }
+timberstat-engine = { path = "../engine" }
 timberstat-filesystem = { path = "../filesystem" }
 timberstat-fileops = { path = "../fileops" }
 timberstat-duplicates = { path = "../duplicates" }

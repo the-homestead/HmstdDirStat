@@ -18,6 +18,11 @@ use cancel::Cancellation;
 use error::{CliResult, EXIT_USAGE};
 
 fn main() -> ExitCode {
+    // Elevated file-table helper, started by a scan. The same entry point the GUI uses.
+    let args: Vec<String> = std::env::args().collect();
+    if args.get(1).map(String::as_str) == Some("--fast-helper") {
+        std::process::exit(timberstat_engine::fast::helper_main(&args[2..]));
+    }
     match run() {
         Ok(code) => ExitCode::from(code),
         Err(error) => {

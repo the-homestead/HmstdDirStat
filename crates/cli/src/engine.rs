@@ -3,11 +3,11 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use timberstat_core::config;
+use timberstat_engine::{self as shared, EngineError, ScanKind, ScanModeChoice, fast::FastPaths};
 use timberstat_filesystem::FileTree;
 use timberstat_scan_history::{ScanMethod as HistoryMethod, ScanProvenance};
-use timberstat_scanner::{
-    FileSystemScanner, GenericScanner, ScanError, ScanMethod, ScanOptions, ScanReport,
-};
+use timberstat_scanner::{ScanMethod, ScanReport};
 
 use crate::{
     cancel::Cancellation,
@@ -39,28 +39,29 @@ impl Scanned {
     }
 }
 
+/// Scans `root` the way the GUI would: the drive's saved mode decides between the file table and
+/// a folder walk, through the shared engine.
 pub fn scan(root: &Path, cancel: &Cancellation) -> CliResult<Scanned> {
     cancel.check()?;
-    eprintln!("scan: scanning {}", root.display());
-    let output = GenericScanner
-        .scan(
-            root,
-            &ScanOptions::default(),
-            cancel.scan_token(),
-            &mut |progress| {
-                eprintln!(
-                    "scan: {} entries, {} directories",
-                    progress.entries_visited, progress.directories_read
-                );
-            },
-        )
-        .map_err(|error| match error {
-            ScanError::Cancelled => CliError::cancelled(),
-            other => CliError::failure(other.to_string()),
-        })?;
+    let kind = shared::plan(root, drive_choice(root), None);
+    eprintln!("scan: scanning {} ({})", root.display(), kind.label());
+    let output = match kind {
+        ScanKind::Walk => shared::scan_walk(root, cancel.scan_token(), &mut |progress| {
+            eprintln!(
+                "scan: {} entries, {} directories",
+                progress.entries_visited, progress.directories_read
+            );
+        }),
+        ScanKind::Fast => shared::scan_mft(root, &FastPaths::for_this_run()),
+    }
+    .map_err(|error| match error {
+        EngineError::Cancelled => CliError::cancelled(),
+        EngineError::Failed(message) => CliError::failure(message),
+    })?;
     cancel.check()?;
     let method = match output.report.method {
         ScanMethod::GenericTraversal => HistoryMethod::GenericTraversal,
+        ScanMethod::NtfsMft => HistoryMethod::NtfsMft,
     };
     let scanned = Scanned {
         tree: output.tree,
@@ -79,6 +80,20 @@ pub fn scan(root: &Path, cancel: &Cancellation) -> CliResult<Scanned> {
     );
     report_issues(&scanned);
     Ok(scanned)
+}
+
+/// The mode the user saved for this drive in config.json. Unreadable settings fall back to Auto.
+fn drive_choice(root: &Path) -> ScanModeChoice {
+    let Some(letter) = shared::drive_letter(root) else {
+        return ScanModeChoice::Auto;
+    };
+    match config::default_config_path().and_then(|path| config::load_from(&path)) {
+        Ok(settings) => shared::choice_for(&settings.drive_modes, letter),
+        Err(error) => {
+            eprintln!("scan: settings unreadable, using Auto: {error}");
+            ScanModeChoice::Auto
+        }
+    }
 }
 
 fn report_issues(scanned: &Scanned) {

@@ -17,6 +17,7 @@ timberstat-core = { path = "../core" }
 timberstat-filesystem = { path = "../filesystem" }
 timberstat-fileops = { path = "../fileops" }
 timberstat-scanner = { path = "../scanner" }
+timberstat-engine = { path = "../engine" }
 timberstat-ntfs = { path = "../ntfs" }
 timberstat-search = { path = "../search" }
 gpui-kit.workspace = true

@@ -1,6 +1,5 @@
 //! Scan lifecycle actions, kept out of the main shell state module.
 
-use crate::drive_kind;
 use std::{
     path::{Path, PathBuf},
     sync::{
@@ -9,24 +8,19 @@ use std::{
     },
     time::Instant,
 };
-use timberstat_core::{
-    config,
-    scan_mode::{ScanKind, ScanModeChoice, resolve},
-};
+use timberstat_core::config;
+use timberstat_engine::{ScanKind, ScanModeChoice};
 
 use gpui_kit::*;
-use timberstat_scanner::{FileSystemScanner, GenericScanner, ScanError, ScanOptions, ScanProgress};
+use timberstat_scanner::ScanProgress;
 
 use super::{PROGRESS_REFRESH, Phase, Shell};
-use crate::{fast, platform, scan::summarize};
+use crate::{platform, scan::summarize};
+use timberstat_engine::fast;
 
-/// The drive letter of a path such as `C:\`, uppercase. `?` when there is none.
+/// The drive letter of a path, uppercase. `?` when there is none.
 pub(super) fn drive_letter(drive: &Path) -> char {
-    drive
-        .to_string_lossy()
-        .chars()
-        .next()
-        .map_or('?', |c| c.to_ascii_uppercase())
+    timberstat_engine::drive_letter(drive).unwrap_or('?')
 }
 
 impl Shell {
@@ -37,31 +31,32 @@ impl Shell {
             || !self.rename.is_closed()
     }
 
-    /// Scans a drive. Its mode is the drive's override, or `Auto`: the file table for spinning
-    /// hard disks and a walk for everything else. The disk check runs once per drive per session,
-    /// off the UI thread.
+    /// Scans a drive. Its mode is the drive's override, or `Auto`. The disk check runs once per
+    /// drive per session, off the UI thread, and the engine decides the mode from its answer.
     pub fn choose_volume(&mut self, drive: PathBuf, cx: &mut Context<Self>) {
         if self.is_busy() {
             return;
         }
         let letter = drive_letter(&drive);
         let choice = self.drive_mode(letter);
-        let available = platform::FAST_NTFS_AVAILABLE;
         match self.hdd_cache.get(&letter).copied() {
-            Some(hdd) => self.begin_scan(drive, resolve(choice, hdd, available), cx),
-            None if choice != ScanModeChoice::Auto || !available => {
-                self.begin_scan(drive, resolve(choice, false, available), cx);
+            Some(hdd) => {
+                let kind = timberstat_engine::plan(&drive, choice, Some(hdd));
+                self.begin_scan(drive, kind, cx);
             }
-            None => self.detect_then_scan(drive, letter, choice, cx),
+            None if choice == ScanModeChoice::Auto && platform::FAST_NTFS_AVAILABLE => {
+                self.detect_then_scan(drive, letter, choice, cx);
+            }
+            None => {
+                let kind = timberstat_engine::plan(&drive, choice, Some(false));
+                self.begin_scan(drive, kind, cx);
+            }
         }
     }
 
     /// The mode a drive is set to. Drives without an override use `Auto`.
     pub fn drive_mode(&self, letter: char) -> ScanModeChoice {
-        self.drive_modes
-            .get(&letter.to_ascii_uppercase().to_string())
-            .copied()
-            .unwrap_or_default()
+        timberstat_engine::choice_for(&self.drive_modes, letter)
     }
 
     /// Sets a drive's mode and saves it to config.json. The change applies to the next scan.
@@ -92,12 +87,12 @@ impl Shell {
         let probe = drive.clone();
         let detect = cx
             .background_executor()
-            .spawn(async move { drive_kind::is_spinning_hdd(&probe) });
+            .spawn(async move { timberstat_engine::probe::is_spinning_hdd(&probe) });
         cx.spawn(async move |this, cx| {
             let hdd = detect.await;
             let _ = this.update(cx, |shell, cx| {
                 shell.hdd_cache.insert(letter, hdd);
-                let kind = resolve(choice, hdd, platform::FAST_NTFS_AVAILABLE);
+                let kind = timberstat_engine::plan(&drive, choice, Some(hdd));
                 shell.begin_scan(drive, kind, cx);
             });
         })
@@ -130,12 +125,7 @@ impl Shell {
         let job = cx.background_executor().spawn(async move {
             let mut on_progress =
                 |progress: ScanProgress| entries.store(progress.entries_visited, Ordering::Relaxed);
-            GenericScanner.scan(
-                &scan_root,
-                &ScanOptions::default(),
-                &cancel,
-                &mut on_progress,
-            )
+            timberstat_engine::scan_walk(&scan_root, &cancel, &mut on_progress)
         });
 
         self.task = Some(cx.spawn(async move |this, cx| {
@@ -150,7 +140,7 @@ impl Shell {
                         shell.install_tree(output.tree, root.clone(), cx);
                         Phase::Walked(summary)
                     }
-                    Err(ScanError::Cancelled) => Phase::Cancelled(root),
+                    Err(timberstat_engine::EngineError::Cancelled) => Phase::Cancelled(root),
                     Err(error) => {
                         tracing::error!(%error, root = %root.display(), "walk failed");
                         Phase::Failed {

@@ -56,6 +56,7 @@ pub fn summarize(root: PathBuf, output: &ScanOutput, elapsed: Duration) -> ScanS
         elapsed,
         method: match output.report.method {
             ScanMethod::GenericTraversal => "generic traversal",
+            ScanMethod::NtfsMft => "file table (MFT)",
         },
     }
 }

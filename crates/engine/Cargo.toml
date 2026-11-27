@@ -1,0 +1,20 @@
+[package]
+name = "timberstat-engine"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+description = "Shared scan planning, walk and MFT reads, and duplicate search for the CLI and the GUI."
+
+[dependencies]
+timberstat-core = { path = "../core" }
+timberstat-scanner = { path = "../scanner" }
+timberstat-filesystem = { path = "../filesystem" }
+timberstat-fileops = { path = "../fileops" }
+timberstat-duplicates = { path = "../duplicates" }
+timberstat-ntfs = { path = "../ntfs" }
+tracing.workspace = true
+
+[lints]
+workspace = true

@@ -4,7 +4,6 @@
 mod assets;
 mod explore;
 mod extensions;
-mod fast;
 mod layout;
 mod open;
 mod platform;
@@ -14,7 +13,6 @@ mod shell;
 mod theme;
 mod tiles;
 
-mod drive_kind;
 use anyhow::{Context as _, Result};
 use gpui_kit::component::TitleBar;
 use gpui_kit::*;
@@ -30,7 +28,7 @@ fn main() -> Result<()> {
     // Elevated Fast-scan helper: read the file table, write the result, exit. No window.
     let args: Vec<String> = std::env::args().collect();
     if args.get(1).map(String::as_str) == Some("--fast-helper") {
-        std::process::exit(fast::helper_main(&args[2..]));
+        std::process::exit(timberstat_engine::fast::helper_main(&args[2..]));
     }
 
     // The window has no console, so the log file is the record of what happened.
