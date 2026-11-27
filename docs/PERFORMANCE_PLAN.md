@@ -1,8 +1,9 @@
 # PERFORMANCE PLAN — TimberStat
 
 Rule (Plan §18, §23.10, §23.18): **no invented benchmark numbers; profile before optimising.**
-This file defines how performance is measured. It contains no throughput claims. No benchmark
-result exists yet.
+This file defines how performance is measured. It contains no throughput claims. Measured
+results, with the hardware and method used for each, are in `BENCHMARKS.md`; the harness is
+described in `benchmarks/README.md`.
 
 ## 1. Metrics
 

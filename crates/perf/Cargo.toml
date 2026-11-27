@@ -1,0 +1,37 @@
+[package]
+name = "timberstat-perf"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+description = "Benchmark suite for TimberStat: reproducible synthetic datasets, a scan timing harness and Criterion benches. Not shipped."
+
+[lib]
+name = "timberstat_perf"
+
+[[bin]]
+name = "gen-dataset"
+path = "src/bin/gen_dataset.rs"
+
+[[bin]]
+name = "perf-scan"
+path = "src/bin/perf_scan.rs"
+
+[dependencies]
+timberstat-filesystem = { path = "../filesystem" }
+timberstat-scanner = { path = "../scanner" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+sysinfo = "0.31"
+
+[dev-dependencies]
+criterion = "0.8.2"
+
+[[bench]]
+name = "scan"
+harness = false
+
+[lints]
+workspace = true

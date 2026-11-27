@@ -1,0 +1,86 @@
+name: Nightly performance
+
+# Informational only (docs/PERFORMANCE_PLAN.md section 6): no gate, shared runners,
+# continue-on-error on every job. Timings from this workflow are never compared
+# with numbers recorded in BENCHMARKS.md, which come from a same-machine run.
+
+on:
+  schedule:
+    - cron: "23 3 * * *"
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  scale-100k:
+    name: 100k-file scan (ignored scanner test)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Record environment
+        shell: bash
+        run: |
+          set -o pipefail
+          {
+            echo "date_utc=$(date -u +%FT%TZ)"
+            echo "commit=$GITHUB_SHA"
+            echo "runner_os=$RUNNER_OS"
+            echo "runner_arch=$RUNNER_ARCH"
+            echo "cpu=$(grep -m1 'model name' /proc/cpuinfo | cut -d: -f2- | xargs)"
+            echo "logical_cpus=$(nproc)"
+            echo "mem_total=$(grep MemTotal /proc/meminfo | xargs)"
+            echo "filesystem_tmp=$(df -T /tmp | tail -1)"
+            echo "rustc=$(rustc -V)"
+          } | tee scale-environment.txt
+      - name: Scan 100k files (release, ignored test)
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo test -p timberstat-scanner --release --locked --test scan \
+            hundred_thousand_files_scan -- --ignored --exact --nocapture 2>&1 | tee scale-100k.log
+      - name: Job summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "### 100k-file scan (informational)"
+            echo '```'
+            cat scale-environment.txt 2>/dev/null
+            grep -h "scanned 100000 files" scale-100k.log 2>/dev/null || echo "timing line not found"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload raw output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scale-100k-${{ github.run_id }}
+          path: |
+            scale-environment.txt
+            scale-100k.log
+          if-no-files-found: ignore
+
+  criterion:
+    name: Criterion microbenchmarks (informational)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Run benches
+        run: cargo bench -p timberstat-perf --locked 2>&1 | tee criterion.log
+      - name: Upload Criterion output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: criterion-${{ github.run_id }}
+          path: |
+            criterion.log
+            target/criterion
+          if-no-files-found: ignore
