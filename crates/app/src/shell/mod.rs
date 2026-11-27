@@ -86,6 +86,8 @@ pub struct Shell {
     fast_mode: bool,
     /// Each drive's chosen scan mode, by letter.
     drive_modes: std::collections::BTreeMap<String, timberstat_core::scan_mode::ScanModeChoice>,
+    /// True while a drive's disk type is being checked, before its scan has started.
+    probing: bool,
     /// Whether each drive is a spinning disk, found once per session by the background probe.
     hdd_cache: std::collections::HashMap<char, bool>,
     log_dir: PathBuf,
@@ -139,6 +141,7 @@ impl Shell {
             fast_mode: false,
             drive_modes,
             hdd_cache: Default::default(),
+            probing: false,
             log_dir,
             tree: None,
             scan_root: None,

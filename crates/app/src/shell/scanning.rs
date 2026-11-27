@@ -25,7 +25,8 @@ pub(super) fn drive_letter(drive: &Path) -> char {
 
 impl Shell {
     pub fn is_busy(&self) -> bool {
-        matches!(self.phase, Phase::Walking { .. } | Phase::Elevated { .. })
+        self.probing
+            || matches!(self.phase, Phase::Walking { .. } | Phase::Elevated { .. })
             || !self.delete.is_closed()
             || !self.transfer.is_closed()
             || !self.rename.is_closed()
@@ -88,9 +89,12 @@ impl Shell {
         let detect = cx
             .background_executor()
             .spawn(async move { timberstat_engine::probe::is_spinning_hdd(&probe) });
+        self.probing = true;
+        cx.notify();
         cx.spawn(async move |this, cx| {
             let hdd = detect.await;
             let _ = this.update(cx, |shell, cx| {
+                shell.probing = false;
                 shell.hdd_cache.insert(letter, hdd);
                 let kind = timberstat_engine::plan(&drive, choice, Some(hdd));
                 shell.begin_scan(drive, kind, cx);
