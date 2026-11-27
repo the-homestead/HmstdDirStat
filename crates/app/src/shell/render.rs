@@ -63,6 +63,14 @@ pub(super) fn summary_content(phase: &Phase, p: Palette, handle: Entity<Shell>) 
             },
             p,
         ),
+        Phase::Checking { drive } => message_block(
+            "Checking the disk",
+            &format!(
+                "Asking Windows whether {} is a spinning hard disk, to pick Fast or Walk.",
+                drive.display()
+            ),
+            p,
+        ),
         Phase::Walking { root, entries, .. } => {
             let cancel = Button::new("cancel-walk")
                 .outline()
@@ -130,6 +138,7 @@ pub(super) fn drive_label(volume: &str) -> String {
 fn status_bar(shell: &Shell, p: Palette, handle: Entity<Shell>) -> StatusBar {
     let text = match &shell.phase {
         Phase::Idle => "Ready".to_string(),
+        Phase::Checking { drive } => format!("Checking disk type: {}", drive.display()),
         Phase::Walking { root, .. } => format!("Walking {}", root.display()),
         Phase::Elevated {
             drive,
