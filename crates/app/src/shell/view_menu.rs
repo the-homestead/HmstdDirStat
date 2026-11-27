@@ -28,10 +28,10 @@ pub(super) fn overlay(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Optio
     if !shell.view_menu {
         return None;
     }
+    // The card is anchored by a plain absolute wrapper below. Absolute positioning on the
+    // scrolling element itself resolved against the scroll wrapper, which pushed the panel
+    // off the left edge of the window.
     let mut card = div()
-        .absolute()
-        .top(px(super::toolbar::BAR_PX + 4.))
-        .right(px(16.))
         .v_flex()
         .w(px(380.))
         .max_h(px(760.))
@@ -87,7 +87,14 @@ pub(super) fn overlay(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Optio
             .on_mouse_down(MouseButton::Left, move |_, _, cx| {
                 close.update(cx, |shell, cx| shell.close_view_menu(cx));
             })
-            .child(card),
+            .child(
+                div()
+                    .absolute()
+                    .top(px(super::toolbar::BAR_PX + 4.))
+                    .right(px(16.))
+                    .w(px(380.))
+                    .child(card),
+            ),
     )
 }
 
