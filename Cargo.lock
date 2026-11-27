@@ -6833,6 +6833,7 @@ dependencies = [
  "serde_json",
  "signal-hook",
  "tempfile",
+ "timberstat-core",
  "timberstat-duplicates",
  "timberstat-export",
  "timberstat-fileops",
