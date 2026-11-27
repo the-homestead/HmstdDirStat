@@ -9,6 +9,7 @@ pub mod engine;
 pub mod error;
 pub mod format;
 pub mod handler;
+mod handler_detect;
 pub mod ops;
 pub mod parse;
 pub mod runner;
