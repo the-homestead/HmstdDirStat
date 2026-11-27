@@ -5,10 +5,10 @@ edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 license.workspace = true
-description = "The one place that calls Windows directly: asks whether a drive is a spinning hard disk."
+description = "The one place that calls Windows directly: drive-type query and the elevated launch."
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_IO", "Win32_System_Ioctl"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_IO", "Win32_System_Ioctl", "Win32_System_Registry", "Win32_System_Threading", "Win32_UI_Shell"] }
 
 # This crate is the only one allowed to use `unsafe`: it wraps one Windows control call.
 # Every other crate in the workspace keeps `unsafe_code = "forbid"`.

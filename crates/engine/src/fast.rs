@@ -1,32 +1,54 @@
-//! Fast scan: the MFT is read by an elevated copy of this program. Windows shows its
-//! consent prompt for this program's own executable, and no console window opens.
+//! Fast scan: the NTFS file table is read by one elevated copy of this program, started once per
+//! app run. Scans send it requests through a folder for this run; the helper answers in the same
+//! folder. Windows shows its consent prompt once, when the helper starts.
+//!
+//! The helper accepts only drive volumes (`//./X:`), and writes only inside its own folder.
 
 use std::{
     path::{Path, PathBuf},
-    process::Command,
+    sync::{
+        Mutex, OnceLock,
+        atomic::{AtomicU64, Ordering},
+    },
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
-use std::time::{Duration, Instant};
+use timberstat_diskprobe::elevate::{Elevated, LaunchError};
+use timberstat_filesystem::FileTree;
 use timberstat_ntfs::{SummaryProgress, VolumeSummary};
-
-#[cfg(windows)]
-use std::os::windows::process::CommandExt;
 
 /// Minimum gap between progress-file writes while reading records.
 const PROGRESS_EVERY: Duration = Duration::from_millis(200);
+/// How long the consent prompt may stay open before a request gives up.
+const CONSENT_WAIT: Duration = Duration::from_secs(180);
+/// The window refreshes its heartbeat this often. The helper exits when the heartbeat goes stale.
+const HEARTBEAT_EVERY: Duration = Duration::from_secs(5);
+/// Without a fresh heartbeat for this long, the helper assumes the window is gone and exits.
+const HELPER_IDLE_LIMIT: Duration = Duration::from_secs(30);
+/// How often the helper checks its folder for a request, and the window checks for an answer.
+const POLL: Duration = Duration::from_millis(100);
 
-/// Stops the PowerShell launcher from opening a console window.
-#[cfg(windows)]
-const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+/// The folder shared with the helper, unique to this app run.
+static SESSION_DIR: OnceLock<PathBuf> = OnceLock::new();
+/// Gives each scan its own result file names.
+static NEXT_RESULT: AtomicU64 = AtomicU64::new(1);
+/// The running helper, if one was started and has not exited.
+static HELPER: Mutex<Option<Helper>> = Mutex::new(None);
+/// The heartbeat thread starts once per app run.
+static HEARTBEAT: OnceLock<()> = OnceLock::new();
 
-/// Files shared between the window and the elevated helper, unique per window run.
+struct Helper {
+    process: Elevated,
+}
+
+/// Files shared between the window and the elevated helper for one scan.
 #[derive(Debug, Clone)]
 pub struct FastPaths {
     /// The helper writes its summary (or an `error=` line) here.
     pub output: PathBuf,
     /// The helper writes the full folder tree here, in `timberstat_ntfs::write_tree` format.
     pub tree: PathBuf,
-    /// The helper creates this as soon as it starts, which means approval was given.
+    /// The helper creates this as soon as it starts the scan.
     pub started: PathBuf,
     /// The helper rewrites this with its current stage, for the progress bar.
     pub progress: PathBuf,
@@ -34,7 +56,8 @@ pub struct FastPaths {
 
 impl FastPaths {
     pub fn for_this_run() -> Self {
-        let base = std::env::temp_dir().join(format!("timberstat-fast-{}", std::process::id()));
+        let seq = NEXT_RESULT.fetch_add(1, Ordering::Relaxed);
+        let base = session_dir().join(format!("result-{seq}"));
         Self {
             output: base.with_extension("txt"),
             tree: base.with_extension("tree"),
@@ -51,6 +74,22 @@ impl FastPaths {
     }
 }
 
+/// This app run's shared folder: `%LOCALAPPDATA%\TimberStat\fast\<pid>-<time>`.
+fn session_dir() -> &'static Path {
+    SESSION_DIR.get_or_init(|| {
+        let base = std::env::var_os("LOCALAPPDATA")
+            .map(PathBuf::from)
+            .unwrap_or_else(std::env::temp_dir);
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|time| time.as_nanos())
+            .unwrap_or(0);
+        base.join("TimberStat")
+            .join("fast")
+            .join(format!("{}-{nanos}", std::process::id()))
+    })
+}
+
 /// Converts a drive path such as `C:\` into the raw device name `//./C:`.
 pub fn raw_volume_name(drive: &Path) -> Option<String> {
     let letter = drive.to_string_lossy().chars().next()?;
@@ -59,65 +98,110 @@ pub fn raw_volume_name(drive: &Path) -> Option<String> {
         .then(|| format!("//./{}:", letter.to_ascii_uppercase()))
 }
 
-/// Runs this program elevated as `--fast-helper <volume> <output>` and reads back its
-/// summary and full folder tree. Blocks until the helper exits, so call it off the UI thread.
-pub fn run_elevated(
-    volume: &str,
-    paths: &FastPaths,
-) -> Result<(VolumeSummary, timberstat_filesystem::FileTree), String> {
+/// Reads a drive's file table through the elevated helper and returns the summary and the
+/// folder tree. The first call starts the helper, which shows one consent prompt. Blocks until
+/// the answer arrives, so call it off the UI thread.
+pub fn run_elevated(volume: &str, paths: &FastPaths) -> Result<(VolumeSummary, FileTree), String> {
     paths.clear();
-    let result = run_elevated_inner(volume, paths);
+    let result = request_scan(volume, paths);
     paths.clear();
     result
 }
 
-fn run_elevated_inner(
-    volume: &str,
-    paths: &FastPaths,
-) -> Result<(VolumeSummary, timberstat_filesystem::FileTree), String> {
+fn request_scan(volume: &str, paths: &FastPaths) -> Result<(VolumeSummary, FileTree), String> {
+    ensure_helper()?;
+    let dir = session_dir();
+    let temp = dir.join("request.tmp");
+    std::fs::write(&temp, format!("{volume}\n{}\n", paths.output.display()))
+        .and_then(|()| std::fs::rename(&temp, dir.join("request")))
+        .map_err(|error| format!("could not send the scan request: {error}"))?;
+    wait_for_output(paths)?;
+    read_result(paths)
+}
+
+/// Starts the helper if it is not running. Only one helper runs per app run.
+fn ensure_helper() -> Result<(), String> {
+    let mut guard = HELPER
+        .lock()
+        .map_err(|_| "the helper state is unavailable".to_string())?;
+    if let Some(helper) = guard.as_ref()
+        && !helper.process.has_exited()
+    {
+        return Ok(());
+    }
+    let dir = session_dir();
+    std::fs::create_dir_all(dir)
+        .map_err(|error| format!("could not create the helper folder: {error}"))?;
+    let _ = std::fs::remove_file(dir.join("request"));
+    let _ = std::fs::remove_file(dir.join("ready"));
+    start_heartbeat(dir);
+
     let exe = std::env::current_exe().map_err(|error| error.to_string())?;
-
-    // Start-Process with -Verb RunAs is the only way without unsafe FFI. PowerShell
-    // only launches the helper; the consent prompt names the helper executable itself.
-    let script = format!(
-        "$p = Start-Process -FilePath {exe} -ArgumentList @('--fast-helper', {volume}, {out}) -Verb RunAs -WindowStyle Hidden -Wait -PassThru; exit $p.ExitCode",
-        exe = ps_quote(&exe.to_string_lossy()),
-        volume = ps_quote(volume),
-        out = ps_quote(&paths.output.to_string_lossy()),
-    );
-    let mut launcher = Command::new("powershell.exe");
-    launcher.args([
-        "-NoProfile",
-        "-NonInteractive",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-WindowStyle",
-        "Hidden",
-        "-Command",
-        &script,
-    ]);
-    #[cfg(windows)]
-    launcher.creation_flags(CREATE_NO_WINDOW);
-    let status = launcher
-        .status()
-        .map_err(|error| format!("could not start the elevation launcher: {error}"))?;
-
-    let text = std::fs::read_to_string(&paths.output).map_err(|_| {
-        if status.success() {
-            "the helper finished without writing a result".to_string()
-        } else {
-            "administrator permission was declined, or the helper could not start".to_string()
+    let arguments = format!("--fast-service \"{}\"", dir.display());
+    let process =
+        timberstat_diskprobe::elevate::launch(&exe, &arguments).map_err(|error| match error {
+            LaunchError::Declined => "administrator permission was declined".to_string(),
+            LaunchError::Failed(code) => {
+                format!("could not start the elevated helper (Windows error {code})")
+            }
+        })?;
+    let started = Instant::now();
+    while !dir.join("ready").exists() {
+        if process.has_exited() {
+            return Err("the elevated helper exited before it was ready".to_string());
         }
-    });
-    let text = text?;
+        if started.elapsed() > CONSENT_WAIT {
+            return Err("the elevated helper did not start in time".to_string());
+        }
+        std::thread::sleep(POLL);
+    }
+    *guard = Some(Helper { process });
+    Ok(())
+}
 
+/// Keeps `alive` in the shared folder fresh while this app runs, so the helper stays up.
+fn start_heartbeat(dir: &Path) {
+    HEARTBEAT.get_or_init(|| {
+        let dir = dir.to_path_buf();
+        std::thread::spawn(move || {
+            loop {
+                let _ = std::fs::write(dir.join("alive"), "");
+                std::thread::sleep(HEARTBEAT_EVERY);
+            }
+        });
+    });
+}
+
+fn helper_exited() -> bool {
+    HELPER
+        .lock()
+        .ok()
+        .and_then(|guard| guard.as_ref().map(|helper| helper.process.has_exited()))
+        .unwrap_or(true)
+}
+
+fn wait_for_output(paths: &FastPaths) -> Result<(), String> {
+    loop {
+        if paths.output.exists() {
+            return Ok(());
+        }
+        if helper_exited() {
+            return Err("the elevated helper stopped before it answered".to_string());
+        }
+        std::thread::sleep(POLL);
+    }
+}
+
+fn read_result(paths: &FastPaths) -> Result<(VolumeSummary, FileTree), String> {
+    let text = std::fs::read_to_string(&paths.output)
+        .map_err(|error| format!("could not read the helper answer: {error}"))?;
     if let Some(message) = text.lines().find_map(|line| line.strip_prefix("error=")) {
         return Err(message.to_string());
     }
     let summary = VolumeSummary::from_text(&text)
-        .ok_or_else(|| "the helper's result was incomplete".to_string())?;
+        .ok_or_else(|| "the helper result was incomplete".to_string())?;
     let file = std::fs::File::open(&paths.tree)
-        .map_err(|error| format!("the helper's folder tree is missing: {error}"))?;
+        .map_err(|error| format!("the helper folder tree is missing: {error}"))?;
     let mut tree = timberstat_ntfs::read_tree(std::io::BufReader::with_capacity(1 << 20, file))
         .map_err(|error| format!("could not read the folder tree: {error}"))?;
     prune_skipped(&mut tree);
@@ -126,7 +210,7 @@ fn run_elevated_inner(
 
 /// Removes the folders the normal scan skips, so the Fast result matches a walk. Totals are
 /// rolled up again after the removal.
-fn prune_skipped(tree: &mut timberstat_filesystem::FileTree) {
+fn prune_skipped(tree: &mut FileTree) {
     let skip = timberstat_scanner::ScanOptions::default().skip_names;
     let doomed: Vec<timberstat_filesystem::NodeId> = tree
         .attached_ids()
@@ -143,9 +227,64 @@ fn prune_skipped(tree: &mut timberstat_filesystem::FileTree) {
     }
 }
 
-/// Entry point for the elevated helper. `args` are the arguments after `--fast-helper`.
-/// Creates the started marker first, then always writes a result file, including on
-/// failure, so the window can show why.
+/// Entry point for the elevated helper: runs the requests in its folder until the window stops
+/// refreshing the heartbeat. `args[0]` is the shared folder.
+pub fn service_main(args: &[String]) -> i32 {
+    let Some(dir) = args.first().map(PathBuf::from) else {
+        return 2;
+    };
+    let _ = std::fs::write(dir.join("ready"), "");
+    loop {
+        std::thread::sleep(POLL);
+        if let Some((volume, output)) = take_request(&dir) {
+            let in_folder = Path::new(&output).parent() == Some(dir.as_path());
+            if valid_volume(&volume) && in_folder {
+                let _ = helper_main(&[volume, output]);
+            } else if in_folder {
+                let _ = std::fs::write(&output, "error=the request was not valid\n");
+            }
+        }
+        let idle = heartbeat_age(&dir).is_none_or(|age| age > HELPER_IDLE_LIMIT);
+        if idle {
+            break;
+        }
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+    0
+}
+
+/// Reads and removes the request in the helper's folder, if there is one.
+fn take_request(dir: &Path) -> Option<(String, String)> {
+    let request = dir.join("request");
+    let text = std::fs::read_to_string(&request).ok()?;
+    let _ = std::fs::remove_file(&request);
+    let mut lines = text.lines();
+    let volume = lines.next()?.trim().to_string();
+    let output = lines.next()?.trim().to_string();
+    Some((volume, output))
+}
+
+/// True for `//./X:` where X is a letter.
+fn valid_volume(volume: &str) -> bool {
+    let bytes = volume.as_bytes();
+    bytes.len() == 6
+        && volume.starts_with("//./")
+        && bytes[4].is_ascii_alphabetic()
+        && bytes[5] == b':'
+}
+
+fn heartbeat_age(dir: &Path) -> Option<Duration> {
+    std::fs::metadata(dir.join("alive"))
+        .ok()?
+        .modified()
+        .ok()?
+        .elapsed()
+        .ok()
+}
+
+/// Performs one scan for the helper. Writes `started` first, the progress file while reading,
+/// then the tree and the summary. The summary is written last, under its final name, so the
+/// window only reads a finished answer.
 pub fn helper_main(args: &[String]) -> i32 {
     let (Some(volume), Some(output)) = (args.first(), args.get(1)) else {
         return 2;
@@ -168,7 +307,6 @@ pub fn helper_main(args: &[String]) -> i32 {
     });
     let text = match result {
         Ok((summary, tree)) => {
-            // The tree goes first: the window only looks at the summary file once it is complete.
             let written = std::fs::File::create(&tree_path)
                 .and_then(|file| timberstat_ntfs::write_tree(&tree, file).map(|_| ()));
             match written {
@@ -178,7 +316,8 @@ pub fn helper_main(args: &[String]) -> i32 {
         }
         Err(error) => format!("error={}\n", error.to_string().replace('\n', " ")),
     };
-    match std::fs::write(&output, text) {
+    let temp = output.with_extension("writing");
+    match std::fs::write(&temp, text).and_then(|()| std::fs::rename(&temp, &output)) {
         Ok(()) => 0,
         Err(_) => 3,
     }
@@ -192,7 +331,7 @@ fn stage_line(stage: SummaryProgress) -> String {
     }
 }
 
-/// Reads the helper's latest stage. `None` until the helper has written one.
+/// Reads the latest stage the helper wrote. `None` until the helper has written one.
 pub fn read_stage(path: &Path) -> Option<SummaryProgress> {
     let text = std::fs::read_to_string(path).ok()?;
     let line = text.trim();
@@ -203,11 +342,6 @@ pub fn read_stage(path: &Path) -> Option<SummaryProgress> {
     let done = parts.next()?.parse().ok()?;
     let total = parts.next()?.parse().ok()?;
     Some(SummaryProgress::Reading { done, total })
-}
-
-/// Quotes a value for PowerShell single-quoted strings.
-fn ps_quote(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "''"))
 }
 
 #[cfg(test)]
@@ -225,12 +359,16 @@ mod tests {
     }
 
     #[test]
-    fn powershell_quotes_are_doubled() {
-        assert_eq!(ps_quote("it's"), "'it''s'");
+    fn only_drive_volumes_are_accepted_by_the_helper() {
+        assert!(valid_volume("//./C:"));
+        assert!(valid_volume("//./w:"));
+        assert!(!valid_volume("//./C:\\Windows"));
+        assert!(!valid_volume("C:"));
+        assert!(!valid_volume("//./1:"));
     }
 
     #[test]
-    fn started_marker_sits_beside_the_output() {
+    fn result_files_sit_beside_the_output() {
         let paths = FastPaths::for_this_run();
         assert_eq!(paths.started.with_extension("txt"), paths.output);
     }

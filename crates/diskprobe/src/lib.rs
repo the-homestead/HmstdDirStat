@@ -9,6 +9,8 @@
 
 /// `Some(true)` for a spinning disk, `Some(false)` for a device without seek penalty (SSD),
 /// `None` when the drive cannot be asked, or on systems without this query.
+pub mod elevate;
+
 pub fn seek_penalty(letter: char) -> Option<bool> {
     imp::seek_penalty(letter)
 }
