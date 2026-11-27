@@ -12,9 +12,6 @@ use timberstat_core::workspace::{
 
 use super::{Shell, widgets::*};
 
-/// Height the menu row shares with the title bar. The panels open below it.
-pub(super) const MENU_PX: f32 = 34.0;
-
 actions!(
     timberstat_menu,
     [
@@ -176,9 +173,15 @@ impl Shell {
         }
     }
 
-    pub(super) fn open_workspace_panel(&mut self, cx: &mut Context<Self>) {
-        self.workspace_panel = true;
-        cx.notify();
+    /// Opens the workspace management dialog: presets, custom workspaces, save, rename, delete.
+    pub(super) fn open_manage_workspaces(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        super::workspace_manager::ensure_input(self, window, cx);
+        let handle = cx.entity();
+        window.open_dialog(cx, move |dialog, _, cx| {
+            let p = Palette::from_app(cx);
+            let section = super::workspace_menu::section(handle.read(cx), p, handle.clone());
+            dialog.title("Workspaces").w(px(440.)).child(section)
+        });
     }
 }
 
@@ -237,7 +240,9 @@ pub(super) fn bind(root: Div, cx: &mut Context<Shell>) -> Div {
         }))
         .on_action(cx.listener(|s: &mut Shell, _: &ResetLayout, _, c| s.reset_layout(c)))
         .on_action(
-            cx.listener(|s: &mut Shell, _: &ManageWorkspaces, _, c| s.open_workspace_panel(c)),
+            cx.listener(|s: &mut Shell, _: &ManageWorkspaces, window, c| {
+                s.open_manage_workspaces(window, c)
+            }),
         )
         .on_action(
             cx.listener(|_: &mut Shell, _: &ToggleDarkTheme, _, c| crate::theme::toggle_theme(c)),
@@ -254,32 +259,4 @@ pub(super) fn bind(root: Div, cx: &mut Context<Shell>) -> Div {
         }))
         .on_action(cx.listener(|s: &mut Shell, _: &FindFiles, window, c| s.focus_search(window, c)))
         .on_action(cx.listener(|_: &mut Shell, _: &Quit, _, c| c.quit()))
-}
-
-/// The workspace manager panel, drawn under the title bar while it is open. A click outside it
-/// closes it.
-pub(super) fn overlay(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Option<Div> {
-    if !shell.workspace_panel {
-        return None;
-    }
-    let close = handle.clone();
-    Some(
-        div()
-            .absolute()
-            .top(px(MENU_PX + 4.))
-            .right(px(16.))
-            .w(px(340.))
-            .flex()
-            .flex_col()
-            .p_2()
-            .gap_2()
-            .rounded_md()
-            .border_1()
-            .border_color(p.border)
-            .bg(p.surface)
-            .on_mouse_down_out(move |_, _, cx| {
-                close.update(cx, |shell, cx| shell.close_workspace_panel(cx));
-            })
-            .child(super::workspace_menu::section(shell, p, handle)),
-    )
 }

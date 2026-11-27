@@ -22,6 +22,7 @@ mod views;
 mod widget_bodies;
 mod widgets;
 mod workspace;
+mod workspace_bar;
 mod workspace_manager;
 mod workspace_menu;
 
@@ -101,7 +102,6 @@ pub struct Shell {
     drag_start: Option<DragStart>,
     workspace_bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
     widget_rooms: Rc<RefCell<HashMap<timberstat_core::workspace::WidgetKind, (f32, f32)>>>,
-    workspace_panel: bool,
     menu_bar: Option<gpui_kit::Entity<gpui_kit::component::menu::AppMenuBar>>,
     menu_signature: String,
     palette: palette::PaletteUi,
@@ -147,7 +147,6 @@ impl Shell {
             drag_start: None,
             workspace_bounds: Rc::new(Cell::new(None)),
             widget_rooms: Rc::new(RefCell::new(HashMap::new())),
-            workspace_panel: false,
             menu_bar: None,
             menu_signature: String::new(),
             palette: palette::PaletteUi::default(),

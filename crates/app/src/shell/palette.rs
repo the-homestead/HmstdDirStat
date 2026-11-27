@@ -170,7 +170,6 @@ impl Shell {
 
     pub fn open_command_palette(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.ensure_search(window, cx);
-        self.workspace_panel = false;
         self.menu = None;
         self.palette.model =
             CommandPaletteModel::new(CommandRegistry::plan(self.command_capabilities()));
@@ -217,8 +216,7 @@ impl Shell {
             CommandId::ChangeVisualization
             | CommandId::SwitchWorkspace
             | CommandId::TogglePanels => {
-                self.workspace_panel = true;
-                cx.notify();
+                self.open_manage_workspaces(window, cx);
             }
             CommandId::OpenDirectory => {
                 if let Some(root) = self.scan_root.as_ref()
@@ -242,7 +240,6 @@ impl Shell {
             }
             CommandId::ChangeTheme => crate::theme::toggle_theme(cx),
             CommandId::OpenSettings => {
-                self.workspace_panel = false;
                 self.open_settings(window, cx);
             }
         }

@@ -11,7 +11,7 @@ use timberstat_ntfs::SummaryProgress;
 
 use super::{
     Phase, Shell, fileops_ui, menu::menu_overlay, menubar, palette, results::*, toolbar,
-    widgets::*, workspace,
+    widgets::*, workspace, workspace_bar,
 };
 use crate::platform;
 
@@ -45,9 +45,8 @@ impl Render for Shell {
                     .p_4()
                     .child(workspace::area(self, p, handle.clone())),
             )
-            .child(status_bar(self, p))
+            .child(status_bar(self, p, handle.clone()))
             .children(menu_overlay(self, p, handle.clone()))
-            .children(menubar::overlay(self, p, handle.clone()))
             .children(fileops_ui::overlays(self, p, handle.clone()))
             .children(palette::overlay(self, p, handle))
     }
@@ -128,7 +127,7 @@ pub(super) fn drive_label(volume: &str) -> String {
     format!("{}\\", volume.trim_start_matches("//./"))
 }
 
-fn status_bar(shell: &Shell, p: Palette) -> StatusBar {
+fn status_bar(shell: &Shell, p: Palette, handle: Entity<Shell>) -> StatusBar {
     let text = match &shell.phase {
         Phase::Idle => "Ready".to_string(),
         Phase::Walking { root, .. } => format!("Walking {}", root.display()),
@@ -160,5 +159,9 @@ fn status_bar(shell: &Shell, p: Palette) -> StatusBar {
         Tag::secondary().child("Walk")
     };
     let _ = p;
-    StatusBar::new().left(Label::new(text)).right(mode)
+    StatusBar::new()
+        .left(Label::new(text))
+        .right(workspace_bar::switcher(shell, handle))
+        .right(gpui_kit::component::separator::Separator::vertical())
+        .right(mode)
 }

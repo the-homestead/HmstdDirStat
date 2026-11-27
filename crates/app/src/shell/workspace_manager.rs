@@ -100,7 +100,7 @@ impl WorkspaceUi {
 /// Creates the name field when the View menu first opens. The field is reused for Save as and
 /// Rename; button handlers read its current value directly.
 pub(super) fn ensure_input(shell: &mut Shell, window: &mut Window, cx: &mut Context<Shell>) {
-    if !shell.workspace_panel || shell.workspaces.name_input.is_some() {
+    if shell.workspaces.name_input.is_some() {
         return;
     }
     let input = cx.new(|cx| InputState::new(window, cx).placeholder("Custom workspace name"));

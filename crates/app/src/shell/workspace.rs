@@ -128,13 +128,6 @@ impl Shell {
         }
     }
 
-    pub fn close_workspace_panel(&mut self, cx: &mut Context<Self>) {
-        if self.workspace_panel {
-            self.workspace_panel = false;
-            cx.notify();
-        }
-    }
-
     fn layout_changed(&mut self, cx: &mut Context<Self>) {
         self.layout_dirty = true;
         self.save_layout(cx);
