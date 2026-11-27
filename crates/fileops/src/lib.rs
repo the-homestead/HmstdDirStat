@@ -7,24 +7,32 @@
 //!
 //! No `unsafe`. The Recycle Bin call goes through the `trash` crate.
 
+mod attributes;
 mod copy;
 mod delete;
 mod delete_plan;
 mod disk;
+mod link;
 mod model;
 mod preview;
 mod rename;
+mod shortcut;
 mod sync;
 mod transfer;
 mod transfer_plan;
 
+pub use attributes::{AttributeChange, Attributes, read_attributes, set_attributes};
 pub use delete::{DeleteReport, execute_delete, execute_delete_with};
 pub use delete_plan::{
     ConfirmedDelete, DeleteMode, DeletePlan, build_delete_plan, build_delete_plan_capped,
 };
+pub use link::{LinkOutcome, create_symlink};
 pub use model::{Control, Failure, FailureReason, PlanError, Preview, WorkItem, classify_io};
 pub use preview::{DEFAULT_PREVIEW_CAP, tree_base};
 pub use rename::{RenameOutcome, rename_path, validate_name};
+pub use shortcut::{
+    MAX_DESCRIPTION_CHARS, ShortcutOutcome, ShortcutSpec, create_shortcut, encode_lnk,
+};
 pub use sync::{apply_delete, apply_moves, apply_rename};
 pub use transfer::{SkipReason, Skipped, TransferReport, execute_transfer};
 pub use transfer_plan::{Collision, TransferKind, TransferPlan, plan_transfer};
