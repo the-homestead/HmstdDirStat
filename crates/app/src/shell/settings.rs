@@ -1,127 +1,102 @@
-//! The Settings panel: a toolbar button and a card over the window. UI scale is the setting so
-//! far. It scales text and rem-based spacing, and it is saved to config.json.
+//! The Settings panel, built on gpui-kit's `Settings` component: pages and grouped items. UI scale
+//! and the theme are saved through the shell; the log folder opens from a button in the page.
 
 use gpui_kit::component::{
-    button::{Button, ButtonVariants},
+    button::Button,
+    setting::{NumberFieldOptions, SettingField, SettingGroup, SettingItem, SettingPage, Settings},
     *,
 };
 use gpui_kit::*;
-use timberstat_core::config::{self, DEFAULT_UI_SCALE, UI_SCALE_MAX, UI_SCALE_MIN};
+use timberstat_core::config::{self, UI_SCALE_MAX, UI_SCALE_MIN};
 
 use super::{Shell, widgets::*};
 
-/// One step of the scale buttons.
-const STEP: f32 = 0.05;
-
-/// The toolbar button that opens and closes the panel.
-pub(super) fn settings_button(handle: Entity<Shell>) -> Button {
-    Button::new("settings")
-        .ghost()
-        .small()
-        .icon(gpui_kit::component::IconName::Settings)
-        .tooltip("Settings")
-        .on_click(move |_, _, cx| {
-            handle.update(cx, |shell, cx| shell.toggle_settings(cx));
-        })
-}
-
-/// The panel, drawn over the window while it is open.
+/// The panel, drawn under the menu row while it is open. A click outside it closes it.
 pub(super) fn overlay(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Option<Div> {
     if !shell.settings_open {
         return None;
     }
-    let scale = shell.ui_scale;
+    let scale = f64::from(shell.ui_scale);
+    let scale_shell = handle.clone();
     let log_dir = shell.log_dir.clone();
-    let logs = div()
-        .h_flex()
-        .gap_2()
-        .items_center()
-        .child(div().text_sm().flex_1().child("Log files"))
-        .child(
-            Button::new("open-logs")
-                .outline()
-                .small()
-                .label("Open folder")
-                .tooltip(log_dir.display().to_string())
-                .on_click(move |_, _, _| {
-                    if let Err(error) = crate::open::open_folder(&log_dir) {
-                        tracing::error!(%error, "could not open the log folder");
-                    }
-                }),
-        );
-    let (down, up, reset) = (handle.clone(), handle.clone(), handle);
-    let row = div()
-        .h_flex()
-        .gap_2()
-        .items_center()
-        .child(div().text_sm().child("UI scale"))
-        .child(
-            Button::new("scale-down")
-                .outline()
-                .label("−")
-                .disabled(scale <= UI_SCALE_MIN + 1e-3)
-                .on_click(move |_, _, cx| {
-                    down.update(cx, |shell, cx| {
-                        shell.set_ui_scale(shell.ui_scale - STEP, cx)
-                    });
-                }),
+
+    let appearance = SettingGroup::new().title("Appearance").items(vec![
+        SettingItem::new(
+            "UI scale",
+            SettingField::number_input(
+                NumberFieldOptions {
+                    min: f64::from(UI_SCALE_MIN),
+                    max: f64::from(UI_SCALE_MAX),
+                    step: 0.05,
+                },
+                move |_: &App| scale,
+                move |value: f64, cx: &mut App| {
+                    scale_shell.update(cx, |shell, cx| shell.set_ui_scale(value as f32, cx));
+                },
+            ),
         )
-        .child(
-            div()
-                .w(px(56.))
-                .text_center()
-                .text_sm()
-                .child(format!("{:.0}%", scale * 100.0)),
-        )
-        .child(
-            Button::new("scale-up")
-                .outline()
-                .label("+")
-                .disabled(scale >= UI_SCALE_MAX - 1e-3)
-                .on_click(move |_, _, cx| {
-                    up.update(cx, |shell, cx| {
-                        shell.set_ui_scale(shell.ui_scale + STEP, cx)
-                    });
-                }),
-        )
-        .child(
-            Button::new("scale-reset")
-                .outline()
-                .label("Reset")
-                .disabled((scale - DEFAULT_UI_SCALE).abs() < 1e-3)
-                .on_click(move |_, _, cx| {
-                    reset.update(cx, |shell, cx| shell.set_ui_scale(DEFAULT_UI_SCALE, cx));
-                }),
-        );
+        .description(
+            "Scales text and spacing. Saved to config.json. HMSTD_UI_SCALE overrides it for one run.",
+        ),
+        SettingItem::new(
+            "Dark theme",
+            SettingField::switch(
+                |cx: &App| cx.theme().is_dark(),
+                |_: bool, cx: &mut App| crate::theme::toggle_theme(cx),
+            ),
+        ),
+    ]);
+    let diagnostics = SettingGroup::new()
+        .title("Diagnostics")
+        .item(SettingItem::new(
+            "Log files",
+            SettingField::render(move |_, _, _| {
+                let log_dir = log_dir.clone();
+                Button::new("open-logs")
+                    .outline()
+                    .small()
+                    .label("Open folder")
+                    .tooltip(log_dir.display().to_string())
+                    .on_click(move |_, _, _| {
+                        if let Err(error) = crate::open::open_folder(&log_dir) {
+                            tracing::error!(%error, "could not open the log folder");
+                        }
+                    })
+            }),
+        ));
+    let panel = Settings::new("settings").pages(vec![
+        SettingPage::new("General")
+            .default_open(true)
+            .groups(vec![appearance]),
+        SettingPage::new("Diagnostics").groups(vec![diagnostics]),
+    ]);
+
+    let close = handle;
     Some(
         div()
             .absolute()
-            .top(px(super::toolbar::BAR_PX + 4.))
-            .right(px(16.))
-            .v_flex()
-            .min_w(px(320.))
-            .p_3()
-            .gap_3()
-            .rounded_md()
-            .border_1()
-            .border_color(p.border)
-            .bg(p.surface)
-            // Clicks on the panel must not reach the overlay, or it would close first.
-            .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+            .top(px(0.))
+            .left(px(0.))
+            .size_full()
+            .on_mouse_down(MouseButton::Left, move |_, _, cx| {
+                close.update(cx, |shell, cx| shell.toggle_settings(cx));
+            })
             .child(
                 div()
-                    .text_sm()
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .child("Settings"),
-            )
-            .child(row)
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(p.muted_foreground)
-                    .child("Scales text and rem-based spacing. Saved to config.json. HMSTD_UI_SCALE overrides it for one run."),
-            )
-            .child(logs),
+                    .absolute()
+                    .top(px(super::menubar::MENU_PX + super::toolbar::BAR_PX + 4.))
+                    .right(px(16.))
+                    .w(px(640.))
+                    .h(px(440.))
+                    .rounded_md()
+                    .border_1()
+                    .border_color(p.border)
+                    .bg(p.surface)
+                    .overflow_hidden()
+                    // Clicks on the panel must not reach the overlay, or it would close first.
+                    .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                    .child(panel),
+            ),
     )
 }
 

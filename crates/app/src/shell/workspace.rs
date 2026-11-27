@@ -128,14 +128,9 @@ impl Shell {
         }
     }
 
-    pub fn toggle_view_menu(&mut self, cx: &mut Context<Self>) {
-        self.view_menu = !self.view_menu;
-        cx.notify();
-    }
-
-    pub fn close_view_menu(&mut self, cx: &mut Context<Self>) {
-        if self.view_menu {
-            self.view_menu = false;
+    pub fn close_workspace_panel(&mut self, cx: &mut Context<Self>) {
+        if self.workspace_panel {
+            self.workspace_panel = false;
             cx.notify();
         }
     }

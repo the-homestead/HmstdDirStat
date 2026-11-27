@@ -1,27 +1,27 @@
-//! The top bar. Three zones on one 44 px line:
+//! The toolbar under the menu row. Three zones on one 44 px line:
 //! - left: the app mark, the drive picker and the scan mode
 //! - centre: the query field, with its errors in a popover under it so the bar never grows
-//! - right: the size basis, then icon buttons for layout, theme and settings
+//! - right: the size basis
 //!
-//! Drives and modes are segmented groups, so the active choice reads at a glance. Rare actions
-//! (the log folder) live in Settings.
+//! Drives, modes and sizes are segmented groups, so the active choice reads at a glance. Layout,
+//! theme, settings and every other action live in the menu row above.
 
 use gpui_kit::component::{
     IconName,
-    button::{Button, ButtonGroup, ButtonVariants},
+    button::{Button, ButtonGroup},
     input::Input,
     *,
 };
 use gpui_kit::*;
 
-use super::{Shell, settings, view_menu, widgets::*};
-use crate::{explore, explore::Basis, platform, search::Query, theme::toggle_theme};
+use super::{Shell, widgets::*};
+use crate::{explore, explore::Basis, platform, search::Query};
 
-/// Height of the bar in pixels. The overlays (View, Settings) open just under it.
+/// Height of the bar in pixels. The menu row sits above it; overlays open under both.
 pub(super) const BAR_PX: f32 = 44.0;
 
 /// The whole bar.
-pub(super) fn bar(shell: &Shell, p: Palette, handle: Entity<Shell>, cx: &App) -> Div {
+pub(super) fn bar(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Div {
     div()
         .h(px(BAR_PX))
         .flex_shrink_0()
@@ -45,8 +45,6 @@ pub(super) fn bar(shell: &Shell, p: Palette, handle: Entity<Shell>, cx: &App) ->
                 .child(search(shell, p)),
         )
         .child(basis(shell, handle.clone()))
-        .child(divider(p))
-        .child(actions(handle, cx))
 }
 
 fn brand(p: Palette) -> Div {
@@ -207,27 +205,4 @@ fn basis(shell: &Shell, handle: Entity<Shell>) -> ButtonGroup {
             };
             handle.update(cx, |shell, cx| shell.set_basis(basis, cx));
         })
-}
-
-/// Icon buttons: widget layout, theme, settings.
-fn actions(handle: Entity<Shell>, cx: &App) -> Div {
-    let dark = cx.theme().is_dark();
-    div()
-        .h_flex()
-        .flex_shrink_0()
-        .gap_1()
-        .child(view_menu::view_button(handle.clone()))
-        .child(
-            Button::new("toggle-theme")
-                .ghost()
-                .small()
-                .icon(if dark { IconName::Sun } else { IconName::Moon })
-                .tooltip(if dark {
-                    "Switch to the light theme"
-                } else {
-                    "Switch to the dark theme"
-                })
-                .on_click(|_, _, cx| toggle_theme(cx)),
-        )
-        .child(settings::settings_button(handle))
 }

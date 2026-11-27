@@ -170,7 +170,7 @@ impl Shell {
 
     pub fn open_command_palette(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.ensure_search(window, cx);
-        self.view_menu = false;
+        self.workspace_panel = false;
         self.settings_open = false;
         self.menu = None;
         self.palette.model =
@@ -218,7 +218,7 @@ impl Shell {
             CommandId::ChangeVisualization
             | CommandId::SwitchWorkspace
             | CommandId::TogglePanels => {
-                self.view_menu = true;
+                self.workspace_panel = true;
                 self.settings_open = false;
                 cx.notify();
             }
@@ -245,7 +245,7 @@ impl Shell {
             CommandId::ChangeTheme => crate::theme::toggle_theme(cx),
             CommandId::OpenSettings => {
                 self.settings_open = true;
-                self.view_menu = false;
+                self.workspace_panel = false;
                 cx.notify();
             }
         }

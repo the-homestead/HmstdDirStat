@@ -9,6 +9,7 @@ mod extensions_view;
 mod fileops_ui;
 mod files_tree;
 mod menu;
+mod menubar;
 mod palette;
 mod render;
 mod results;
@@ -17,7 +18,6 @@ mod scanning;
 mod settings;
 mod toolbar;
 mod treemap;
-mod view_menu;
 mod views;
 mod widget_bodies;
 mod widgets;
@@ -101,7 +101,8 @@ pub struct Shell {
     drag_start: Option<DragStart>,
     workspace_bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
     widget_rooms: Rc<RefCell<HashMap<timberstat_core::workspace::WidgetKind, (f32, f32)>>>,
-    view_menu: bool,
+    workspace_panel: bool,
+    bar_menu: Option<menubar::OpenMenu>,
     settings_open: bool,
     palette: palette::PaletteUi,
     layout_dirty: bool,
@@ -146,7 +147,8 @@ impl Shell {
             drag_start: None,
             workspace_bounds: Rc::new(Cell::new(None)),
             widget_rooms: Rc::new(RefCell::new(HashMap::new())),
-            view_menu: false,
+            workspace_panel: false,
+            bar_menu: None,
             settings_open: false,
             palette: palette::PaletteUi::default(),
             layout_dirty: false,

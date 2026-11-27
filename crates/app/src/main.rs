@@ -15,6 +15,7 @@ mod theme;
 mod tiles;
 
 use anyhow::{Context as _, Result};
+use gpui_kit::component::TitleBar;
 use gpui_kit::*;
 use timberstat_core::config::{self, AppConfig};
 use timberstat_scanner::{SystemVolumes, VolumeEnumerator};
@@ -82,11 +83,7 @@ fn main() -> Result<()> {
                         size(px(1400.), px(900.)),
                         cx,
                     ))),
-                    titlebar: Some(TitlebarOptions {
-                        title: Some(timberstat_core::config::APP_NAME.into()),
-                        ..Default::default()
-                    }),
-                    ..Default::default()
+                    ..TitleBar::window_options()
                 },
                 cx,
                 |_, cx| cx.new(|_| Shell::new(volumes, log_dir.clone(), layout.clone(), ui_scale)),

@@ -3,15 +3,15 @@
 //! fills the main area.
 
 use gpui_kit::component::{
-    button::Button, label::Label, progress::Progress, spinner::Spinner, status_bar::StatusBar,
-    tag::Tag, *,
+    TitleBar, button::Button, label::Label, progress::Progress, spinner::Spinner,
+    status_bar::StatusBar, tag::Tag, *,
 };
 use gpui_kit::*;
 use timberstat_ntfs::SummaryProgress;
 
 use super::{
-    Phase, Shell, fileops_ui, menu::menu_overlay, palette, results::*, settings, toolbar,
-    view_menu, widgets::*, workspace,
+    Phase, Shell, fileops_ui, menu::menu_overlay, menubar, palette, results::*, settings, toolbar,
+    widgets::*, workspace,
 };
 use crate::platform;
 
@@ -25,6 +25,7 @@ impl Render for Shell {
         window.set_rem_size(px(16.0 * self.ui_scale));
         let p = Palette::from_app(cx);
         super::menu::ensure_popup(self, window, cx);
+        super::menubar::ensure_popup(self, window, cx);
         let handle = cx.entity();
 
         div()
@@ -37,7 +38,8 @@ impl Render for Shell {
             .v_flex()
             .bg(p.background)
             .text_color(p.foreground)
-            .child(toolbar::bar(self, p, handle.clone(), cx))
+            .child(TitleBar::new().child(menubar::bar(self, p, handle.clone())))
+            .child(toolbar::bar(self, p, handle.clone()))
             .child(
                 div()
                     .flex_1()
@@ -48,7 +50,7 @@ impl Render for Shell {
             .child(status_bar(self, p))
             .children(menu_overlay(self, p, handle.clone()))
             .children(settings::overlay(self, p, handle.clone()))
-            .children(view_menu::overlay(self, p, handle.clone()))
+            .children(menubar::overlay(self, p, handle.clone()))
             .children(fileops_ui::overlays(self, p, handle.clone()))
             .children(palette::overlay(self, p, handle))
     }
