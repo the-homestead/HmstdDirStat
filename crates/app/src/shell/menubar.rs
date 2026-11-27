@@ -35,7 +35,10 @@ actions!(
         ResetLayout,
         ManageWorkspaces,
         ToggleDarkTheme,
-        OpenSettings
+        OpenSettings,
+        OpenScanFolder,
+        FindFiles,
+        Quit
     ]
 );
 
@@ -46,11 +49,12 @@ fn signature(shell: &Shell, dark: bool) -> String {
         .map(|kind| shell.layout.is_shown(kind))
         .collect();
     format!(
-        "{}|{:?}|{}|{}",
+        "{}|{:?}|{}|{}|{}",
         shell.workspaces.document().active,
         shown,
         shell.is_busy(),
-        dark
+        dark,
+        shell.scan_root.is_some()
     )
 }
 
@@ -85,11 +89,16 @@ fn widget_item(shell: &Shell, kind: WidgetKind) -> MenuItem {
 
 fn menus(shell: &Shell, dark: bool) -> Vec<OwnedMenu> {
     let busy = shell.is_busy();
+    let no_root = shell.scan_root.is_none();
     let file = Menu {
         name: "File".into(),
         items: vec![
             MenuItem::action("Find duplicates", StartDuplicates).disabled(busy),
             MenuItem::action("Stop scan", StopScan).disabled(!busy),
+            MenuItem::separator(),
+            MenuItem::action("Open scanned folder", OpenScanFolder).disabled(no_root),
+            MenuItem::separator(),
+            MenuItem::action("Exit", Quit),
         ],
         disabled: false,
     };
@@ -118,7 +127,8 @@ fn menus(shell: &Shell, dark: bool) -> Vec<OwnedMenu> {
     let tools = Menu {
         name: "Tools".into(),
         items: vec![
-            MenuItem::action("Command palette…   Ctrl+Shift+P", crate::OpenCommandPalette),
+            MenuItem::action("Command palette…", crate::OpenCommandPalette),
+            MenuItem::action("Find files…", FindFiles),
             MenuItem::action("Settings…", OpenSettings),
         ],
         disabled: false,
@@ -135,6 +145,14 @@ fn menus(shell: &Shell, dark: bool) -> Vec<OwnedMenu> {
 }
 
 impl Shell {
+    /// Opens the search box and puts the cursor in it.
+    pub(super) fn focus_search(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.ensure_search(window, cx);
+        if let Some(input) = self.search_input.as_ref() {
+            input.focus_handle(cx).focus(window, cx);
+        }
+    }
+
     /// Rebuilds the menus when their state changed, creates the bar on first use, and returns it.
     pub(super) fn menu_bar(&mut self, cx: &mut Context<Self>) -> Entity<AppMenuBar> {
         let dark = cx.theme().is_dark();
@@ -224,7 +242,18 @@ pub(super) fn bind(root: Div, cx: &mut Context<Shell>) -> Div {
         .on_action(
             cx.listener(|_: &mut Shell, _: &ToggleDarkTheme, _, c| crate::theme::toggle_theme(c)),
         )
-        .on_action(cx.listener(|s: &mut Shell, _: &OpenSettings, _, c| s.toggle_settings(c)))
+        .on_action(
+            cx.listener(|s: &mut Shell, _: &OpenSettings, window, c| s.open_settings(window, c)),
+        )
+        .on_action(cx.listener(|s: &mut Shell, _: &OpenScanFolder, _, _| {
+            if let Some(root) = s.scan_root.as_ref()
+                && let Err(error) = crate::open::open_folder(root)
+            {
+                tracing::error!(%error, path = %root.display(), "could not open scan directory");
+            }
+        }))
+        .on_action(cx.listener(|s: &mut Shell, _: &FindFiles, window, c| s.focus_search(window, c)))
+        .on_action(cx.listener(|_: &mut Shell, _: &Quit, _, c| c.quit()))
 }
 
 /// The workspace manager panel, drawn under the title bar while it is open. A click outside it

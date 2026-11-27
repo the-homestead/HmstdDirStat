@@ -10,7 +10,7 @@ use gpui_kit::*;
 use timberstat_ntfs::SummaryProgress;
 
 use super::{
-    Phase, Shell, fileops_ui, menu::menu_overlay, menubar, palette, results::*, settings, toolbar,
+    Phase, Shell, fileops_ui, menu::menu_overlay, menubar, palette, results::*, toolbar,
     widgets::*, workspace,
 };
 use crate::platform;
@@ -47,7 +47,6 @@ impl Render for Shell {
             )
             .child(status_bar(self, p))
             .children(menu_overlay(self, p, handle.clone()))
-            .children(settings::overlay(self, p, handle.clone()))
             .children(menubar::overlay(self, p, handle.clone()))
             .children(fileops_ui::overlays(self, p, handle.clone()))
             .children(palette::overlay(self, p, handle))
