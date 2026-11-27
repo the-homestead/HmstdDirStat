@@ -4,7 +4,7 @@ use crate::error::Error;
 use crate::record::Scan;
 
 /// The schema version this binary writes and reads natively.
-pub const CURRENT_SCHEMA: u32 = 2;
+pub const CURRENT_SCHEMA: u32 = 3;
 /// The oldest schema version this binary can migrate in memory.
 pub const OLDEST_MIGRATABLE_SCHEMA: u32 = 1;
 
@@ -14,9 +14,9 @@ pub const OLDEST_MIGRATABLE_SCHEMA: u32 = 1;
 pub fn migrate(version: u32, scan: &mut Scan) -> Result<(), Error> {
     match version {
         CURRENT_SCHEMA => Ok(()),
-        OLDEST_MIGRATABLE_SCHEMA => {
-            // Schema 1 recorded no file identity, so every entry identity is already
-            // `None` after decoding. The only in-memory change is the version marker.
+        // Schema 1 recorded no file identity and schema 2 no Windows attributes. The decoder
+        // leaves both `None` for those versions, so the only change is the version marker.
+        OLDEST_MIGRATABLE_SCHEMA..=2 => {
             scan.schema_version = CURRENT_SCHEMA;
             Ok(())
         }
@@ -81,7 +81,7 @@ mod tests {
     fn unknown_version_is_refused() {
         let mut scan = v1_scan();
         assert!(migrate(0, &mut scan).is_err());
-        assert!(migrate(3, &mut scan).is_err());
+        assert!(migrate(CURRENT_SCHEMA + 1, &mut scan).is_err());
         assert_eq!(scan.schema_version, 1);
     }
 }

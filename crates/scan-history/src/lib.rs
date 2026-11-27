@@ -18,6 +18,7 @@
 mod codec;
 mod error;
 mod provenance;
+mod rebuild;
 mod record;
 mod schema;
 mod store;

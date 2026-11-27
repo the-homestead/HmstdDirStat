@@ -148,13 +148,19 @@ fn encode_entry(entry: &ScanEntry, version: u32) -> Vec<u8> {
     out.extend_from_slice(encoded);
     out.push(kind_code(&entry.kind));
     put_uvarint(entry.logical_size, &mut out);
-    put_uvarint(entry.physical_size.unwrap_or(0), &mut out);
-    let mut modified_present = false;
-    if let Some(timestamp) = entry.modified_unix_secs {
-        modified_present = true;
-        put_zigzag(timestamp, &mut out);
+    if version >= 3 {
+        put_optional_uvarint(entry.physical_size, &mut out);
+    } else {
+        put_uvarint(entry.physical_size.unwrap_or(0), &mut out);
     }
-    put_uvarint(if modified_present { 1 } else { 0 }, &mut out);
+    // Presence flag first, then the value: the decoder reads them in this order.
+    match entry.modified_unix_secs {
+        Some(timestamp) => {
+            put_uvarint(1, &mut out);
+            put_zigzag(timestamp, &mut out);
+        }
+        None => put_uvarint(0, &mut out),
+    }
     out.push(
         entry.readonly as u8
             | (entry.hardlink_duplicate as u8) << 1
@@ -169,7 +175,29 @@ fn encode_entry(entry: &ScanEntry, version: u32) -> Vec<u8> {
             put_uvarint(identity.file_id, &mut out);
         }
     }
+    if version >= 3 {
+        put_optional_uvarint(entry.windows_attributes.map(u64::from), &mut out);
+    }
     out
+}
+
+/// Presence flag (0 or 1), then the value when present.
+fn put_optional_uvarint(value: Option<u64>, out: &mut Vec<u8>) {
+    match value {
+        Some(value) => {
+            put_uvarint(1, out);
+            put_uvarint(value, out);
+        }
+        None => put_uvarint(0, out),
+    }
+}
+
+fn get_optional_uvarint(bytes: &[u8], pos: &mut usize) -> Result<Option<u64>, Error> {
+    match get_uvarint(bytes, pos)? {
+        0 => Ok(None),
+        1 => Ok(Some(get_uvarint(bytes, pos)?)),
+        _ => Err(corrupt(bytes, "invalid presence flag")),
+    }
 }
 
 fn decode_entry(bytes: &[u8], pos: &mut usize, version: u32) -> Result<ScanEntry, Error> {
@@ -193,12 +221,16 @@ fn decode_entry(bytes: &[u8], pos: &mut usize, version: u32) -> Result<ScanEntry
         _ => return Err(corrupt(bytes, "unknown entry kind")),
     };
     let logical_size = get_uvarint(bytes, pos)?;
-    let physical_size = get_uvarint(bytes, pos)?;
-    let modified_present = get_uvarint(bytes, pos)? == 1;
-    let modified_unix_secs = if modified_present {
-        Some(zigzag_decode(get_uvarint(bytes, pos)?))
+    let physical_size = if version >= 3 {
+        get_optional_uvarint(bytes, pos)?
     } else {
-        None
+        // Schemas 1 and 2 wrote 0 for an unknown physical size; keep that value.
+        Some(get_uvarint(bytes, pos)?)
+    };
+    let modified_unix_secs = match get_uvarint(bytes, pos)? {
+        0 => None,
+        1 => Some(zigzag_decode(get_uvarint(bytes, pos)?)),
+        _ => return Err(corrupt(bytes, "invalid presence flag")),
     };
     let flags = get_uvarint(bytes, pos)? as u8;
     let mut entry = ScanEntry {
@@ -206,7 +238,7 @@ fn decode_entry(bytes: &[u8], pos: &mut usize, version: u32) -> Result<ScanEntry
         name,
         kind,
         logical_size,
-        physical_size: Some(physical_size),
+        physical_size,
         identity: None,
         hardlink_duplicate: (flags & 0x02) != 0,
         unreadable: (flags & 0x04) != 0,
@@ -221,6 +253,13 @@ fn decode_entry(bytes: &[u8], pos: &mut usize, version: u32) -> Result<ScanEntry
             let file_id = get_uvarint(bytes, pos)?;
             entry.identity = Some(timberstat_filesystem::FileIdentity { volume, file_id });
         }
+    }
+    if version >= 3 {
+        entry.windows_attributes = get_optional_uvarint(bytes, pos)?
+            .map(|bits| {
+                u32::try_from(bits).map_err(|_| corrupt(bytes, "attribute bits out of range"))
+            })
+            .transpose()?;
     }
     Ok(entry)
 }
