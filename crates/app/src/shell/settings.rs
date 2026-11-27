@@ -9,7 +9,7 @@ use gpui_kit::component::{
 use gpui_kit::*;
 use timberstat_core::config::{self, UI_SCALE_MAX, UI_SCALE_MIN};
 
-use super::{Shell, widgets::*};
+use super::{Shell, menubar::MENU_PX, widgets::*};
 
 /// The panel, drawn under the menu row while it is open. A click outside it closes it.
 pub(super) fn overlay(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Option<Div> {
@@ -71,32 +71,25 @@ pub(super) fn overlay(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Optio
         SettingPage::new("Diagnostics").groups(vec![diagnostics]),
     ]);
 
+    // A press outside the panel closes it. There is no full-window layer, so the menu bar and the
+    // toolbar stay clickable while the panel is open.
     let close = handle;
     Some(
         div()
             .absolute()
-            .top(px(0.))
-            .left(px(0.))
-            .size_full()
-            .on_mouse_down(MouseButton::Left, move |_, _, cx| {
+            .top(px(MENU_PX + 4.))
+            .right(px(16.))
+            .w(px(640.))
+            .h(px(440.))
+            .rounded_md()
+            .border_1()
+            .border_color(p.border)
+            .bg(p.surface)
+            .overflow_hidden()
+            .on_mouse_down_out(move |_, _, cx| {
                 close.update(cx, |shell, cx| shell.toggle_settings(cx));
             })
-            .child(
-                div()
-                    .absolute()
-                    .top(px(super::menubar::MENU_PX + super::toolbar::BAR_PX + 4.))
-                    .right(px(16.))
-                    .w(px(640.))
-                    .h(px(440.))
-                    .rounded_md()
-                    .border_1()
-                    .border_color(p.border)
-                    .bg(p.surface)
-                    .overflow_hidden()
-                    // Clicks on the panel must not reach the overlay, or it would close first.
-                    .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                    .child(panel),
-            ),
+            .child(panel),
     )
 }
 

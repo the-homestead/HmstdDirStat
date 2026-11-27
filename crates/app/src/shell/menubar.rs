@@ -237,28 +237,20 @@ pub(super) fn overlay(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Optio
     Some(
         div()
             .absolute()
-            .top(px(0.))
-            .left(px(0.))
-            .size_full()
-            .on_mouse_down(MouseButton::Left, move |_, _, cx| {
+            .top(px(MENU_PX + 4.))
+            .right(px(16.))
+            .w(px(340.))
+            .flex()
+            .flex_col()
+            .p_2()
+            .gap_2()
+            .rounded_md()
+            .border_1()
+            .border_color(p.border)
+            .bg(p.surface)
+            .on_mouse_down_out(move |_, _, cx| {
                 close.update(cx, |shell, cx| shell.close_workspace_panel(cx));
             })
-            .child(
-                div()
-                    .absolute()
-                    .top(px(MENU_PX + super::toolbar::BAR_PX + 4.))
-                    .right(px(16.))
-                    .w(px(340.))
-                    .flex()
-                    .flex_col()
-                    .p_2()
-                    .gap_2()
-                    .rounded_md()
-                    .border_1()
-                    .border_color(p.border)
-                    .bg(p.surface)
-                    .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                    .child(super::workspace_menu::section(shell, p, handle)),
-            ),
+            .child(super::workspace_menu::section(shell, p, handle)),
     )
 }
