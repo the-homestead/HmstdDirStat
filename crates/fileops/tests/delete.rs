@@ -8,6 +8,17 @@ use timberstat_fileops::{
     Control, DeleteMode, FailureReason, apply_delete, build_delete_plan, execute_delete_with,
 };
 
+/// True when this process is root (Linux `/proc/self/status`, effective uid 0). Root bypasses
+/// permission bits, so chmod-based failure tests cannot fail there. Always false elsewhere.
+fn running_as_root() -> bool {
+    std::fs::read_to_string("/proc/self/status").is_ok_and(|text| {
+        text.lines()
+            .find(|line| line.starts_with("Uid:"))
+            .and_then(|line| line.split_whitespace().nth(2))
+            == Some("0")
+    })
+}
+
 /// A Recycle Bin stand-in that must never run. Used for permanent-mode tests:
 /// if the executor tried the bin in permanent mode the test panics.
 fn no_bin(path: &Path) -> Result<(), trash::Error> {
@@ -50,6 +61,10 @@ fn permanent_delete_removes_tree_and_updates_memory_without_rescan() {
 
 #[test]
 fn partial_failure_is_reported_per_path_and_keeps_the_failed_entry() {
+    if running_as_root() {
+        eprintln!("skipped: root ignores the permission bits this test depends on");
+        return;
+    }
     let tmp = tempfile::tempdir().unwrap();
     let root = tmp.path().join("scan");
     write(root.join("dir/ok.txt"), b"ok");

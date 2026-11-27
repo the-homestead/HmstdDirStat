@@ -15,7 +15,7 @@ use gpui_kit::component::{
 use gpui_kit::*;
 
 use super::{Shell, settings, view_menu, widgets::*};
-use crate::{explore, explore::Basis, search::Query, theme::toggle_theme};
+use crate::{explore, explore::Basis, platform, search::Query, theme::toggle_theme};
 
 /// Height of the bar in pixels. The overlays (View, Settings) open just under it.
 pub(super) const BAR_PX: f32 = 44.0;
@@ -111,8 +111,13 @@ fn mode(shell: &Shell, handle: Entity<Shell>) -> ButtonGroup {
         .child(
             Button::new("mode-fast")
                 .label("Fast NTFS")
-                .tooltip("Read the NTFS file table. Windows asks for permission when you scan.")
-                .selected(fast),
+                .tooltip(if platform::FAST_NTFS_AVAILABLE {
+                    "Read the NTFS file table. Windows asks for permission when you scan."
+                } else {
+                    platform::FAST_NTFS_UNAVAILABLE
+                })
+                .selected(fast)
+                .disabled(!platform::FAST_NTFS_AVAILABLE),
         )
         .on_click(move |clicked, _, cx| {
             let fast = clicked.first() == Some(&1);

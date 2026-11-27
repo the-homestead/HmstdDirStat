@@ -10,6 +10,18 @@ use timberstat_filesystem::{EntryKind, NodeId};
 
 const KIB: usize = 1024;
 
+/// True when this process is root (Linux `/proc/self/status`, effective uid 0). Root bypasses
+/// permission bits, so chmod-based failure tests cannot fail there.
+#[cfg(unix)]
+fn running_as_root() -> bool {
+    std::fs::read_to_string("/proc/self/status").is_ok_and(|text| {
+        text.lines()
+            .find(|line| line.starts_with("Uid:"))
+            .and_then(|line| line.split_whitespace().nth(2))
+            == Some("0")
+    })
+}
+
 fn write(dir: &Path, name: &str, bytes: &[u8]) -> PathBuf {
     let path = dir.join(name);
     fs::write(&path, bytes).expect("write fixture");
@@ -236,6 +248,10 @@ fn locked_file_is_reported_and_left_out_of_groups() {
 #[test]
 fn unreadable_file_is_reported_and_left_out_of_groups() {
     use std::os::unix::fs::PermissionsExt;
+    if running_as_root() {
+        eprintln!("skipped: root reads a 0o000 file, so it cannot be unreadable");
+        return;
+    }
 
     let dir = tempfile::tempdir().expect("tempdir");
     let data = vec![8u8; 16 * KIB];

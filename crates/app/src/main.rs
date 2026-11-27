@@ -7,6 +7,7 @@ mod extensions;
 mod fast;
 mod layout;
 mod open;
+mod platform;
 mod scan;
 mod search;
 mod shell;

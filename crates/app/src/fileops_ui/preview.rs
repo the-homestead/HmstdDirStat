@@ -69,9 +69,12 @@ pub(super) fn body(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Div {
         .gap_3()
         .child(div().text_sm().text_color(p.muted_foreground).child(
             if mode == DeleteMode::Permanent {
-                "Review every path. Permanent delete has a second confirmation step."
+                "Review every path. Permanent delete has a second confirmation step.".to_string()
             } else {
-                "Review every path. Nothing is sent to the Recycle Bin until you confirm."
+                format!(
+                    "Review every path. Nothing is sent to the {} until you confirm.",
+                    crate::platform::TRASH_NAME
+                )
             },
         ))
         .child(stats)
@@ -101,9 +104,9 @@ pub(super) fn body(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Div {
                     Button::new("delete-preview-confirm")
                         .primary()
                         .label(if mode == DeleteMode::Permanent {
-                            "Continue"
+                            "Continue".to_string()
                         } else {
-                            "Move to Recycle Bin"
+                            format!("Move to {}", crate::platform::TRASH_NAME)
                         })
                         .on_click(move |_, _, cx| {
                             confirm.update(cx, |shell, cx| shell.review_delete(cx));

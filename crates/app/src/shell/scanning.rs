@@ -13,7 +13,7 @@ use gpui_kit::*;
 use timberstat_scanner::{FileSystemScanner, GenericScanner, ScanError, ScanOptions, ScanProgress};
 
 use super::{PROGRESS_REFRESH, Phase, Shell};
-use crate::{fast, scan::summarize};
+use crate::{fast, platform, scan::summarize};
 
 impl Shell {
     pub fn is_busy(&self) -> bool {
@@ -24,7 +24,9 @@ impl Shell {
     }
 
     pub fn set_fast_mode(&mut self, on: bool, cx: &mut Context<Self>) {
-        if !self.is_busy() {
+        // Fast NTFS is Windows only; on other systems it can never be switched on.
+        let allowed = !on || platform::FAST_NTFS_AVAILABLE;
+        if !self.is_busy() && allowed {
             self.fast_mode = on;
             cx.notify();
         }

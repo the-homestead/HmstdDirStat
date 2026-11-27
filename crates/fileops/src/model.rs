@@ -95,7 +95,13 @@ impl FailureReason {
             Self::NotEmpty => "directory not empty",
             Self::Conflict => "name conflict",
             Self::Blocked => "kept: a child failed",
-            Self::RecycleBin => "Recycle Bin rejected the item",
+            Self::RecycleBin => {
+                if cfg!(windows) {
+                    "Recycle Bin rejected the item"
+                } else {
+                    "Trash rejected the item"
+                }
+            }
             Self::InvalidName => "invalid name",
             Self::Other => "failed",
         }

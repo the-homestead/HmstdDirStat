@@ -13,6 +13,7 @@ use super::{
     Phase, Shell, fileops_ui, menu::menu_overlay, palette, results::*, settings, toolbar,
     view_menu, widgets::*, workspace,
 };
+use crate::platform;
 
 impl Render for Shell {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
@@ -57,7 +58,11 @@ pub(super) fn summary_content(phase: &Phase, p: Palette, handle: Entity<Shell>) 
     match phase {
         Phase::Idle => message_block(
             "Choose a volume",
-            "Pick a drive in the toolbar. Walk mode works without administrator rights. Fast mode asks Windows for permission, then reads the file table.",
+            if platform::FAST_NTFS_AVAILABLE {
+                "Pick a drive in the toolbar. Walk mode works without administrator rights. Fast mode asks Windows for permission, then reads the file table."
+            } else {
+                "Pick a drive in the toolbar. Walk mode reads every folder and needs no special rights. Fast NTFS is not available on this system."
+            },
             p,
         ),
         Phase::Walking { root, entries, .. } => {

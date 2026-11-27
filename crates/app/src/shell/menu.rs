@@ -8,6 +8,7 @@ use timberstat_fileops::DeleteMode;
 use timberstat_filesystem::{EntryKind, NodeId};
 
 use super::{Shell, fileops_ui::TransferKindUi, widgets::*};
+use crate::platform;
 
 /// Builds the popup for a menu that was just opened. Runs in render, which has the window the
 /// popup needs. Does nothing when no menu is open or its popup already exists.
@@ -48,7 +49,7 @@ pub(super) fn ensure_popup(shell: &mut Shell, window: &mut Window, cx: &mut Cont
         popup = popup
             .item(PopupMenuItem::new("Copy path").on_click(act(|s, n, cx| s.copy_path(n, cx))))
             .item(
-                PopupMenuItem::new("Show in Explorer")
+                PopupMenuItem::new(platform::REVEAL_LABEL)
                     .on_click(act(|s, n, cx| s.show_in_explorer(n, cx))),
             );
         if node != NodeId::ROOT {
@@ -63,9 +64,9 @@ pub(super) fn ensure_popup(shell: &mut Shell, window: &mut Window, cx: &mut Cont
                 .item(PopupMenuItem::new("Rename…").on_click(act(|s, n, cx| s.begin_rename(n, cx))))
                 .separator()
                 .item(
-                    PopupMenuItem::new("Delete (Recycle Bin)").on_click(act(|s, n, cx| {
-                        s.begin_delete(n, DeleteMode::RecycleBin, cx)
-                    })),
+                    PopupMenuItem::new(format!("Delete ({})", platform::TRASH_NAME)).on_click(act(
+                        |s, n, cx| s.begin_delete(n, DeleteMode::RecycleBin, cx),
+                    )),
                 )
                 .item(
                     PopupMenuItem::new("Delete permanently")

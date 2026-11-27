@@ -426,7 +426,7 @@ fn mode_tag(mode: DeleteMode) -> Tag {
     if mode == DeleteMode::Permanent {
         Tag::danger().child("Permanent")
     } else {
-        Tag::primary().child("Recycle Bin")
+        Tag::primary().child(crate::platform::TRASH_NAME)
     }
 }
 

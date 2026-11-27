@@ -50,7 +50,8 @@ pub(super) fn body(shell: &Shell, p: Palette, handle: Entity<Shell>) -> Div {
                 .text_sm()
                 .text_color(p.danger)
                 .child(format!(
-                    "Permanently delete {count} entries? This cannot be undone and does not use the Recycle Bin."
+                    "Permanently delete {count} entries? This cannot be undone and does not use the {}.",
+                    crate::platform::TRASH_NAME
                 )),
         )
         .child(field)
