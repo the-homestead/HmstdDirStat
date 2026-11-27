@@ -15,7 +15,7 @@ use gpui_kit::*;
 use timberstat_scanner::ScanProgress;
 
 use super::{PROGRESS_REFRESH, Phase, Shell};
-use crate::{platform, scan::summarize};
+use crate::{history, platform, scan::summarize};
 use timberstat_engine::fast;
 
 /// The drive letter of a path, uppercase. `?` when there is none.
@@ -31,6 +31,7 @@ impl Shell {
         ) || !self.delete.is_closed()
             || !self.transfer.is_closed()
             || !self.rename.is_closed()
+            || self.history.working
     }
 
     /// Scans a drive. Its mode is the drive's override, or `Auto`. The disk check runs once per
@@ -109,6 +110,7 @@ impl Shell {
     }
 
     fn begin_scan(&mut self, drive: PathBuf, kind: ScanKind, cx: &mut Context<Self>) {
+        self.history.notice = None;
         self.fast_mode = kind == ScanKind::Fast;
         match kind {
             ScanKind::Fast => self.start_fast(drive, cx),
@@ -146,7 +148,11 @@ impl Shell {
                     Ok(output) => {
                         tracing::info!(root = %root.display(), entries = output.report.entries_visited, "walk finished");
                         let summary = summarize(root.clone(), &output, elapsed);
-                        shell.install_tree(output.tree, root.clone(), cx);
+                        let provenance = history::new_provenance(
+                            history::method_from_scanner(output.report.method),
+                            &root,
+                        );
+                        shell.install_tree(output.tree, root.clone(), provenance, cx);
                         Phase::Walked(summary)
                     }
                     Err(timberstat_engine::EngineError::Cancelled) => Phase::Cancelled(root),
@@ -247,7 +253,11 @@ impl Shell {
                 let phase = match outcome {
                     Ok((summary, tree)) => {
                         tracing::info!(volume = %summary.volume, files = summary.files, "fast scan finished");
-                        shell.install_tree(tree, drive.clone(), cx);
+                        let provenance = history::new_provenance(
+                            timberstat_scan_history::ScanMethod::NtfsMft,
+                            &drive,
+                        );
+                        shell.install_tree(tree, drive.clone(), provenance, cx);
                         Phase::FastDone(summary)
                     }
                     Err(message) => {

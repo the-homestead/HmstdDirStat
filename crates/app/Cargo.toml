@@ -20,6 +20,7 @@ timberstat-scanner = { path = "../scanner" }
 timberstat-engine = { path = "../engine" }
 timberstat-ntfs = { path = "../ntfs" }
 timberstat-search = { path = "../search" }
+timberstat-scan-history = { path = "../scan-history" }
 gpui-kit.workspace = true
 anyhow.workspace = true
 tracing.workspace = true

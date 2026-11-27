@@ -4,6 +4,7 @@
 mod assets;
 mod explore;
 mod extensions;
+mod history;
 mod layout;
 mod open;
 mod platform;

@@ -6813,6 +6813,7 @@ dependencies = [
  "timberstat-fileops",
  "timberstat-filesystem",
  "timberstat-ntfs",
+ "timberstat-scan-history",
  "timberstat-scanner",
  "timberstat-search",
  "tracing",

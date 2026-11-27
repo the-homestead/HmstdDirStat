@@ -115,6 +115,7 @@ pub(super) fn summary_content(phase: &Phase, p: Palette, handle: Entity<Shell>) 
             stage,
         } => elevated_view(drive, *granted, *stage, p),
         Phase::Walked(summary) => walked_result(summary, p),
+        Phase::Reopened(summary, saved) => super::history_view::reopened_result(summary, saved, p),
         Phase::FastDone(summary) => fast_result(summary, p),
         Phase::Cancelled(root) => message_block(
             "Scan cancelled",
@@ -136,7 +137,7 @@ pub(super) fn drive_label(volume: &str) -> String {
 }
 
 fn status_bar(shell: &Shell, p: Palette, handle: Entity<Shell>) -> StatusBar {
-    let text = match &shell.phase {
+    let phase_text = match &shell.phase {
         Phase::Idle => "Ready".to_string(),
         Phase::Checking { drive } => format!("Checking disk type: {}", drive.display()),
         Phase::Walking { root, .. } => format!("Walking {}", root.display()),
@@ -158,10 +159,12 @@ fn status_bar(shell: &Shell, p: Palette, handle: Entity<Shell>) -> StatusBar {
             None => format!("Administrator access granted: {}", drive.display()),
         },
         Phase::Walked(summary) => format!("Walk finished: {}", summary.root.display()),
+        Phase::Reopened(summary, _) => format!("Saved scan open: {}", summary.root.display()),
         Phase::FastDone(summary) => format!("Fast read finished: {}", drive_label(&summary.volume)),
         Phase::Cancelled(_) => "Cancelled".to_string(),
         Phase::Failed { .. } => "Scan failed".to_string(),
     };
+    let text = shell.history.notice.clone().unwrap_or(phase_text);
     let mode = if shell.fast_mode {
         Tag::primary().child("Fast NTFS")
     } else {

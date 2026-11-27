@@ -8,6 +8,7 @@ mod extensions_view;
 #[path = "../fileops_ui/mod.rs"]
 mod fileops_ui;
 mod files_tree;
+mod history_view;
 mod menu;
 mod menubar;
 mod palette;
@@ -44,6 +45,7 @@ use gpui_kit::*;
 use timberstat_core::workspace::WorkspaceLayout;
 use timberstat_filesystem::{FileTree, NodeId};
 use timberstat_ntfs::{SummaryProgress, VolumeSummary};
+use timberstat_scan_history::ScanProvenance;
 use timberstat_scanner::CancelToken;
 
 use crate::{explore::Basis, scan::ScanSummary, search::Query};
@@ -69,6 +71,8 @@ pub enum Phase {
         stage: Option<SummaryProgress>,
     },
     Walked(ScanSummary),
+    /// A saved scan reopened from the Scan history dialog, with the time it was saved.
+    Reopened(ScanSummary, String),
     FastDone(VolumeSummary),
     Cancelled(PathBuf),
     Failed {
@@ -126,6 +130,9 @@ pub struct Shell {
     transfer: fileops_ui::TransferUi,
     rename: fileops_ui::RenameUi,
     dup: duplicates::DupUi,
+    /// Provenance of the tree on screen. Saved with the scan by Save scan.
+    provenance: Option<ScanProvenance>,
+    history: history_view::HistoryUi,
 }
 
 impl Shell {
@@ -173,6 +180,8 @@ impl Shell {
             transfer: fileops_ui::TransferUi::default(),
             rename: fileops_ui::RenameUi::default(),
             dup: duplicates::DupUi::default(),
+            provenance: None,
+            history: history_view::HistoryUi::default(),
         }
     }
 
@@ -210,6 +219,7 @@ impl Shell {
     fn clear_tree(&mut self) {
         self.dup.reset();
         self.tree = None;
+        self.provenance = None;
         self.scan_root = None;
         self.query = Query::new(self.query.text(), None);
         self.tree_state = None;
@@ -218,11 +228,18 @@ impl Shell {
         self.sunburst_hover = None;
     }
 
-    fn install_tree(&mut self, files: FileTree, scan_root: PathBuf, cx: &mut Context<Self>) {
+    fn install_tree(
+        &mut self,
+        files: FileTree,
+        scan_root: PathBuf,
+        provenance: ScanProvenance,
+        cx: &mut Context<Self>,
+    ) {
         self.query = Query::new(self.query.text(), Some(&files));
         self.tree_state = Some(files_tree::build_tree_state(&files, &self.query, cx));
         self.tree = Some(Arc::new(files));
         self.scan_root = Some(scan_root);
+        self.provenance = Some(provenance);
         self.focus = NodeId::ROOT;
         self.refresh_extensions();
     }

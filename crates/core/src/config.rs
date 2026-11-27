@@ -90,6 +90,14 @@ pub fn default_config_path() -> Result<PathBuf, ConfigError> {
     Ok(dirs.config_dir().join(CONFIG_FILE_NAME))
 }
 
+/// Folder for saved scans. It sits under the local data folder, not the roaming config
+/// folder, because one scan can be large and should not sync between machines.
+pub fn default_scans_dir() -> Result<PathBuf, ConfigError> {
+    let dirs =
+        directories::ProjectDirs::from("", "", APP_NAME).ok_or(ConfigError::NoConfigDirectory)?;
+    Ok(dirs.data_local_dir().join("scans"))
+}
+
 /// Where the config lived before the rename, if this platform has a config folder.
 pub fn legacy_config_path() -> Option<PathBuf> {
     directories::ProjectDirs::from("", "", LEGACY_APP_NAME)

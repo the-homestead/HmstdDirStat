@@ -325,7 +325,7 @@ impl Shell {
     fn account_for_delete(&mut self, report: &DeleteReport) {
         let removed = report.removed.len() as u64;
         match &mut self.phase {
-            Phase::Walked(summary) => {
+            Phase::Walked(summary) | Phase::Reopened(summary, _) => {
                 summary.files = summary.files.saturating_sub(report.removed_files);
                 summary.directories = summary
                     .directories

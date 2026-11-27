@@ -34,6 +34,8 @@ actions!(
         ToggleDarkTheme,
         OpenSettings,
         OpenScanFolder,
+        SaveScan,
+        OpenScanHistory,
         FindFiles,
         Quit
     ]
@@ -94,6 +96,8 @@ fn menus(shell: &Shell, dark: bool) -> Vec<OwnedMenu> {
             MenuItem::action("Stop scan", StopScan).disabled(!busy),
             MenuItem::separator(),
             MenuItem::action("Open scanned folder", OpenScanFolder).disabled(no_root),
+            MenuItem::action("Save scan", SaveScan).disabled(busy || no_root),
+            MenuItem::action("Scan history…", OpenScanHistory).disabled(busy),
             MenuItem::separator(),
             MenuItem::action("Exit", Quit),
         ],
@@ -257,6 +261,12 @@ pub(super) fn bind(root: Div, cx: &mut Context<Shell>) -> Div {
                 tracing::error!(%error, path = %root.display(), "could not open scan directory");
             }
         }))
+        .on_action(cx.listener(|s: &mut Shell, _: &SaveScan, _, c| s.save_scan(c)))
+        .on_action(
+            cx.listener(|s: &mut Shell, _: &OpenScanHistory, window, c| {
+                s.open_scan_history(window, c)
+            }),
+        )
         .on_action(cx.listener(|s: &mut Shell, _: &FindFiles, window, c| s.focus_search(window, c)))
         .on_action(cx.listener(|_: &mut Shell, _: &Quit, _, c| c.quit()))
 }
