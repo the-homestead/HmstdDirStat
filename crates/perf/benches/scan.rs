@@ -54,12 +54,21 @@ fn file_entry(i: usize) -> NewEntry {
 }
 
 /// A balanced tree of `nodes` nodes with `FANOUT` children per directory.
+///
+/// Node `i` has parent `(i - 1) / FANOUT`, so every parent index is at most
+/// `nodes / FANOUT`. Those nodes are directories; the rest are files.
 fn synthetic_tree(nodes: usize) -> FileTree {
     let mut tree = FileTree::with_root(NewEntry::directory("root".into(), Metadata::default()));
     let mut ids: Vec<NodeId> = vec![NodeId::ROOT];
+    let directory_limit = nodes / FANOUT;
     for i in 1..nodes {
         let parent = ids[(i - 1) / FANOUT];
-        let id = tree.add_child(parent, file_entry(i)).expect("add child");
+        let entry = if i <= directory_limit {
+            NewEntry::directory(format!("d{i}").into(), Metadata::default())
+        } else {
+            file_entry(i)
+        };
+        let id = tree.add_child(parent, entry).expect("add child");
         ids.push(id);
     }
     tree

@@ -1,0 +1,79 @@
+2026-11-27T17:43:58Z
+   Compiling timberstat-perf v0.1.0 (C:\Users\Dabz\AppData\Local\hermes\kanban\boards\timberstat\workspaces\t_a024d0a4\repo\crates\perf)
+    Finished `bench` profile [optimized] target(s) in 5.87s
+     Running unittests src\lib.rs (C:/Users/Dabz/AppData/Local/hermes/kanban/boards/timberstat/workspaces/t_a024d0a4/target\release\build\timberstat-perf/5bc25e4268c02f83\out\timberstat_perf-5bc25e4268c02f83.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\bin\gen_dataset.rs (C:/Users/Dabz/AppData/Local/hermes/kanban/boards/timberstat/workspaces/t_a024d0a4/target\release\build\timberstat-perf/170966ae1f89380b\out\gen_dataset-170966ae1f89380b.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\bin\perf_scan.rs (C:/Users/Dabz/AppData/Local/hermes/kanban/boards/timberstat/workspaces/t_a024d0a4/target\release\build\timberstat-perf/61cba0fa37c3716c\out\perf_scan-61cba0fa37c3716c.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running benches\scan.rs (C:/Users/Dabz/AppData/Local/hermes/kanban/boards/timberstat/workspaces/t_a024d0a4/target\release\build\timberstat-perf/7280e0b9eda940f9\out\scan-7280e0b9eda940f9.exe)
+Gnuplot not found, using plotters backend
+Benchmarking scan_generic/small
+Benchmarking scan_generic/small: Warming up for 3.0000 s
+Benchmarking scan_generic/small: Collecting 10 samples in estimated 5.1327 s (935 iterations)
+Benchmarking scan_generic/small: Analyzing
+scan_generic/small      time:   [5.4943 ms 7.6475 ms 12.029 ms]
+                        thrpt:  [25.106 Kelem/s 39.490 Kelem/s 54.966 Kelem/s]
+                 change:
+                        time:   [−30.380% +16.674% +84.890%] (p = 0.57 > 0.05)
+                        thrpt:  [−45.914% −14.291% +43.637%]
+                        No change in performance detected.
+Benchmarking scan_generic/deep
+Benchmarking scan_generic/deep: Warming up for 3.0000 s
+Benchmarking scan_generic/deep: Collecting 10 samples in estimated 6.7635 s (110 iterations)
+Benchmarking scan_generic/deep: Analyzing
+scan_generic/deep       time:   [100.24 ms 122.31 ms 136.77 ms]
+                        thrpt:  [4.8330 Kelem/s 5.4045 Kelem/s 6.5940 Kelem/s]
+                 change:
+                        time:   [−35.289% −2.6251% +41.902%] (p = 0.91 > 0.05)
+                        thrpt:  [−29.529% +2.6958% +54.534%]
+                        No change in performance detected.
+Benchmarking scan_generic/many-small
+Benchmarking scan_generic/many-small: Warming up for 3.0000 s
+Benchmarking scan_generic/many-small: Collecting 10 samples in estimated 6.3647 s (110 iterations)
+Benchmarking scan_generic/many-small: Analyzing
+scan_generic/many-small time:   [28.610 ms 33.804 ms 44.033 ms]
+                        thrpt:  [454.68 Kelem/s 592.27 Kelem/s 699.80 Kelem/s]
+                 change:
+                        time:   [+39.286% +74.276% +117.81%] (p = 0.00 < 0.05)
+                        thrpt:  [−54.089% −42.620% −28.205%]
+                        Performance has regressed.
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+
+Benchmarking tree_rollup/10000
+Benchmarking tree_rollup/10000: Warming up for 3.0000 s
+Benchmarking tree_rollup/10000: Collecting 100 samples in estimated 5.3768 s (900 iterations)
+Benchmarking tree_rollup/10000: Analyzing
+tree_rollup/10000       time:   [375.34 µs 395.86 µs 419.74 µs]
+                        thrpt:  [23.824 Melem/s 25.262 Melem/s 26.643 Melem/s]
+Found 6 outliers among 100 measurements (6.00%)
+  3 (3.00%) high mild
+  3 (3.00%) high severe
+Benchmarking tree_rollup/100000
+Benchmarking tree_rollup/100000: Warming up for 3.0000 s
+
+Warning: Unable to complete 100 samples in 5.0s. You may wish to increase target time to 6.8s, or reduce sample count to 70.
+Benchmarking tree_rollup/100000: Collecting 100 samples in estimated 6.7799 s (100 iterations)
+Benchmarking tree_rollup/100000: Analyzing
+tree_rollup/100000      time:   [7.4529 ms 7.8389 ms 8.2628 ms]
+                        thrpt:  [12.102 Melem/s 12.757 Melem/s 13.418 Melem/s]
+Found 2 outliers among 100 measurements (2.00%)
+  1 (1.00%) high mild
+  1 (1.00%) high severe
+
+BENCH_EXIT=0
+2026-11-27T17:45:07Z

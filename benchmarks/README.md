@@ -9,8 +9,8 @@ How TimberStat's performance is measured. Results and hardware are in
 | Path | Role |
 |---|---|
 | `crates/perf` (`timberstat-perf`) | Dataset generator (`gen-dataset`), timed scan runner (`perf-scan`), Criterion benches (`benches/scan.rs`). Not shipped. |
-| `benchmarks/measure-memory.ps1` | Windows macrobench: runs `perf-scan` as separate processes, records wall time and peak working set, writes an environment record. |
-| `benchmarks/results/<UTC stamp>/` | Raw output of each measured session: `environment.json`, `runs-<dataset>.jsonl`, `summary.json`. |
+| `benchmarks/run-macro.sh` | Macrobench driver: one `perf-scan` process per sample, writes the method record, the machine record and a median summary. |
+| `benchmarks/results/<UTC stamp>/` | Raw output of each measured session: `method.txt`, `environment.json`, `runs-<dataset>.jsonl`, `summary.json`. |
 | `.github/workflows/nightly-perf.yml` | Nightly, informational: the ignored 100k scanner test and the Criterion benches. |
 
 ## Safety
@@ -47,32 +47,36 @@ Generation is deterministic (fixed seed, `GENERATOR_VERSION` in the manifest).
 
 1. **Release builds only.** `cargo build -p timberstat-perf --release`. Results from
    debug builds are not recorded.
-2. **One process per sample** in the macrobench. Each sample is a fresh process, so
-   peak working set is the OS counter for that scan alone.
+2. **One process per sample** in the macrobench. Each sample is a fresh process. The
+   working-set sampler inside `perf-scan` reads this process's working set every 2 ms
+   and keeps the highest value. That is a lower bound on the OS peak (a spike between
+   two samples can be missed). The sampler's own cost is measured separately with
+   `run-macro.sh -m off`.
 3. **At least 5 samples** per dataset. Report median and min/max. Never report the
    best run.
-4. **Cache state** must be labelled. `measure-memory.ps1` takes `-CacheLabel` and
-   records it as given. It does not flush the OS cache. A `cold` label is only valid
-   after a flush or reboot that is documented in the run's `environment.json`.
+4. **Cache state** must be labelled. `run-macro.sh -c` records the label as given. It does
+   not flush the OS cache, so only `warm` results are produced. A `cold` label needs a
+   documented flush or reboot.
 5. **Same-machine comparisons only.** Numbers from another machine are not comparable.
-6. **Record the environment** each session: CPU, RAM, OS build, elevation, temp
-   volume filesystem, disk media, binary SHA-256, rustc version, repo commit and
-   count of uncommitted paths.
+6. **Record the environment** each session: `method.txt` (commit, uncommitted path
+   count, binary SHA-256, cache label, sampler setting) and `environment.json` (CPU,
+   RAM, OS, temp volume filesystem and kind). Elevation and the rustc version are not
+   recorded by the harness yet.
 7. **Commit raw output.** A number appears in `BENCHMARKS.md` only if it was copied
    from a file under `benchmarks/results/` or from Criterion output that is saved
    with the session.
 
-## Running the macrobench (Windows)
+## Running the macrobench
 
-```powershell
+```sh
 cargo build -p timberstat-perf --release --bins
-cargo run -p timberstat-perf --release --bin gen-dataset -- small deep many-small
-powershell -NoProfile -ExecutionPolicy Bypass -File benchmarks/measure-memory.ps1 `
-  -Binary target/release/perf-scan.exe -Datasets small,deep,many-small -Runs 5
+cargo run -p timberstat-perf --release --bin gen-dataset -- small deep many-small 100k few-huge
+PERF_SCAN=target/release/perf-scan bash benchmarks/run-macro.sh -n 5 small deep many-small 100k few-huge
 ```
 
-Generate larger datasets (`100k`, `1m`, `few-huge`) only when the temp volume has room.
-Remove them afterwards with `gen-dataset <id> --clean`.
+`1m` is generated the same way but takes about 20 minutes on the reference machine and
+writes about 4 GB. Generate it only when the temp volume has room, and remove datasets
+afterwards with `gen-dataset <id> --clean`.
 
 ## Running Criterion
 

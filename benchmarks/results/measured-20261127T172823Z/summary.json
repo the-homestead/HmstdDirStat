@@ -1,0 +1,98 @@
+[
+  {
+    "dataset": "100k",
+    "samples": 5,
+    "expected_tree_nodes": 100101,
+    "all_nodes_match_manifest": true,
+    "wall_ms_median": 55.2201,
+    "wall_ms_min": 39.7348,
+    "wall_ms_max": 637.2248000000001,
+    "entries_per_sec_median": 1812763.8305616977,
+    "peak_working_set_bytes_median": 32567296,
+    "peak_working_set_bytes_min": 32145408,
+    "peak_working_set_bytes_max": 33980416,
+    "cache_labels": [
+      "warm"
+    ]
+  },
+  {
+    "dataset": "1m",
+    "samples": 5,
+    "expected_tree_nodes": 1001001,
+    "all_nodes_match_manifest": true,
+    "wall_ms_median": 434.2378,
+    "wall_ms_min": 374.0568,
+    "wall_ms_max": 630.8454,
+    "entries_per_sec_median": 2305190.842437024,
+    "peak_working_set_bytes_median": 235991040,
+    "peak_working_set_bytes_min": 231628800,
+    "peak_working_set_bytes_max": 314163200,
+    "cache_labels": [
+      "warm"
+    ]
+  },
+  {
+    "dataset": "deep",
+    "samples": 5,
+    "expected_tree_nodes": 661,
+    "all_nodes_match_manifest": true,
+    "wall_ms_median": 72.2201,
+    "wall_ms_min": 63.4057,
+    "wall_ms_max": 118.9069,
+    "entries_per_sec_median": 9152.576637251956,
+    "peak_working_set_bytes_median": 11231232,
+    "peak_working_set_bytes_min": 10964992,
+    "peak_working_set_bytes_max": 11313152,
+    "cache_labels": [
+      "warm"
+    ]
+  },
+  {
+    "dataset": "few-huge",
+    "samples": 5,
+    "expected_tree_nodes": 6,
+    "all_nodes_match_manifest": true,
+    "wall_ms_median": 14.4242,
+    "wall_ms_min": 7.2628,
+    "wall_ms_max": 18.6052,
+    "entries_per_sec_median": 415.96760998876886,
+    "peak_working_set_bytes_median": 9744384,
+    "peak_working_set_bytes_min": 9183232,
+    "peak_working_set_bytes_max": 9760768,
+    "cache_labels": [
+      "warm"
+    ]
+  },
+  {
+    "dataset": "many-small",
+    "samples": 5,
+    "expected_tree_nodes": 20021,
+    "all_nodes_match_manifest": true,
+    "wall_ms_median": 34.0188,
+    "wall_ms_min": 20.025,
+    "wall_ms_max": 503.8958999999999,
+    "entries_per_sec_median": 588527.5200771338,
+    "peak_working_set_bytes_median": 14721024,
+    "peak_working_set_bytes_min": 14204928,
+    "peak_working_set_bytes_max": 15826944,
+    "cache_labels": [
+      "warm"
+    ]
+  },
+  {
+    "dataset": "small",
+    "samples": 5,
+    "expected_tree_nodes": 302,
+    "all_nodes_match_manifest": true,
+    "wall_ms_median": 15.6087,
+    "wall_ms_min": 4.8513,
+    "wall_ms_max": 32.7886,
+    "entries_per_sec_median": 19348.18402557548,
+    "peak_working_set_bytes_median": 9826304,
+    "peak_working_set_bytes_min": 9789440,
+    "peak_working_set_bytes_max": 10018816,
+    "cache_labels": [
+      "warm"
+    ]
+  }
+]

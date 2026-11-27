@@ -1,0 +1,98 @@
+[
+  {
+    "dataset": "100k",
+    "samples": 5,
+    "expected_tree_nodes": 100101,
+    "all_nodes_match_manifest": true,
+    "wall_ms_median": 53.3449,
+    "wall_ms_min": 50.708200000000005,
+    "wall_ms_max": 84.09609999999999,
+    "entries_per_sec_median": 1876486.786928085,
+    "peak_working_set_bytes_median": 0,
+    "peak_working_set_bytes_min": 0,
+    "peak_working_set_bytes_max": 0,
+    "cache_labels": [
+      "warm"
+    ]
+  },
+  {
+    "dataset": "1m",
+    "samples": 5,
+    "expected_tree_nodes": 1001001,
+    "all_nodes_match_manifest": true,
+    "wall_ms_median": 439.0399,
+    "wall_ms_min": 345.0591,
+    "wall_ms_max": 800.6130999999999,
+    "entries_per_sec_median": 2279977.286802407,
+    "peak_working_set_bytes_median": 0,
+    "peak_working_set_bytes_min": 0,
+    "peak_working_set_bytes_max": 0,
+    "cache_labels": [
+      "warm"
+    ]
+  },
+  {
+    "dataset": "deep",
+    "samples": 5,
+    "expected_tree_nodes": 661,
+    "all_nodes_match_manifest": true,
+    "wall_ms_median": 182.4893,
+    "wall_ms_min": 73.88359999999999,
+    "wall_ms_max": 230.2577,
+    "entries_per_sec_median": 3622.1301742074743,
+    "peak_working_set_bytes_median": 0,
+    "peak_working_set_bytes_min": 0,
+    "peak_working_set_bytes_max": 0,
+    "cache_labels": [
+      "warm"
+    ]
+  },
+  {
+    "dataset": "few-huge",
+    "samples": 5,
+    "expected_tree_nodes": 6,
+    "all_nodes_match_manifest": true,
+    "wall_ms_median": 17.3139,
+    "wall_ms_min": 9.8411,
+    "wall_ms_max": 68.6119,
+    "entries_per_sec_median": 346.5423734687159,
+    "peak_working_set_bytes_median": 0,
+    "peak_working_set_bytes_min": 0,
+    "peak_working_set_bytes_max": 0,
+    "cache_labels": [
+      "warm"
+    ]
+  },
+  {
+    "dataset": "many-small",
+    "samples": 5,
+    "expected_tree_nodes": 20021,
+    "all_nodes_match_manifest": true,
+    "wall_ms_median": 32.970600000000005,
+    "wall_ms_min": 21.5391,
+    "wall_ms_max": 45.097199999999994,
+    "entries_per_sec_median": 607237.9635190138,
+    "peak_working_set_bytes_median": 0,
+    "peak_working_set_bytes_min": 0,
+    "peak_working_set_bytes_max": 0,
+    "cache_labels": [
+      "warm"
+    ]
+  },
+  {
+    "dataset": "small",
+    "samples": 5,
+    "expected_tree_nodes": 302,
+    "all_nodes_match_manifest": true,
+    "wall_ms_median": 5.0603,
+    "wall_ms_min": 3.3872,
+    "wall_ms_max": 11.1174,
+    "entries_per_sec_median": 59680.25611129775,
+    "peak_working_set_bytes_median": 0,
+    "peak_working_set_bytes_min": 0,
+    "peak_working_set_bytes_max": 0,
+    "cache_labels": [
+      "warm"
+    ]
+  }
+]

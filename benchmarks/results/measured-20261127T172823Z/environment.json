@@ -1,0 +1,23 @@
+{
+  "generated_unix": 1795800506,
+  "perf_version": "0.1.0",
+  "build_profile": "release",
+  "target_os": "windows",
+  "target_arch": "x86_64",
+  "cpu_brand": "AMD Ryzen 9 3900X 12-Core Processor            ",
+  "cpu_physical_cores": 12,
+  "cpu_logical": 24,
+  "ram_total_bytes": 34263318528,
+  "os_name": "Windows",
+  "os_long_version": "Windows 11 Enterprise",
+  "kernel_version": "26200",
+  "temp_dir": "C:\\Users\\Dabz\\AppData\\Local\\Temp\\",
+  "temp_volume": {
+    "mount_point": "C:\\",
+    "file_system": "NTFS",
+    "kind": "SSD",
+    "total_bytes": 1752486113280,
+    "removable": false
+  },
+  "memory_sample_interval_ms": 2.0
+}

@@ -1,0 +1,11 @@
+stamp_utc=20261127T172824Z
+commit=366cd953139029898b16997b6c70bc85e5e36842
+branch=wt/t_a024d0a4
+uncommitted_paths=1
+binary=C:/Users/Dabz/AppData/Local/hermes/kanban/boards/timberstat/workspaces/t_a024d0a4/target/release/perf-scan.exe
+binary_sha256=a60b5238e018753098dd25599b1c983b888c9c54b5913e99d02f4e1911f442a2
+cache_label=warm
+cache_flush=not performed by this script
+memory_sampler=on
+samples_per_dataset=5
+datasets=small deep many-small 100k few-huge 1m

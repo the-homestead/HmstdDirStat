@@ -1,0 +1,19 @@
+2026-11-27T17:39:42Z
+   Compiling getrandom v0.4.3
+   Compiling once_cell v1.21.4
+   Compiling fastrand v2.5.0
+   Compiling windows-sys v0.61.2
+   Compiling tempfile v3.27.0
+   Compiling timberstat-scanner v0.1.0 (C:\Users\Dabz\AppData\Local\hermes\kanban\boards\timberstat\workspaces\t_a024d0a4\repo\crates\scanner)
+    Finished `release` profile [optimized] target(s) in 4.84s
+     Running tests\scan.rs (C:/Users/Dabz/AppData/Local/hermes/kanban/boards/timberstat/workspaces/t_a024d0a4/target\release\build\timberstat-scanner/0cf7121f79d5d3b0\out\scan-0cf7121f79d5d3b0.exe)
+
+running 1 test
+test hundred_thousand_files_scan has been running for over 60 seconds
+scanned 100000 files in 1.1836844s
+test hundred_thousand_files_scan ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 149.76s
+
+NIGHTLY_EXIT=0
+2026-11-27T17:42:18Z
