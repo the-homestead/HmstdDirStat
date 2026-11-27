@@ -15,6 +15,18 @@ pub fn write_atomic(path: &Path, contents: &str, overwrite: bool) -> Result<(), 
     write_inner(path, contents, overwrite, None)
 }
 
+/// Writes like [`write_atomic`], with one final caller check after the temporary
+/// file is flushed and before it is persisted. A rejected check cleans up the
+/// temporary file and preserves any existing destination.
+pub fn write_atomic_with_check(
+    path: &Path,
+    contents: &str,
+    overwrite: bool,
+    before_persist: &dyn Fn() -> io::Result<()>,
+) -> Result<(), ExportError> {
+    write_inner(path, contents, overwrite, Some(before_persist))
+}
+
 fn write_inner(
     path: &Path,
     contents: &str,
@@ -89,5 +101,17 @@ mod tests {
         assert!(matches!(error, ExportError::Io { .. }));
         assert_eq!(fs::read_to_string(&path).unwrap(), "old complete export");
         assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn public_pre_persist_check_rejects_without_a_new_output_file() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("scan.json");
+        let reject = || Err(io::Error::new(io::ErrorKind::Interrupted, "cancelled"));
+        let error = write_atomic_with_check(&path, "partial", false, &reject)
+            .expect_err("cancellation must abort before rename");
+        assert!(matches!(error, ExportError::Io { .. }));
+        assert!(!path.exists());
+        assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 0);
     }
 }

@@ -22,7 +22,7 @@ mod sample;
 #[cfg(test)]
 mod verify_tests;
 
-pub use hash::{Digest, digest_hex};
+pub use hash::{Digest, digest_hex, hash_file};
 pub use identity::file_key;
 pub use items::file_items;
 pub use pipeline::{Options, find_duplicates};

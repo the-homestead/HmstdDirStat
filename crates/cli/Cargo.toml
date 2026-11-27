@@ -1,0 +1,30 @@
+[package]
+name = "timberstat-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+description = "Headless TimberStat CLI using the shared scanner, filesystem, duplicate, export, history, and comparison engines."
+
+[[bin]]
+name = "timberstat-cli"
+path = "src/main.rs"
+
+[dependencies]
+timberstat-scanner = { path = "../scanner" }
+timberstat-filesystem = { path = "../filesystem" }
+timberstat-fileops = { path = "../fileops" }
+timberstat-duplicates = { path = "../duplicates" }
+timberstat-export = { path = "../export" }
+timberstat-scan-history = { path = "../scan-history" }
+timberstat-scan-comparison = { path = "../scan-comparison" }
+serde.workspace = true
+serde_json.workspace = true
+signal-hook.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

@@ -17,4 +17,4 @@ pub use document::{
 };
 pub use error::ExportError;
 pub use row::{ExportRow, ExportedEntryKind};
-pub use writer::write_atomic;
+pub use writer::{write_atomic, write_atomic_with_check};

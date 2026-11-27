@@ -160,3 +160,12 @@ Decisions taken for P4 (owner can override):
 - Scope: regular files only. Folders, symlinks and special entries are skipped.
 - The duplicate panel is a widget (`WidgetKind::Duplicates`). It starts hidden and joins the tiled layout through View.
 
+## 9. Headless CLI (TimberStat P5.8, Plan section 16)
+
+Accepted: `signal-hook` 0.4.6 with `default-features = false` (crates.io and API docs read 2026-11-26).
+The CLI needs safe Ctrl+C delivery to the existing scanner and duplicate cancellation tokens. It uses the
+`flag` API, which supports Windows, and an ordinary monitor thread. The `iterator` API is non-Windows and
+is therefore not enabled. The crate's MSRV is 1.66, below the workspace 1.95.
+
+Argument parsing uses `std`; no argument-parsing crate was added. No other new dependency was introduced.
+

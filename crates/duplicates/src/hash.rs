@@ -54,6 +54,12 @@ pub(crate) fn full_digest(path: &Path, progress: &Progress) -> io::Result<Option
     Ok(Some(*hasher.finalize().as_bytes()))
 }
 
+/// Computes one file's BLAKE3 digest with the same streamed, cancellable
+/// implementation used by duplicate detection. `Ok(None)` means cancelled.
+pub fn hash_file(path: &Path, progress: &Progress) -> io::Result<Option<Digest>> {
+    full_digest(path, progress)
+}
+
 /// Result of a byte comparison between two files.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Compared {
